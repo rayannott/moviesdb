@@ -416,15 +416,6 @@ class App:
         )
         entry_app.run()
         if entry_app.entry is not None:
-            print(
-                entry._id,
-                entry.type,
-                entry.as_dict(),
-                entry_app.entry._id,
-                entry_app.entry.type,
-                entry_app.entry.as_dict(),
-                sep="\n",
-            )
             if entry_app.entry == entry:
                 self.warning("No changes made:")
                 self.cns.print(format_entry(entry))
