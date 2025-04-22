@@ -1,11 +1,10 @@
 import pathlib
 import warnings
 
-DB_FILE = pathlib.Path("db.json")
-WATCH_LIST_FILE = pathlib.Path("watch_list.json")
-SQL_QUERY_EXAMPLES_DIR = pathlib.Path("query-examples")
+SQL_QUERY_EXAMPLES_DIR = pathlib.Path("query-examples-local")
 
 PERSISTENT_MEMORY_FILE = pathlib.Path("local") / "persistent_memory.dat"
+# TODO: make another document store instead
 
 if not PERSISTENT_MEMORY_FILE.exists():
     warnings.warn(

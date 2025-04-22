@@ -1,7 +1,6 @@
 from rich.console import Console
 
 with Console().status("Loading dependencies..."):
-    import json
     import os
     import random
     import time
@@ -28,8 +27,6 @@ with Console().status("Loading dependencies..."):
     from src.obj.sql_mode import SqlMode
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
-    from src.paths import DB_FILE, WATCH_LIST_FILE
-    from src.utils.git_utils import get_local_changes
     from src.utils.plots import get_plot
     from src.utils.rich_utils import (
         format_entry,
@@ -153,21 +150,9 @@ class App:
     COMMANDS = {f[0].split()[0] for f in HELP_DATA}
 
     @staticmethod
-    def load_entries() -> list[Entry]:
-        with DB_FILE.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-        return [Entry.from_dict(entry) for entry in data]
-
-    @staticmethod
     def load_entries_mongo() -> list[Entry]:
         data = entries().find()
         return [Entry.from_dict(entry) for entry in data]
-
-    @staticmethod
-    def load_watch_list() -> dict[str, bool]:
-        with WATCH_LIST_FILE.open("r", encoding="utf-8") as f:
-            data: dict[str, bool] = json.load(f)
-        return data
 
     @staticmethod
     def load_watch_list_mongo() -> dict[str, bool]:
@@ -244,9 +229,7 @@ class App:
         }
 
     def _load_all(self):
-        # self.entries = self.load_entries()
         self.entries = sorted(self.load_entries_mongo())
-        # self.watch_list = self.load_watch_list()
         self.watch_list = self.load_watch_list_mongo()
 
     def add_entry(self, entry: Entry):
@@ -310,7 +293,6 @@ class App:
             if prompt == "t":
                 entry.tags.add(TAG_WATCH_AGAIN)
                 entries().replace_one({"_id": entry._id}, entry.as_dict())
-                # self.dump_entries()
                 return
             elif prompt == "n":
                 return
@@ -329,7 +311,6 @@ class App:
                 title = possible_title
         self.watch_list[title] = is_series
         watchlist().insert_one({"title": title, "is_series": is_series})
-        # self.dump_watch_list()
         self.cns.print(
             format_title(title, Type.SERIES if is_series else Type.MOVIE)
             + "[bold green] has been added to the watch list."
@@ -343,13 +324,15 @@ class App:
         if title not in self.watch_list:
             self.warning(f"{title} is not in the watch list")
             return
-        self.cns.print(
+        title_fmtd = (
             format_title(title, Type.SERIES if self.watch_list[title] else Type.MOVIE)
-            + "[bold green] has been removed from the watch list."
         )
         del self.watch_list[title]
-        watchlist().delete_one({"title": title})
-        # self.dump_watch_list()
+        delete_res = watchlist().delete_one({"title": title})
+        if delete_res.deleted_count == 0:
+            self.error(f"{title_fmtd} was not in the database")
+            return
+        self.cns.print(title_fmtd + "[bold green] has been removed from the watch list.")
 
     def entry_by_idx(self, idx: int | str) -> Entry | None:
         try:
@@ -466,25 +449,25 @@ class App:
         else:
             if not (entry := self.entry_by_idx(title_or_idx)):
                 return
-        if {"--d", "--delete"} & flags:
+        if {"d", "delete"} & flags:
             try:
                 entry.tags.remove(tagname)
                 self.cns.print(
-                    f"{format_entry(entry)} [bold green]has been untagged from {format_tag(tagname)}[/]"
+                    f"{format_entry(entry)} [bold green]has been untagged from[/] {format_tag(tagname)}"
                 )
                 entries().replace_one({"_id": entry._id}, entry.as_dict())
             except KeyError:
                 self.cns.print(
-                    f"{format_entry(entry)} [bold red]does not have the tag {format_tag(tagname)}[/]"
+                    f"{format_entry(entry)} [bold red]does not have the tag[/] {format_tag(tagname)}"
                 )
             return
         if tagname in entry.tags:
-            self.warning(f"The entry already has the tag {tagname}:")
+            self.warning(f"The entry already has the tag {format_tag(tagname)}:")
             self.cns.print(format_entry(entry))
             return
         entry.tags.add(tagname)
         self.cns.print(
-            f"{format_entry(entry)} [bold green]has been tagged with {format_tag(tagname)}[/]"
+            f"{format_entry(entry)} [bold green]has been tagged with[/] {format_tag(tagname)}"
         )
         entries().replace_one({"_id": entry._id}, entry.as_dict())
 
@@ -799,7 +782,10 @@ class App:
         if not (entry := self.entry_by_idx(idx)):
             return
         popped_entry = self.entries.pop(int(idx))
-        entries().delete_one({"_id": popped_entry._id})
+        delete_result = entries().delete_one({"_id": popped_entry._id})
+        if delete_result == 0:
+            self.error(f"{format_entry(popped_entry)} was not in the database")
+            return
         self.cns.print(f"󰺝 Removed\n{format_entry(entry)}")
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -854,10 +840,7 @@ class App:
         self.header()
         while self.running:
             try:
-                local_changes = get_local_changes()
-                command = self.input(
-                    f"[{'yellow' if any(local_changes) else 'white'}]>>> [/]"
-                )
+                command = self.input(">>> ")
                 self.process_command(command)
             except KeyboardInterrupt:
                 return
