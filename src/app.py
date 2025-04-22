@@ -89,6 +89,8 @@ class App:
         ("find <word>", "find movie by title or substring of title (ignores case)"),
         ("note <word>", "find movie by substing in note (ignores case)"),
         ("pop <index>", "remove entry by index"),
+        ("pop --undo", "unpop the most recently popped entry"),
+        ("export", "export the entries and the watch list as json files"),
         (
             "list [--series|--movies, --all, --n=<number>]",
             "list last n entries (default is 5, --n=<number> to specify); --all to list all; --series or --movies to filter by type",
@@ -228,6 +230,8 @@ class App:
             if method_name.startswith("cmd_")
         }
 
+        self.recently_popped: list[Entry] = []
+
     def _load_all(self):
         self.entries = sorted(self.load_entries_mongo())
         self.watch_list = self.load_watch_list_mongo()
@@ -293,6 +297,7 @@ class App:
             if prompt == "t":
                 entry.tags.add(TAG_WATCH_AGAIN)
                 entries().replace_one({"_id": entry._id}, entry.as_dict())
+                self.cns.print(f"Done:\n{format_entry(entry)}")
                 return
             elif prompt == "n":
                 return
@@ -324,15 +329,17 @@ class App:
         if title not in self.watch_list:
             self.warning(f"{title} is not in the watch list")
             return
-        title_fmtd = (
-            format_title(title, Type.SERIES if self.watch_list[title] else Type.MOVIE)
+        title_fmtd = format_title(
+            title, Type.SERIES if self.watch_list[title] else Type.MOVIE
         )
         del self.watch_list[title]
         delete_res = watchlist().delete_one({"title": title})
         if delete_res.deleted_count == 0:
             self.error(f"{title_fmtd} was not in the database")
             return
-        self.cns.print(title_fmtd + "[bold green] has been removed from the watch list.")
+        self.cns.print(
+            title_fmtd + "[bold green] has been removed from the watch list."
+        )
 
     def entry_by_idx(self, idx: int | str) -> Entry | None:
         try:
@@ -775,6 +782,17 @@ class App:
         self.cns.print(resp.rich())
 
     def cmd_pop(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        if "undo" in flags:
+            if not self.recently_popped:
+                self.warning("No recently popped entries.")
+                return
+            self.cns.print(f"Found {len(self.recently_popped)} recently popped entries.")
+            to_restore = self.recently_popped.pop()
+            new_id = entries().insert_one(to_restore.as_dict()).inserted_id
+            to_restore._id = new_id
+            self.entries.append(to_restore)
+            self.cns.print(f"Restored:\n{format_entry(to_restore)}")
+            return
         if not pos:
             self.error("No index provided.")
             return
@@ -782,11 +800,15 @@ class App:
         if not (entry := self.entry_by_idx(idx)):
             return
         popped_entry = self.entries.pop(int(idx))
-        delete_result = entries().delete_one({"_id": popped_entry._id})
-        if delete_result == 0:
-            self.error(f"{format_entry(popped_entry)} was not in the database")
+        delete_res = entries().delete_one({"_id": popped_entry._id})
+        if delete_res.deleted_count == 0:
+            self.error(f"{format_entry(popped_entry)} was not in the database.")
             return
         self.cns.print(f"󰺝 Removed\n{format_entry(entry)}")
+        self.recently_popped.append(popped_entry)
+
+    def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        ...
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         sql_mode = SqlMode(self.entries, self.cns, self.input)
