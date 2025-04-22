@@ -3,6 +3,8 @@ import warnings
 
 SQL_QUERY_EXAMPLES_DIR = pathlib.Path("query-examples-local")
 
+LOCAL_DIR = pathlib.Path("local")
+
 PERSISTENT_MEMORY_FILE = pathlib.Path("local") / "persistent_memory.dat"
 # TODO: make another document store instead
 

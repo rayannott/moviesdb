@@ -3,6 +3,7 @@ from rich.console import Console
 with Console().status("Loading dependencies..."):
     import os
     import random
+    import json
     import time
     from collections import defaultdict
     from functools import partial
@@ -28,6 +29,7 @@ with Console().status("Loading dependencies..."):
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.utils.plots import get_plot
+    from src.paths import LOCAL_DIR
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -786,7 +788,9 @@ class App:
             if not self.recently_popped:
                 self.warning("No recently popped entries.")
                 return
-            self.cns.print(f"Found {len(self.recently_popped)} recently popped entries.")
+            self.cns.print(
+                f"Found {len(self.recently_popped)} recently popped entries."
+            )
             to_restore = self.recently_popped.pop()
             new_id = entries().insert_one(to_restore.as_dict()).inserted_id
             to_restore._id = new_id
@@ -808,7 +812,20 @@ class App:
         self.recently_popped.append(popped_entry)
 
     def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        ...
+        LOCAL_DIR.mkdir(exist_ok=True)
+        dbfile = LOCAL_DIR / "db.json"
+        with dbfile.open("w", encoding="utf-8") as f:
+            json.dump(
+                [entry.as_dict() for entry in sorted(self.entries)],
+                f,
+                indent=2,
+                ensure_ascii=False,
+            )
+            self.cns.print(f"Exported {len(self.entries)} entries to {dbfile.absolute()}.")
+        wlfile = LOCAL_DIR / "watch_list.json"
+        with wlfile.open("w", encoding="utf-8") as f:
+            json.dump(self.watch_list, f, indent=2, ensure_ascii=False)
+            self.cns.print(f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}.")
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         sql_mode = SqlMode(self.entries, self.cns, self.input)
