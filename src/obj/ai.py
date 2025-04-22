@@ -1,13 +1,15 @@
 import os
 import warnings
 from typing import Iterable, TypedDict
+from collections.abc import Callable
 
 import dotenv
 from openai import OpenAI
 from pydantic import BaseModel
+from pymongo.collection import Collection
+from bson import ObjectId
 
 from src.obj.entry import Entry
-from src.paths import PERSISTENT_MEMORY_FILE
 
 dotenv.load_dotenv()
 
@@ -85,27 +87,35 @@ When remembering information about the user, ensure it is factual and likely to 
 
 By default, structure and format your responses using markdown.
 
+The following information is remembered about the user. Make sure to use it where appropriate and indicate so if you do:
+{user_info}
 
 The user has already watched the following movies:
 {movies_watched_info}
-
-The following information is remembered about the user:
-{user_info}
 """
 
-    def __init__(self, entries: list[Entry]):
+    def __init__(
+        self, entries: list[Entry], ai_memory_collection_fn: Callable[[], Collection]
+    ):
         self.entries = entries
+        self.ai_memory_collection_fn = ai_memory_collection_fn
         self._client = None
-
         self._conversation_history: list[tuple[str, str]] = []
 
-    @property
-    def context(self) -> str:
+    def get_memory_items(self) -> list[tuple[str, str]]:
+        return [
+            (str(mem["_id"]), mem["item"])
+            for mem in self.ai_memory_collection_fn().find()
+        ]
+
+    def add_memory_item(self, mem: str) -> ObjectId:
+        return self.ai_memory_collection_fn().insert_one({"item": mem}).inserted_id
+
+    def get_context(self) -> str:
+        mem_items = self.get_memory_items()
         return self.CONTEXT.format(
             movies_watched_info=";".join({entry.title for entry in self.entries}),
-            user_info=PERSISTENT_MEMORY_FILE.read_text().strip()
-            if PERSISTENT_MEMORY_FILE.exists()
-            else "",
+            user_info="\n".join(mem for _, mem in mem_items),
         )
 
     @property
@@ -117,12 +127,8 @@ The following information is remembered about the user:
     def _add_new_conversation(self, prompt: str, response: str):
         self._conversation_history.append((prompt, response))
 
-    def forget(self):
+    def reset(self):
         self._conversation_history = []
-
-    def remember(self, fact: str):
-        with open(PERSISTENT_MEMORY_FILE, "a") as f:
-            print(fact, file=f)
 
     def prompt(
         self,
@@ -136,7 +142,7 @@ The following information is remembered about the user:
             messages=[
                 {
                     "role": "system",
-                    "content": self.context,
+                    "content": self.get_context(),
                 },
                 *_iter_conversation_history(self._conversation_history),  # type: ignore
                 {"role": "user", "content": text},
@@ -148,6 +154,6 @@ The following information is remembered about the user:
             return " No response from AI"
         resp_text = resp.text
         if resp.to_remember:
-            self.remember(resp.to_remember)
+            self.add_memory_item(resp.to_remember)
         self._add_new_conversation(text, resp_text)
         return resp_text

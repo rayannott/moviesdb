@@ -19,6 +19,7 @@ with Console().status("Loading dependencies..."):
     from pymongo.mongo_client import MongoClient
     from pymongo.server_api import ServerApi
     from pymongo.collection import Collection
+    from bson import ObjectId
 
     from src.obj.ai import ChatBot
     from src.obj.entry import Entry, MalformedEntryException, Type, is_verbose
@@ -68,6 +69,10 @@ def entries() -> Collection:
 
 def watchlist() -> Collection:
     return CLIENT.db.watchlist
+
+
+def aimemory() -> Collection:
+    return CLIENT.db.aimemory
 
 
 def identity(x: str):
@@ -149,7 +154,16 @@ class App:
             "ask the chatGPT a question; --full to use chatGPT-4o instead of chatGPT-4o-mini",
         ),
         ("ai [--full]", "open the chatbot TUI interface"),
-        ("ai --forget", "forget the conversation history"),
+        ("ai --reset", "forget the conversation history"),
+        ("ai --memory", "list the AI's saved memories about the user"),
+        (
+            "ai --forget <memory item id>",
+            "forget the memory item corresponding to an id",
+        ),
+        (
+            "ai --remember <memory item>",
+            "add some information about the user manually",
+        ),
     ]
     COMMANDS = {f[0].split()[0] for f in HELP_DATA}
 
@@ -222,7 +236,7 @@ class App:
         self.cns = Console()
         self.input = partial(rinput, self.cns)
 
-        self.chatbot = ChatBot(self.entries)
+        self.chatbot = ChatBot(self.entries, aimemory)
 
         self.command_methods: dict[
             str, Callable[[PositionalArgs, KeywordArgs, Flags], None]
@@ -506,12 +520,34 @@ class App:
             self.error("No matches found")
 
     def cmd_ai(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        if "forget" in flags:
+        if "reset" in flags:
             self.cns.print(
                 f"Cleared {len(self.chatbot._conversation_history)} prompt-response pairs."
             )
-            self.chatbot.forget()
+            self.chatbot.reset()
             return
+        if "memory" in flags:
+            mem_items = self.chatbot.get_memory_items()
+            if not mem_items:
+                self.warning("No context about the user.")
+                return
+            for mi_id, mi_info in mem_items:
+                self.cns.print(rf"[blue]\[{mi_id[-7:]}][/] [green]{mi_info}[/]")
+            return
+        if (mi_id_to_remove := kwargs.get("forget")) is not None:
+            for mi_id, mi_info in self.chatbot.get_memory_items():
+                if mi_id_to_remove in mi_id:
+                    aimemory().delete_one({"_id": ObjectId(mi_id)})
+                    self.cns.print(f"󰺝 Deleted [blue]{mi_id}.")
+                    break
+            else:
+                self.warning(f"No memory with {mi_id_to_remove}.")
+            return
+        if (to_remember := kwargs.get("remember")) is not None:
+            oid = self.chatbot.add_memory_item(to_remember)
+            self.cns.print(f"Inserted under [blue]{oid}.")
+            return
+
         prompt = " ".join(pos).strip()
         if not prompt:
             chatbot = ChatBotApp(self.chatbot, "full" not in flags)
@@ -663,7 +699,7 @@ class App:
                 for e in _same_title_with_watch_again:
                     e.tags.remove(TAG_WATCH_AGAIN)
                     self.cns.print(
-                        f"[green]Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
+                        f"[green]󰺝 Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
                     )
 
     def cmd_add(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -821,11 +857,15 @@ class App:
                 indent=2,
                 ensure_ascii=False,
             )
-            self.cns.print(f"Exported {len(self.entries)} entries to {dbfile.absolute()}.")
+            self.cns.print(
+                f"Exported {len(self.entries)} entries to {dbfile.absolute()}."
+            )
         wlfile = LOCAL_DIR / "watch_list.json"
         with wlfile.open("w", encoding="utf-8") as f:
             json.dump(self.watch_list, f, indent=2, ensure_ascii=False)
-            self.cns.print(f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}.")
+            self.cns.print(
+                f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}."
+            )
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         sql_mode = SqlMode(self.entries, self.cns, self.input)
