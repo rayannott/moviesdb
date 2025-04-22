@@ -1,0 +1,71 @@
+/* Style for the vertical container */
+Vertical {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+    padding: 1;
+}
+
+/* Style for labels */
+Label {
+    width: 100%;
+    height: 1;
+    margin-bottom: 1;
+    text-style: bold; /* Make the text bold */
+    text-align: center; /* Center-align the text horizontally */
+    content-align: center middle; /* Center-align the text vertically and horizontally */
+    color: white; /* Ensure the text color is white (or any color you prefer) */
+}
+
+/* Style for input fields */
+Input {
+    width: 50;
+    height: 3;
+    margin-bottom: 1;
+    border: solid #444; /* Straight border with a darker color */
+}
+Input.invalid {
+    border: solid #ff0000; /* Red border for invalid inputs */
+}
+
+/* Style for the select widget */
+RadioSet {
+    width: 50;
+    margin-bottom: 1;
+}
+
+/* Style for radio buttons */
+RadioButton {
+    margin-bottom: 1;
+}
+
+RadioButton:focus {
+    background: #444; /* Darker background for focused radio buttons */
+    border: solid #444; /* Straight border for focused radio buttons */
+}
+
+/* Style for the save button */
+Button {
+    width: 50;
+    height: 3;
+    margin-top: 2;
+}
+
+/* Notification styling */
+Notification {
+    background: #4CAF50; /* Green background */
+    color: white;
+    border: solid #4CAF50; /* Straight border with green color */
+}
+
+Notification.error {
+    background: #f44336; /* Red background for errors */
+    border: solid #f44336; /* Straight border with red color */
+}
+
+/* Style for the TextArea */
+TextArea {
+    width: 50;
+    height: 6;
+    border: solid #444; /* Straight border with a darker color */
+}

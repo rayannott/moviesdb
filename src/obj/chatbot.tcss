@@ -1,0 +1,43 @@
+Screen {
+    layout: vertical;
+    background: $surface;
+}
+
+#chat-history {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 1;
+    margin: 1;
+}
+
+#input {
+    dock: bottom;
+    margin: 1;
+}
+
+.user-message {
+    color: white;
+    margin: 1 2;
+    text-align: right;
+    width: 100%;
+}
+
+.bot-message {
+    margin: 0 0;
+    width: 90%;
+    height: auto;
+    border: round $primary;
+    padding: 0 0;
+}
+
+Markdown {
+    background: transparent;
+}
+
+Markdown.--code {
+    background: $surface-darken-1;
+    color: $text;
+    padding: 1 1;
+    border: round $primary;
+    margin: 1 0;
+}

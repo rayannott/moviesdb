@@ -1,0 +1,11 @@
+rich
+gitpython
+openai
+pydantic
+python-dotenv
+plotly
+requests
+pytest
+textual
+pymongo[srv]
+ipykernel
