@@ -643,7 +643,7 @@ class App:
         else:
             matches = self.HELP_DATA
         if not matches:
-            self.error(f"No help found for {cmd!r}")
+            self.error(f"No help found for {cmd!r}.")
             maybe = possible_match(cmd, self.COMMANDS)
             if maybe:
                 self.cns.print(f'Did you mean: "{maybe}"?')
@@ -662,7 +662,7 @@ class App:
 
     def cmd_get(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         if not pos:
-            self.error("No index provided")
+            self.error("No index provided.")
             return
         idx = pos[0]
         if (entry := self.entry_by_idx(idx)) is None:
@@ -776,7 +776,6 @@ class App:
                 default="n",
             ) == "y":
                 self._unwatch(entry.title)
-        # self.dump_entries()
 
     def cmd_random(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         to_choose_from = (
@@ -870,7 +869,7 @@ class App:
         is_verbose.toggle()
         self.cns.print(
             f"Verbose mode {'on  ' if is_verbose else 'off  '}",
-            style="bold " + ("green" if is_verbose else "red"),
+            style=f"bold {'green' if is_verbose else 'red'}",
         )
 
     def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -881,7 +880,8 @@ class App:
         self.header()
 
     def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        raise NotImplementedError("Debug command not implemented")
+        # raise NotImplementedError("Debug command not implemented")
+        self._load_all()
 
     def maybe_command(self, root):
         maybe = possible_match(root, self.COMMANDS)
