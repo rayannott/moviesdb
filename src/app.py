@@ -40,7 +40,8 @@ with Console().status("Loading dependencies..."):
     )
 
 with Console().status("Connecting to MongoDB..."):
-    from src.utils.mongo import entries, watchlist, aimemory
+    from src.utils.mongo import aimemory, Mongo
+    # from src.utils.mongo import entries, watchlist, aimemory, Mongo
 
 
 F_SERIES = "series"
@@ -143,14 +144,12 @@ class App:
     COMMANDS = {f[0].split()[0] for f in HELP_DATA}
 
     @staticmethod
-    def load_entries_mongo() -> list[Entry]:
-        data = entries().find()
-        return [Entry.from_dict(entry) for entry in data]
+    def load_entries() -> list[Entry]:
+        return Mongo.load_entries()
 
     @staticmethod
-    def load_watch_list_mongo() -> dict[str, bool]:
-        data = watchlist().find()
-        return {item["title"]: item["is_series"] for item in data}
+    def load_watch_list() -> dict[str, bool]:
+        return Mongo.load_watch_list()
 
     @staticmethod
     def build_tags(entries: list[Entry]):
@@ -180,19 +179,6 @@ class App:
 
     def warning(self, text: str):
         self.cns.print(f" {text}", style="bold yellow")
-
-    # def dump_entries(self):
-    #     with DB_FILE.open("w", encoding="utf-8") as f:
-    #         json.dump(
-    #             [entry.as_dict() for entry in sorted(self.entries)],
-    #             f,
-    #             indent=2,
-    #             ensure_ascii=False,
-    #         )
-
-    # def dump_watch_list(self):
-    #     with WATCH_LIST_FILE.open("w", encoding="utf-8") as f:
-    #         json.dump(self.watch_list, f, indent=2, ensure_ascii=False)
 
     @staticmethod
     def md(text: str) -> Markdown:
@@ -224,12 +210,12 @@ class App:
         self.recently_popped: list[Entry] = []
 
     def _load_all(self):
-        self.entries = sorted(self.load_entries_mongo())
-        self.watch_list = self.load_watch_list_mongo()
+        self.entries = sorted(self.load_entries())
+        # TODO: make watch list a list of {"title": str, "is_series": bool} objects to allow for duplicate names
+        self.watch_list = self.load_watch_list()
 
     def add_entry(self, entry: Entry):
-        new_id = entries().insert_one(entry.as_dict()).inserted_id
-        entry._id = new_id
+        Mongo.add_entry(entry)
         self.entries.append(entry)
 
     def get_groups(self) -> list[EntryGroup]:
@@ -287,7 +273,7 @@ class App:
             )
             if prompt == "t":
                 entry.tags.add(TAG_WATCH_AGAIN)
-                entries().replace_one({"_id": entry._id}, entry.as_dict())
+                Mongo.update_entry(entry)
                 self.cns.print(f"Done:\n{format_entry(entry)}")
                 return
             elif prompt == "n":
@@ -296,7 +282,7 @@ class App:
         possible_title = possible_match(
             title, set(self.watch_list.keys()), score_threshold=0.7
         )
-        if possible_title is not None:
+        if possible_title is not None and possible_title != title:
             update_title = Prompt.ask(
                 f'[yellow] NOTE[/] entry with a similar title ("{possible_title}") exists. '
                 f'Override "{title}" with "{possible_title}"?',
@@ -306,7 +292,7 @@ class App:
             if update_title == "y":
                 title = possible_title
         self.watch_list[title] = is_series
-        watchlist().insert_one({"title": title, "is_series": is_series})
+        Mongo.add_watchlist_entry(title, is_series)
         self.cns.print(
             format_title(title, Type.SERIES if is_series else Type.MOVIE)
             + "[bold green] has been added to the watch list."
@@ -314,6 +300,7 @@ class App:
 
     def _unwatch(self, title_given: str):
         title = title_given.rstrip("+ ")
+        is_series = title_given.endswith("+")
         if not title:
             self.cns.print(" Empty title.", style="red")
             return
@@ -323,11 +310,15 @@ class App:
         title_fmtd = format_title(
             title, Type.SERIES if self.watch_list[title] else Type.MOVIE
         )
-        del self.watch_list[title]
-        delete_res = watchlist().delete_one({"title": title})
-        if delete_res.deleted_count == 0:
-            self.error(f"{title_fmtd} was not in the database")
+        if self.watch_list[title] is not is_series:
+            self.error(
+                f"Entry types do not match. There is no {title_fmtd} in the watch list."
+            )
             return
+        if not Mongo.delete_watchlist_entry(title, is_series):
+            self.error(f"There is no such watch list entry: {title_fmtd}.")
+            return
+        del self.watch_list[title]
         self.cns.print(
             title_fmtd + "[bold green] has been removed from the watch list."
         )
@@ -397,7 +388,7 @@ class App:
                 return
             entry_app.entry._id = entry._id
             self.entries[int(idx)] = entry_app.entry
-            entries().replace_one({"_id": entry._id}, entry_app.entry.as_dict())
+            Mongo.update_entry(entry_app.entry)
             self.cns.print(
                 f"[green]󰚰 Updated[/]\n - was: {format_entry(entry)}\n - now: {format_entry(entry_app.entry)}"
             )
@@ -444,7 +435,7 @@ class App:
                 self.cns.print(
                     f"{format_entry(entry)} [bold green]has been untagged from[/] {format_tag(tagname)}"
                 )
-                entries().replace_one({"_id": entry._id}, entry.as_dict())
+                Mongo.update_entry(entry)
             except KeyError:
                 self.cns.print(
                     f"{format_entry(entry)} [bold red]does not have the tag[/] {format_tag(tagname)}"
@@ -458,7 +449,7 @@ class App:
         self.cns.print(
             f"{format_entry(entry)} [bold green]has been tagged with[/] {format_tag(tagname)}"
         )
-        entries().replace_one({"_id": entry._id}, entry.as_dict())
+        Mongo.update_entry(entry)
 
     def cmd_plot(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         with self.cns.status("Generating..."):
@@ -793,8 +784,7 @@ class App:
                 f"Found {len(self.recently_popped)} recently popped entries."
             )
             to_restore = self.recently_popped.pop()
-            new_id = entries().insert_one(to_restore.as_dict()).inserted_id
-            to_restore._id = new_id
+            Mongo.add_entry(to_restore)
             self.entries.append(to_restore)
             self.cns.print(f"Restored:\n{format_entry(to_restore)}")
             return
@@ -805,8 +795,8 @@ class App:
         if not (entry := self.entry_by_idx(idx)):
             return
         popped_entry = self.entries.pop(int(idx))
-        delete_res = entries().delete_one({"_id": popped_entry._id})
-        if delete_res.deleted_count == 0:
+        assert popped_entry._id
+        if not Mongo.delete_entry(popped_entry._id):
             self.error(f"{format_entry(popped_entry)} was not in the database.")
             return
         self.cns.print(f"󰺝 Removed\n{format_entry(entry)}")

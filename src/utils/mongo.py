@@ -5,6 +5,7 @@ import dotenv
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.collection import Collection
+from bson import ObjectId
 
 from src.obj.entry import Entry
 
@@ -36,8 +37,8 @@ def aimemory() -> Collection:
 class Mongo:
     # TODO: implement
     @staticmethod
-    def update_entry(_):
-        ...
+    def update_entry(entry: Entry):
+        entries().replace_one({"_id": entry._id}, entry.as_dict())
 
     @staticmethod
     def add_entry(entry: Entry):
@@ -45,21 +46,28 @@ class Mongo:
         entry._id = new_id
 
     @staticmethod
-    def delete_entry(_):
-        ...
+    def delete_entry(oid: ObjectId) -> bool:
+        return entries().delete_one({"_id": oid}).deleted_count == 1
 
     @staticmethod
-    def add_watchlist_entry(_):
-        ...
+    def add_watchlist_entry(title: str, is_series: bool):
+        watchlist().insert_one({"title": title, "is_series": is_series})
 
     @staticmethod
-    def delete_watchlist_entry(_):
-        ...
+    def delete_watchlist_entry(title: str, is_series: bool) -> bool:
+        return (
+            watchlist()
+            .delete_one({"title": title, "is_series": is_series})
+            .deleted_count
+            == 1
+        )
 
     @staticmethod
-    def add_aimemory_item(_):
-        ...
+    def load_entries() -> list[Entry]:
+        data = entries().find()
+        return [Entry.from_dict(entry) for entry in data]
 
     @staticmethod
-    def delete_aimemory_item(_):
-        ...
+    def load_watch_list() -> dict[str, bool]:
+        data = watchlist().find()
+        return {item["title"]: item["is_series"] for item in data}

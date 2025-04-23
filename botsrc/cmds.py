@@ -3,7 +3,6 @@ import telebot
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.obj.entry import Entry, MalformedEntryException
 from src.utils.mongo import Mongo
-from src.app import App
 
 
 def cmd_add(
@@ -38,4 +37,23 @@ def cmd_find(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
-    entries = App.load_entries_mongo()
+    entries = Mongo.load_entries()
+    ...
+
+
+def cmd_watch(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    watch_list = Mongo.load_watch_list()
+    if not pos:
+        movies = [title for title, is_series in watch_list.items() if not is_series]
+        series = [title for title, is_series in watch_list.items() if is_series]
+        bot.send_message(
+            message.chat.id,
+            f"Movies: {', '.join(movies)}\n\nSeires: {', '.join(series)}",
+        )
+        return

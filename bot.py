@@ -9,6 +9,7 @@ from src.app import App
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.obj.entry import Entry
 from src.obj.entry_group import EntryGroup
+from src.utils.mongo import Mongo
 import botsrc.cmds as botcmd
 
 dotenv.load_dotenv()
@@ -26,7 +27,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 bot = TeleBot(TOKEN)
-app = App()
 
 
 def log_message(message: types.Message):
@@ -63,7 +63,7 @@ def cmd_help(message: types.Message):
 @bot.message_handler(commands=["list"])
 @pre_process_command
 def cmd_list(message: types.Message):
-    entries = app.load_entries_mongo()
+    entries = sorted(Mongo.load_entries())
     tail_str = "\n".join(str(entry) for entry in entries[-5:])
     bot.send_message(message.chat.id, tail_str)
 
@@ -82,6 +82,8 @@ def echo_all(message: types.Message):
     # TODO: match commands from botsrc.cmds
     if root == "add":
         botcmd.cmd_add(pos, kwargs, flags, bot, message)
+    elif root == "watch":
+        botcmd.cmd_watch(pos, kwargs, flags, bot, message)
     else:
         bot.reply_to(message, f"Unknown command: {message.text}")
 
