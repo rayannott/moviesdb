@@ -11,14 +11,10 @@ with Console().status("Loading dependencies..."):
     from statistics import mean, stdev
     from typing import Any, Callable
 
-    import dotenv
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
 
-    from pymongo.mongo_client import MongoClient
-    from pymongo.server_api import ServerApi
-    from pymongo.collection import Collection
     from bson import ObjectId
 
     from src.obj.ai import ChatBot
@@ -29,8 +25,9 @@ with Console().status("Loading dependencies..."):
     from src.obj.sql_mode import SqlMode
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
-    from src.utils.plots import get_plot
     from src.paths import LOCAL_DIR
+    from src.utils.plots import get_plot
+    from src.utils.mongo import entries, watchlist, aimemory
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -44,35 +41,11 @@ with Console().status("Loading dependencies..."):
     )
     from src.utils.utils import possible_match
 
-dotenv.load_dotenv()
-
 F_SERIES = "series"
 F_MOVIES = "movies"
 F_ALL = "all"
 
 TAG_WATCH_AGAIN = "watch-again"
-
-MONGODB_PASSWORD = os.environ.get("MONGODB_PASSWORD")
-assert MONGODB_PASSWORD is not None
-
-
-with Console().status("Connecting to MongoDB..."):
-    uri = f"mongodb+srv://rayannott:{MONGODB_PASSWORD}@moviesseries.7g8z1if.mongodb.net/?retryWrites=true&w=majority&appName=MoviesSeries"
-    CLIENT = MongoClient(uri, server_api=ServerApi("1"))
-    CLIENT.admin.command("ping")
-
-
-# TODO: add types
-def entries() -> Collection:
-    return CLIENT.db.entries
-
-
-def watchlist() -> Collection:
-    return CLIENT.db.watchlist
-
-
-def aimemory() -> Collection:
-    return CLIENT.db.aimemory
 
 
 def identity(x: str):

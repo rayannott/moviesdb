@@ -50,7 +50,7 @@ class Entry:
     date: datetime | None
     type: Type = Type.MOVIE
     notes: str = ""
-    tags: set[str] = field(default_factory=set)
+    tags: set[str] = field(default_factory=set[str])
 
     def __post_init__(self):
         self.title = self.title.strip()
