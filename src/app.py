@@ -14,7 +14,6 @@ with Console().status("Loading dependencies..."):
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
-
     from bson import ObjectId
 
     from src.obj.ai import ChatBot
@@ -27,7 +26,7 @@ with Console().status("Loading dependencies..."):
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
-    from src.utils.mongo import entries, watchlist, aimemory
+    from src.utils.utils import possible_match
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -39,7 +38,10 @@ with Console().status("Loading dependencies..."):
         get_rich_table,
         rinput,
     )
-    from src.utils.utils import possible_match
+
+with Console().status("Connecting to MongoDB..."):
+    from src.utils.mongo import entries, watchlist, aimemory
+
 
 F_SERIES = "series"
 F_MOVIES = "movies"

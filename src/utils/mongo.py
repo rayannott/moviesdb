@@ -1,7 +1,7 @@
 import os
 
 import dotenv
-from rich.console import Console
+
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.collection import Collection
@@ -15,10 +15,9 @@ MONGODB_PASSWORD = os.environ.get("MONGODB_PASSWORD")
 assert MONGODB_PASSWORD is not None
 
 
-with Console().status("Connecting to MongoDB..."):
-    uri = f"mongodb+srv://rayannott:{MONGODB_PASSWORD}@moviesseries.7g8z1if.mongodb.net/?retryWrites=true&w=majority&appName=MoviesSeries"
-    CLIENT = MongoClient(uri, server_api=ServerApi("1"))
-    CLIENT.admin.command("ping")
+uri = f"mongodb+srv://rayannott:{MONGODB_PASSWORD}@moviesseries.7g8z1if.mongodb.net/?retryWrites=true&w=majority&appName=MoviesSeries"
+CLIENT = MongoClient(uri, server_api=ServerApi("1"))
+CLIENT.admin.command("ping")
 
 
 # TODO: add types
