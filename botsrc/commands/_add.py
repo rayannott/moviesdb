@@ -26,9 +26,11 @@ def get_confirmation_kb() -> telebot.types.ReplyKeyboardMarkup:
     return kb
 
 
-def get_skip_kb() -> telebot.types.ReplyKeyboardMarkup:
-    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
-    kb.add(telebot.types.KeyboardButton("Skip"))
+def get_skip_kb(extra_buttons: list[str] = []) -> telebot.types.ReplyKeyboardMarkup:
+    kb = telebot.types.ReplyKeyboardMarkup(
+        resize_keyboard=True, row_width=1 + len(extra_buttons)
+    )
+    kb.add(*(telebot.types.KeyboardButton(btn) for btn in ["Skip"] + extra_buttons))
     return kb
 
 
@@ -88,8 +90,8 @@ def _get_type(
         return
     bot.send_message(
         message.chat.id,
-        "Please enter the date (dd.mm.yyyy or 'now' or nothing):",
-        reply_markup=get_skip_kb(),
+        "Please enter the date (dd.mm.yyyy or 'today' or nothing):",
+        reply_markup=get_skip_kb(extra_buttons=["Today"]),
     )
     bot.register_next_step_handler_by_chat_id(
         message.chat.id, _get_date, bot=bot, title=title, rating=rating, type_=type_
@@ -104,11 +106,11 @@ def _get_date(
     type_: Type,
 ):
     try:
-        date = Entry.parse_date(text(message) if text(message) != "Skip" else "")
+        date = Entry.parse_date(text(message).lower() if text(message) != "Skip" else "")
     except MalformedEntryException as e:
         bot.reply_to(
             message,
-            f"Invalid date: {e}. Please use the format dd.mm.yyyy or 'now'.",
+            f"Invalid date: {e}. Please use the format dd.mm.yyyy or 'today'.",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
         return
