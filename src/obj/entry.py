@@ -126,7 +126,7 @@ class Entry:
             raise MalformedEntryException(f"Not a number: {rating_str}")
         if rating <= 0 or rating > 10:
             raise MalformedEntryException(
-                f"Rating out of range (0 <= rating < 10): {rating}"
+                f"Rating out of range (0 < rating <= 10): {rating}"
             )
         return rating
 
