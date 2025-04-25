@@ -106,6 +106,13 @@ def cmd_help(message: types.Message):
     bot.send_message(message.chat.id, "Help message.")
 
 
+@bot.message_handler(commands=["stop"])
+@pre_process_command
+def cmd_stop(message: types.Message):
+    bot.send_message(message.chat.id, "Shutting down.")
+    logger.info("Stopping bot via /stop")
+
+
 @bot.message_handler(func=lambda msg: True)
 @pre_process_command
 def echo_all(message: types.Message):
