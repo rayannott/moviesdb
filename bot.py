@@ -111,6 +111,7 @@ def cmd_help(message: types.Message):
 def cmd_stop(message: types.Message):
     bot.send_message(message.chat.id, "Shutting down.")
     logger.info("Stopping bot via /stop")
+    bot.stop_bot()
 
 
 @bot.message_handler(func=lambda msg: True)
