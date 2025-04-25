@@ -9,3 +9,4 @@ pytest
 textual
 pymongo[srv]
 ipykernel
+pyTelegramBotAPI
