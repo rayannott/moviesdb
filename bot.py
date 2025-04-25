@@ -7,11 +7,7 @@ from collections.abc import Callable
 
 from telebot import TeleBot, types
 
-from src.app import App
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
-from src.obj.entry import Entry
-from src.obj.entry_group import EntryGroup
-from src.utils.mongo import Mongo
 import botsrc.cmds as botcmd
 
 dotenv.load_dotenv()
@@ -22,6 +18,7 @@ assert TOKEN is not None
 ALLOW_USER = "rayannott"
 
 
+# TODO: set up file logging
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s]:%(asctime)s:%(module)s:%(message)s",
@@ -119,11 +116,15 @@ def echo_all(message: types.Message):
         root, pos, kwargs, flags = parse(message.text)
     except ParsingError as e:
         bot.reply_to(message, f"{e}: {message.text!r}")
+        logging.error(f"Parsing error: {e}")
         return
     command_method = BOT_COMMANDS.get(root)
     if command_method is None:
-        bot.reply_to(message, f"Unknown command: {message.text}")
+        msg = f"Unknown command: {message.text}"
+        bot.reply_to(message, msg)
+        logging.warning(msg)
         return
+    logging.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")
     command_method(pos, kwargs, flags, bot, message)
 
 

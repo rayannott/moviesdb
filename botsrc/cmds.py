@@ -1,9 +1,13 @@
 import telebot
+import logging
 
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.obj.entry import Entry, MalformedEntryException
 from src.utils.mongo import Mongo
 from botsrc.utils import format_entry, select_entry_by_oid_part
+
+
+logger = logging.getLogger(__name__)
 
 
 def cmd_list(
@@ -47,7 +51,9 @@ def cmd_add(
     entry = Entry(None, title, rating, date, type_, notes)
     # TODO: other entry-adding-related processing here
     Mongo.add_entry(entry)
-    bot.send_message(message.chat.id, f"Entry added:\n{entry}")
+    bot.send_message(
+        message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
+    )
 
 
 def cmd_find(
