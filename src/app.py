@@ -124,6 +124,7 @@ class App:
             "enter SQL mode: write SQLite queries for the in-memory database of entries",
         ),
         ("verbose", "toggle verbose mode"),
+        ("reload", "bring the in-memory data up to date with the cloud database"),
         ("cls", "clear the terminal"),
         (
             "ai <prompt> [--full]",
@@ -844,9 +845,19 @@ class App:
         os.system("cls" if os.name == "nt" else "clear")
         self.header()
 
-    def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        # raise NotImplementedError("Debug command not implemented")
+    def cmd_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        old_entries = self.entries.copy()
+        old_watch_list = self.watch_list.copy()
         self._load_all()
+        if old_entries != self.entries:
+            self.cns.print("Reloaded entries.", style="bold green")
+        if old_watch_list != self.watch_list:
+            self.cns.print("Reloaded watch list.", style="bold green")
+        if old_entries == self.entries and old_watch_list == self.watch_list:
+            self.warning("Already up to date.")
+
+    def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        raise NotImplementedError("Debug command not implemented")
 
     def maybe_command(self, root):
         maybe = possible_match(root, self.COMMANDS)
