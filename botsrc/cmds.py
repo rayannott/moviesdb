@@ -3,7 +3,7 @@ import logging
 
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.obj.entry import Entry, MalformedEntryException
-from src.utils.mongo import Mongo
+from src.mongo import Mongo
 
 from botsrc.utils import format_entry, select_entry_by_oid_part
 from botsrc.commands import add

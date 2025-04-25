@@ -2,7 +2,7 @@ from datetime import datetime
 
 import telebot
 from src.obj.entry import Entry, MalformedEntryException, Type
-from src.utils.mongo import Mongo
+from src.mongo import Mongo
 from botsrc.utils import format_entry
 
 
