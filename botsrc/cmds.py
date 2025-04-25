@@ -3,6 +3,26 @@ import telebot
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.obj.entry import Entry, MalformedEntryException
 from src.utils.mongo import Mongo
+from botsrc.utils import format_entry, select_entry_by_oid_part
+
+
+def cmd_list(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    entries = sorted(Mongo.load_entries())
+    tail_str = "\n".join(
+        format_entry(
+            entry,
+            verbose=bool({"v", "verbose"} & flags),
+            with_oid="oid" in flags,
+        )
+        for entry in entries[-5:]
+    )
+    bot.send_message(message.chat.id, tail_str)
 
 
 def cmd_add(
@@ -37,8 +57,23 @@ def cmd_find(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
-    entries = Mongo.load_entries()
-    ...
+    if not pos:
+        bot.reply_to(message, "You must specify a title.")
+        return
+    entries = sorted(Mongo.load_entries())
+    filtered = [ent for ent in entries if pos[0].lower() in ent.title.lower()]
+    if not filtered:
+        bot.reply_to(message, f"No entries found with {pos[0]}.")
+        return
+    res = f"{len(filtered)} found:\n" + "\n".join(
+        format_entry(
+            ent,
+            verbose=bool({"v", "verbose"} & flags),
+            with_oid="oid" in flags,
+        )
+        for ent in filtered
+    )
+    bot.send_message(message.chat.id, res)
 
 
 def cmd_watch(
@@ -57,3 +92,27 @@ def cmd_watch(
             f"Movies: {', '.join(movies)}\n\nSeires: {', '.join(series)}",
         )
         return
+
+
+def cmd_pop(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    if not pos:
+        bot.reply_to(message, "You must specify an oid.")
+        return
+    entries = sorted(Mongo.load_entries())
+    selected_entry = select_entry_by_oid_part(pos[0], entries)
+    if selected_entry is None:
+        bot.reply_to(message, "Could not find a unique entry.")
+        return
+    assert selected_entry._id
+    if Mongo.delete_entry(selected_entry._id):
+        bot.send_message(
+            message.chat.id, f"Deleted successfully:\n{format_entry(selected_entry)}"
+        )
+    else:
+        bot.reply_to(message, "Something went wrong.")
