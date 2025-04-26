@@ -103,6 +103,24 @@ def cmd_watch(
             f"Movies: {', '.join(movies)}\n\nSeires: {', '.join(series)}",
         )
         return
+    watch_title = "".join(pos)
+    is_series = watch_title.endswith("+")
+    title = watch_title.rstrip("+ ")
+    watch_list = Mongo.load_watch_list()
+    if "delete" in flags:
+        if title not in watch_list:
+            bot.reply_to(message, f"{title} is not in the watch list.")
+            return
+        if not Mongo.delete_watchlist_entry(title, is_series):
+            bot.reply_to(message, f"There is no such watch list entry: {title}.")
+            return
+        bot.send_message(message.chat.id, f"Deleted {title} from watch list.")
+        return
+    if title in watch_list:
+        bot.reply_to(message, f"{title} is already in the watch list.")
+        return
+    Mongo.add_watchlist_entry(title, is_series)
+    bot.send_message(message.chat.id, f"Added {title} to watch list.")
 
 
 def cmd_pop(
