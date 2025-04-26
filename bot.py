@@ -1,6 +1,4 @@
-import os
 import logging
-import dotenv
 import inspect
 from functools import wraps
 from collections.abc import Callable
@@ -9,12 +7,9 @@ from telebot import TeleBot, types
 
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.paths import LOG_FILE
+from src.utils.env import TELEGRAM_TOKEN
 import botsrc.cmds as botcmd
 
-dotenv.load_dotenv()
-
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-assert TOKEN is not None
 
 ALLOW_USER = "rayannott"
 
@@ -26,7 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-bot = TeleBot(TOKEN)
+bot = TeleBot(TELEGRAM_TOKEN)
 
 
 def load_bot_commands():

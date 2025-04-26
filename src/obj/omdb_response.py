@@ -1,19 +1,16 @@
 import datetime
-import os
 import warnings
 from dataclasses import dataclass
 
-import dotenv
 import requests
 from rich.console import Group
 from rich.markdown import Markdown
 from rich.panel import Panel
 
-dotenv.load_dotenv()
+from src.utils.env import OMDB_API_KEY
 
 
 URL_BASE = "http://www.omdbapi.com"
-API_KEY = os.environ.get("OMDB_API")
 
 
 @dataclass
@@ -80,9 +77,9 @@ class DataBaseResponse:
 
 
 def get_by_title(title: str) -> DataBaseResponse | None:
-    if API_KEY is None:
+    if OMDB_API_KEY is None:
         warnings.warn("OMDB API key not found in environment variables.")
-    url = f"{URL_BASE}/?apikey={API_KEY}&t={title}"
+    url = f"{URL_BASE}/?apikey={OMDB_API_KEY}&t={title}"
     response = requests.get(url)
     json_response = response.json()
     if json_response.get("Response") != "True":
