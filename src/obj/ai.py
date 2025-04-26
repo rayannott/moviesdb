@@ -14,8 +14,8 @@ from src.obj.entry import Entry
 dotenv.load_dotenv()
 
 
-GPT4O = "gpt-4o"
-GPT4O_MINI = "gpt-4o-mini"
+GPT4O = "gpt-4.1"
+GPT4O_MINI = "gpt-4.1-mini"
 
 API_KEY = os.environ.get("OPENAI_API_KEY")
 PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
