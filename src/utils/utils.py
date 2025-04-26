@@ -94,6 +94,7 @@ class AccessRightsManager:
         if username not in self.guests:
             return False
         self.guests.remove(username)
+        self.dump_allowed_users()
         return True
 
     def __contains__(self, username: str) -> bool:
