@@ -1,5 +1,11 @@
+import json
+
 from src.obj.entry import Entry, Type
+from src.paths import ALLOWED_USERS
 from src.mongo import Mongo
+
+
+ALLOWED_USERS.parent.mkdir(exist_ok=True)
 
 
 def select_entry_by_oid_part(oid_part: str, entries: list[Entry]) -> Entry | None:
@@ -25,3 +31,8 @@ def process_watch_list_on_add_entry(entry: Entry) -> bool:
         Mongo.delete_watchlist_entry(entry.title, is_series)
         return True
     return False
+
+
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find"}
+
+ME_CHAT_ID = 409474295

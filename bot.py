@@ -9,14 +9,14 @@ from telebot import TeleBot, types
 
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.paths import LOG_FILE
+from src.utils.utils import AccessRightsManager
 import botsrc.cmds as botcmd
+from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID
 
 dotenv.load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 assert TOKEN is not None
-
-ALLOW_USER = "rayannott"
 
 
 # TODO: set up file logging
@@ -27,6 +27,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 bot = TeleBot(TOKEN)
+access_rights_manager = AccessRightsManager()
+GUEST_MESSAGE = """Hello, dear guest! 
+You can use the bot, but some commands may be restricted.
+You can use the following commands:
+    - list: to view the entries
+    - find <title>: to find a title by name
+    - watch: to view the watch list
+    - suggest: to suggest me a movie!"""
 
 
 def load_bot_commands():
@@ -84,35 +92,51 @@ def pre_process_command(func):
     @wraps(func)
     def wrapper(message: types.Message):
         logger.info(message.text)
-        if message.from_user is None:
+        if message.from_user is None or message.from_user.username is None:
             return
-        if message.from_user.username != ALLOW_USER:
+        username = message.from_user.username
+        if message.chat.id == ME_CHAT_ID:
+            extra_flags = set()
+        elif username in access_rights_manager:
+            extra_flags = {"guest"}
+            logger.info(f"{username} (a guest) sent a message")
+        else:
             bot.reply_to(message, "You are not allowed to use this bot.")
-            logger.warning(
-                f"User {message.from_user.username} is not allowed to use the bot."
-            )
+            logger.warning(f"User {username} is not allowed to use the bot")
             return
-        func(message)
+        func(message, extra_flags)
 
     return wrapper
 
 
 @bot.message_handler(commands=["start"])
 @pre_process_command
-def cmd_start(message: types.Message):
-    bot.send_message(message.chat.id, "Hello, me!")
+def cmd_start(message: types.Message, extra_flags: set[str]):
+    if "guest" in extra_flags:
+        bot.send_message(
+            message.chat.id,
+            GUEST_MESSAGE,
+        )
+    else:
+        bot.send_message(message.chat.id, "Hello, me!")
 
 
 @bot.message_handler(commands=["help"])
 @pre_process_command
-def cmd_help(message: types.Message):
-    # TODO: implement in a clever way to avoid code repetitions
-    bot.send_message(message.chat.id, "Help message.")
+def cmd_help(message: types.Message, extra_flags: set[str]):
+    if "guest" in extra_flags:
+        bot.send_message(
+            message.chat.id,
+            GUEST_MESSAGE,
+        )
+    else:
+        # TODO: implement in a clever way to avoid code repetitions
+        bot.send_message(message.chat.id, "Help message.")
 
 
 @bot.message_handler(commands=["stop"])
 @pre_process_command
-def cmd_stop(message: types.Message):
+def cmd_stop(message: types.Message, extra_flags: set[str]):
     bot.send_message(message.chat.id, "Shutting down.")
     logger.info("Stopping bot via /stop")
     bot.stop_bot()
@@ -120,7 +144,7 @@ def cmd_stop(message: types.Message):
 
 @bot.message_handler(commands=["log"])
 @pre_process_command
-def cmd_log(message: types.Message):
+def cmd_log(message: types.Message, extra_flags: set[str]):
     if not LOG_FILE.exists():
         bot.reply_to(message, "Log file does not exist.")
         return
@@ -130,7 +154,7 @@ def cmd_log(message: types.Message):
 
 @bot.message_handler(func=lambda msg: True)
 @pre_process_command
-def echo_all(message: types.Message):
+def echo_all(message: types.Message, extra_flags: set[str]):
     if message.text is None:
         bot.reply_to(message, "Only text is supported.")
         return
@@ -145,6 +169,13 @@ def echo_all(message: types.Message):
         msg = f"Unknown command: {message.text}"
         bot.reply_to(message, msg)
         logging.warning(msg)
+        return
+    flags.update(extra_flags)
+    if "guest" in flags and root not in ALLOW_GUEST_COMMANDS:
+        bot.reply_to(
+            message,
+            f"Sorry, you are not allowed to use {root}. Type help to see available commands.",
+        )
         return
     logging.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")
     command_method(pos, kwargs, flags, bot, message)

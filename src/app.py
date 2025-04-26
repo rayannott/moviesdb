@@ -26,7 +26,7 @@ with Console().status("Loading dependencies..."):
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
-    from src.utils.utils import possible_match
+    from src.utils.utils import possible_match, AccessRightsManager
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -822,6 +822,27 @@ class App:
             self.cns.print(
                 f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}."
             )
+
+    def cmd_guest(
+        self,
+        pos: PositionalArgs,
+        kwargs: KeywordArgs,
+        flags: Flags,
+    ):
+        am = AccessRightsManager()
+        if (name := kwargs.get("add")) is not None:
+            am.add(name)
+            self.cns.print(f"{name} added to the guests list", style="bold green")
+        elif (name := kwargs.get("remove")) is not None:
+            is_ok = am.remove(name)
+            if is_ok:
+                self.cns.print(
+                    f"{name} removed from the guests list", style="bold green"
+                )
+            else:
+                self.error(f"{name} was not in the guest list")
+        else:
+            self.cns.print("Guests: " + ", ".join(am.guests))
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         sql_mode = SqlMode(self.entries, self.cns, self.input)
