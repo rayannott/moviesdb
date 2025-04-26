@@ -8,6 +8,7 @@ from collections.abc import Callable
 from telebot import TeleBot, types
 
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
+from src.paths import LOG_FILE
 import botsrc.cmds as botcmd
 
 dotenv.load_dotenv()
@@ -69,9 +70,9 @@ def load_bot_commands():
     }
 
     for bot_command in bot_commands.values():
-        assert (
-            inspect.signature(bot_command) == SIGNATURE
-        ), f"{bot_command} has a wrong signature."
+        assert inspect.signature(bot_command) == SIGNATURE, (
+            f"{bot_command} has a wrong signature."
+        )
 
     return bot_commands
 
@@ -87,6 +88,9 @@ def pre_process_command(func):
             return
         if message.from_user.username != ALLOW_USER:
             bot.reply_to(message, "You are not allowed to use this bot.")
+            logger.warning(
+                f"User {message.from_user.username} is not allowed to use the bot."
+            )
             return
         func(message)
 
@@ -112,6 +116,16 @@ def cmd_stop(message: types.Message):
     bot.send_message(message.chat.id, "Shutting down.")
     logger.info("Stopping bot via /stop")
     bot.stop_bot()
+
+
+@bot.message_handler(commands=["log"])
+@pre_process_command
+def cmd_log(message: types.Message):
+    if not LOG_FILE.exists():
+        bot.reply_to(message, "Log file does not exist.")
+        return
+    lines = LOG_FILE.read_text().splitlines()
+    bot.send_message(message.chat.id, "\n".join(lines[-5:]))
 
 
 @bot.message_handler(func=lambda msg: True)
