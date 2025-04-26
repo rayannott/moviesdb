@@ -1,6 +1,4 @@
-import os
 import logging
-import dotenv
 import inspect
 from functools import wraps
 from collections.abc import Callable
@@ -9,14 +7,13 @@ from telebot import TeleBot, types
 
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.paths import LOG_FILE
+from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
 import botsrc.cmds as botcmd
 from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report
 
-dotenv.load_dotenv()
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-assert TOKEN is not None
+ALLOW_USER = "rayannott"
 
 
 # TODO: set up file logging
@@ -26,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-bot = TeleBot(TOKEN)
+bot = TeleBot(TELEGRAM_TOKEN)
 access_rights_manager = AccessRightsManager()
 GUEST_MESSAGE = """Hello, dear guest! 
 You can use the bot, but some commands may be restricted.
