@@ -5,7 +5,7 @@ from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.obj.entry import Entry, MalformedEntryException
 from src.mongo import Mongo
 
-from botsrc.utils import format_entry, select_entry_by_oid_part
+from botsrc.utils import format_entry, select_entry_by_oid_part, process_watch_list_on_add_entry
 from botsrc.commands import add
 
 
@@ -54,11 +54,12 @@ def cmd_add(
         bot.reply_to(message, "Need to specify title and rating")
         return
     entry = Entry(None, title, rating, date, type_, notes)
-    # TODO: other entry-adding-related processing here
     Mongo.add_entry(entry)
     bot.send_message(
         message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
     )
+    if process_watch_list_on_add_entry(entry):
+        bot.send_message(message.chat.id, f"Removed {entry.title} from watch list.")
 
 
 def cmd_find(

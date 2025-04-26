@@ -3,7 +3,7 @@ from datetime import datetime
 import telebot
 from src.obj.entry import Entry, MalformedEntryException, Type
 from src.mongo import Mongo
-from botsrc.utils import format_entry
+from botsrc.utils import format_entry, process_watch_list_on_add_entry
 
 
 def text(message: telebot.types.Message) -> str:
@@ -49,7 +49,12 @@ def _get_title(message: telebot.types.Message, bot: telebot.TeleBot):
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
         return
-    bot.send_message(message.chat.id, "Great! Now, please rate it:")
+    extra_note = (
+        "Note that it will be removed from watch list if you proceed to add it. "
+        if title in Mongo.load_watch_list()
+        else ""
+    )
+    bot.send_message(message.chat.id, f"{extra_note}Now, please rate it:")
     bot.register_next_step_handler_by_chat_id(
         message.chat.id, _get_rating, bot=bot, title=title
     )
@@ -106,7 +111,9 @@ def _get_date(
     type_: Type,
 ):
     try:
-        date = Entry.parse_date(text(message).lower() if text(message) != "Skip" else "")
+        date = Entry.parse_date(
+            text(message).lower() if text(message) != "Skip" else ""
+        )
     except MalformedEntryException as e:
         bot.reply_to(
             message,
@@ -142,7 +149,6 @@ def _get_notes(
     notes = text(message) if text(message) != "Skip" else ""
 
     entry = Entry(None, title, rating, date, type_, notes)
-
     bot.send_message(
         message.chat.id,
         f"Thank you! Let's confirm the details:\n{format_entry(entry, True)}",
@@ -164,6 +170,8 @@ def _confirm_add(message: telebot.types.Message, bot: telebot.TeleBot, entry: En
             f"Entry added:\n{format_entry(entry, True, True)}",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        if process_watch_list_on_add_entry(entry):
+            bot.send_message(message.chat.id, f"Removed {entry.title} from watch list.")
     else:
         bot.send_message(
             message.chat.id,
