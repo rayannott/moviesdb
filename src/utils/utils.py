@@ -98,4 +98,5 @@ class AccessRightsManager:
         return True
 
     def __contains__(self, username: str) -> bool:
+        self.guests = self.load_allowed_users()
         return username in self.guests
