@@ -10,7 +10,7 @@ from src.paths import LOG_FILE
 from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
 import botsrc.cmds as botcmd
-from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report
+from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report, HELP_GUEST_MESSAGE
 
 
 ALLOW_USER = "rayannott"
@@ -25,13 +25,6 @@ logger = logging.getLogger(__name__)
 
 bot = TeleBot(TELEGRAM_TOKEN)
 access_rights_manager = AccessRightsManager()
-GUEST_MESSAGE = """Hello, dear guest! 
-You can use the bot, but some commands may be restricted.
-You can use the following commands:
-    - list: to view the entries
-    - find <title>: to find a title by name
-    - watch: to view the watch list
-    - suggest: to suggest me a movie!"""
 
 
 def load_bot_commands():
@@ -113,8 +106,7 @@ def pre_process_command(func):
 def cmd_start(message: types.Message, extra_flags: set[str]):
     if "guest" in extra_flags:
         bot.send_message(
-            message.chat.id,
-            GUEST_MESSAGE,
+            message.chat.id, "Hellp, dear guest! Type /help to see available commands."
         )
     else:
         bot.send_message(message.chat.id, "Hello, me!")
@@ -124,10 +116,7 @@ def cmd_start(message: types.Message, extra_flags: set[str]):
 @pre_process_command
 def cmd_help(message: types.Message, extra_flags: set[str]):
     if "guest" in extra_flags:
-        bot.send_message(
-            message.chat.id,
-            GUEST_MESSAGE,
-        )
+        bot.send_message(message.chat.id, HELP_GUEST_MESSAGE)
     else:
         # TODO: implement in a clever way to avoid code repetitions
         bot.send_message(message.chat.id, "Help message.")

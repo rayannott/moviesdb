@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from git import Repo, Commit
+from telebot import TeleBot
 
 from src.obj.entry import Entry, Type
 from src.paths import ALLOWED_USERS
@@ -38,7 +39,14 @@ def process_watch_list_on_add_entry(entry: Entry) -> bool:
     return False
 
 
-ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find"}
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag"}
+HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
+You can use the following commands (read-only):
+    - list: to view the entries
+    - find <title>: to find a title by name
+    - watch: to view the watch list
+    - suggest: to suggest me a movie!
+    - tag [<tagname>]: to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
 
@@ -64,3 +72,22 @@ Date:   {commit.authored_datetime}
         return f"""Bot started at {BOT_STARTED} on branch: {self.on_branch}.
     - Last commit:
 {self._commit_to_str(self.recent_commits[0])}"""
+
+
+def list_many_entries(
+    entries: list[Entry],
+    verbose: bool,
+    with_oid: bool,
+    bot: TeleBot,
+    override_title: str | None = None,
+) -> str:
+    # TODO: move to own module? also make return a response?
+    n = min(7, len(entries))
+    return (
+        (f"{len(entries)} found:\n" if override_title is None else "")
+        + ("...\n" if len(entries) > n else "")
+        + "\n".join(
+            format_entry(ent, verbose=verbose, with_oid=with_oid)
+            for ent in entries[-n:]
+        )
+    )

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum, auto
 
@@ -149,3 +150,11 @@ class Entry:
             Type[type.upper()] if type.upper() in {"MOVIE", "SERIES"} else Type.MOVIE
         )
         return this_type
+
+
+def build_tags(entries: list[Entry]):
+    tags: defaultdict[str, list[Entry]] = defaultdict(list)
+    for entry in entries:
+        for tag in entry.tags:
+            tags[tag].append(entry)
+    return tags

@@ -2,7 +2,7 @@ import telebot
 import logging
 
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.obj.entry import Entry, MalformedEntryException
+from src.obj.entry import Entry, MalformedEntryException, build_tags
 from src.mongo import Mongo
 from src.utils.utils import AccessRightsManager
 
@@ -10,8 +10,9 @@ from botsrc.utils import (
     format_entry,
     select_entry_by_oid_part,
     process_watch_list_on_add_entry,
+    list_many_entries,
 )
-from botsrc.commands import add, suggest
+from botsrc.commands import add, suggest, tag
 
 
 logger = logging.getLogger(__name__)
@@ -27,15 +28,14 @@ def cmd_list(
     if "guest" in flags:
         flags = set()
     entries = sorted(Mongo.load_entries())
-    tail_str = "\n".join(
-        format_entry(
-            entry,
-            verbose=bool({"v", "verbose"} & flags),
-            with_oid="oid" in flags,
-        )
-        for entry in entries[-5:]
+    msg = list_many_entries(
+        entries[-5:],
+        "verbose" in flags,
+        "oid" in flags,
+        bot,
+        override_title="Last 5 entries:",
     )
-    bot.send_message(message.chat.id, tail_str)
+    bot.send_message(message.chat.id, msg)
 
 
 def cmd_add(
@@ -88,14 +88,7 @@ def cmd_find(
     if not filtered:
         bot.reply_to(message, f"No entries found with {pos[0]}.")
         return
-    res = f"{len(filtered)} found:\n" + "\n".join(
-        format_entry(
-            ent,
-            verbose=bool({"v", "verbose"} & flags),
-            with_oid="oid" in flags,
-        )
-        for ent in filtered
-    )
+    res = list_many_entries(filtered, "verbose" in flags, "oid" in flags, bot)
     bot.send_message(message.chat.id, res)
 
 
@@ -197,3 +190,13 @@ def cmd_guest(
     else:
         msg = "Guests: " + ", ".join(am.guests)
     bot.send_message(message.chat.id, msg)
+
+
+def cmd_tag(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    tag(message, bot, pos, flags)

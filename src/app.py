@@ -17,7 +17,7 @@ with Console().status("Loading dependencies..."):
     from bson import ObjectId
 
     from src.obj.ai import ChatBot
-    from src.obj.entry import Entry, MalformedEntryException, Type, is_verbose
+    from src.obj.entry import Entry, MalformedEntryException, Type, is_verbose, build_tags
     from src.obj.entry_group import EntryGroup
     from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
@@ -151,14 +151,6 @@ class App:
     @staticmethod
     def load_watch_list() -> dict[str, bool]:
         return Mongo.load_watch_list()
-
-    @staticmethod
-    def build_tags(entries: list[Entry]):
-        tags: defaultdict[str, list[Entry]] = defaultdict(list)
-        for entry in entries:
-            for tag in entry.tags:
-                tags[tag].append(entry)
-        return tags
 
     @staticmethod
     def get_watch_table(watch_list: dict[str, bool]):
@@ -395,7 +387,7 @@ class App:
             )
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        tags = self.build_tags(self.entries)
+        tags = build_tags(self.entries)
         if not pos:
             self.cns.print(
                 get_rich_table(
