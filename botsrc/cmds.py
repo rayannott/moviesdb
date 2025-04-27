@@ -4,13 +4,14 @@ import logging
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.obj.entry import Entry, MalformedEntryException
 from src.mongo import Mongo
+from src.utils.utils import AccessRightsManager
 
 from botsrc.utils import (
     format_entry,
     select_entry_by_oid_part,
     process_watch_list_on_add_entry,
 )
-from botsrc.commands import add
+from botsrc.commands import add, suggest
 
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,8 @@ def cmd_list(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    if "guest" in flags:
+        flags = set()
     entries = sorted(Mongo.load_entries())
     tail_str = "\n".join(
         format_entry(
@@ -42,6 +45,7 @@ def cmd_add(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    # TODO: refactor; move to own module
     if not kwargs:
         add(message, bot)
         return
@@ -73,9 +77,12 @@ def cmd_find(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    # TODO: refactor; move to own module
     if not pos:
         bot.reply_to(message, "You must specify a title.")
         return
+    if "guest" in flags:
+        flags = set()
     entries = sorted(Mongo.load_entries())
     filtered = [ent for ent in entries if pos[0].lower() in ent.title.lower()]
     if not filtered:
@@ -99,6 +106,7 @@ def cmd_watch(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    # TODO: refactor; move to own module
     watch_list = Mongo.load_watch_list()
     if not pos:
         movies = [title for title, is_series in watch_list.items() if not is_series]
@@ -107,6 +115,9 @@ def cmd_watch(
             message.chat.id,
             f"Movies: {', '.join(movies)}\n\nSeries: {', '.join(series)}",
         )
+        return
+    if "guest" in flags:
+        bot.reply_to(message, "Sorry, you can't modify anything.")
         return
     watch_title = "".join(pos)
     is_series = watch_title.endswith("+")
@@ -136,6 +147,7 @@ def cmd_pop(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    # TODO: refactor; move to own module
     if not pos:
         bot.reply_to(message, "You must specify an oid.")
         return
@@ -151,3 +163,37 @@ def cmd_pop(
         )
     else:
         bot.reply_to(message, "Something went wrong.")
+
+
+def cmd_suggest(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    suggest(message, bot)
+
+
+def cmd_guest(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    # TODO: refactor; move to own module
+    am = AccessRightsManager()
+    if (name := kwargs.get("add")) is not None:
+        am.add(name)
+        msg = f"{name} added to the guests list"
+    elif (name := kwargs.get("remove")) is not None:
+        is_ok = am.remove(name)
+        msg = (
+            f"{name} removed from the guests list"
+            if is_ok
+            else f"{name} was not in the guest list"
+        )
+    else:
+        msg = "Guests: " + ", ".join(am.guests)
+    bot.send_message(message.chat.id, msg)

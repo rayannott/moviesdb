@@ -1,19 +1,29 @@
+import os
+import warnings
 from typing import Iterable, TypedDict
 from collections.abc import Callable
 
+import dotenv
 from openai import OpenAI
 from pydantic import BaseModel
 from pymongo.collection import Collection
 from bson import ObjectId
 
 from src.obj.entry import Entry
-from src.utils.env import OPENAI_API_KEY, OPENAI_PROJECT_ID
 
+dotenv.load_dotenv()
 
 
 GPT4O = "gpt-4.1"
 GPT4O_MINI = "gpt-4.1-mini"
 
+API_KEY = os.environ.get("OPENAI_API_KEY")
+PROJECT_ID = os.environ.get("OPENAI_PROJECT_ID")
+
+if API_KEY is None:
+    warnings.warn("OpenAI API key not found in environment variables.")
+if PROJECT_ID is None:
+    warnings.warn("OpenAI Project ID not found in environment variables.")
 
 
 class Message(TypedDict):
@@ -111,7 +121,7 @@ The user has already watched the following movies:
     @property
     def client(self) -> OpenAI:
         if self._client is None:
-            self._client = OpenAI(api_key=OPENAI_API_KEY, project=OPENAI_PROJECT_ID)
+            self._client = OpenAI(api_key=API_KEY, project=PROJECT_ID)
         return self._client
 
     def _add_new_conversation(self, prompt: str, response: str):

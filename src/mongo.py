@@ -1,10 +1,19 @@
+import os
+
+import dotenv
+
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.collection import Collection
 from bson import ObjectId
 
 from src.obj.entry import Entry
-from src.utils.env import MONGODB_PASSWORD
+
+dotenv.load_dotenv()
+
+
+MONGODB_PASSWORD = os.environ.get("MONGODB_PASSWORD")
+assert MONGODB_PASSWORD is not None
 
 
 uri = f"mongodb+srv://rayannott:{MONGODB_PASSWORD}@moviesseries.7g8z1if.mongodb.net/?retryWrites=true&w=majority&appName=MoviesSeries"
