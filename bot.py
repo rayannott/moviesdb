@@ -91,15 +91,15 @@ BOT_COMMANDS = load_bot_commands()
 def pre_process_command(func):
     @wraps(func)
     def wrapper(message: types.Message):
-        logger.info(message.text)
         if message.from_user is None or message.from_user.username is None:
+            logger.error(f"Message without username: {message.chat.id=}; {message.text}")
             return
         username = message.from_user.username
+        logger.info(f"{username}: {message.text}")
         if message.chat.id == ME_CHAT_ID:
             extra_flags = set()
         elif username in access_rights_manager:
             extra_flags = {"guest"}
-            logger.info(f"{username} (a guest) sent a message")
         else:
             bot.reply_to(message, "You are not allowed to use this bot.")
             logger.warning(f"User {username} is not allowed to use the bot")
@@ -149,7 +149,7 @@ def cmd_log(message: types.Message, extra_flags: set[str]):
         bot.reply_to(message, "Log file does not exist.")
         return
     lines = LOG_FILE.read_text().splitlines()
-    bot.send_message(message.chat.id, "\n".join(lines[-5:]))
+    bot.send_message(message.chat.id, "\n".join(lines[-10:]))
 
 
 @bot.message_handler(func=lambda msg: True)
