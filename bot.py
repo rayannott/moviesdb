@@ -135,6 +135,7 @@ def echo_all(message: types.Message):
         bot.reply_to(message, f"{e}: {message.text!r}")
         logging.error(f"Parsing error: {e}")
         return
+    root = root.lstrip("/")
     command_method = BOT_COMMANDS.get(root)
     if command_method is None:
         msg = f"Unknown command: {message.text}"
