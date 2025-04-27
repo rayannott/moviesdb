@@ -41,7 +41,6 @@ with Console().status("Loading dependencies..."):
 
 with Console().status("Connecting to MongoDB..."):
     from src.mongo import aimemory, Mongo
-    # from src.utils.mongo import entries, watchlist, aimemory, Mongo
 
 
 F_SERIES = "series"

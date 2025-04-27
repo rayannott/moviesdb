@@ -1,3 +1,4 @@
+import re
 from shlex import split
 
 
@@ -8,6 +9,9 @@ class ParsingError(ValueError):
 PositionalArgs = list[str]
 KeywordArgs = dict[str, str]
 Flags = set[str]
+
+
+VALID_ROOT_NAME_RE = re.compile(r"^\w[\w-]*$")
 
 
 def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
@@ -28,10 +32,21 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
     ("cmd", ["abc"], {"do": "this", "then": "those"}, {"not", "that", "flag"})
     >>> parse('watch movie --online --title="how are you"')
     ("watch", ["movie"], {"title": "how are you"}, {"online"})
+    >>> parse("")
+    Traceback (most recent call last):
+        ...
+    ParsingError
+
+
+    Raises
+        ParsingError: If the command string is malformed or contains invalid arguments.
     """
 
     def is_flag(s: str) -> bool:
-        return s.startswith("--")
+        return s.startswith(("--", "—"))
+
+    def strip_flag_chrs(s: str) -> str:
+        return s.lstrip("-—")
 
     try:
         parts = split(cmd)
@@ -43,6 +58,13 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
 
     root: str = parts.pop(0)
 
+    if not VALID_ROOT_NAME_RE.match(root):
+        raise ParsingError(
+            f" Invalid command name {root!r}. "
+            "Command names can only contain alphanumeric characters, underscores, and hyphens,"
+            " and must start with an alphanumeric character."
+        )
+
     positional: PositionalArgs = []
     kwargs: KeywordArgs = {}
     flags: Flags = set()
@@ -51,7 +73,9 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
     while i < len(parts):
         token = parts[i]
         if is_flag(token):
-            arg = token[2:]
+            arg = strip_flag_chrs(token)
+            if not arg:
+                raise ParsingError(" Empty flag/key name.")
             if "=" in arg:
                 key, value = arg.split("=", 1)
                 if not value:
@@ -64,6 +88,10 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
                 else:
                     flags.add(arg)
         else:
+            if flags or kwargs:
+                raise ParsingError(
+                    f" Invalid positional argument {token!r} after flags or keyword arguments."
+                )
             positional.append(token)
         i += 1
 
