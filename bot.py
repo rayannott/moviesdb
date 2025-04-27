@@ -1,19 +1,14 @@
 import logging
-import inspect
 from functools import wraps
-from collections.abc import Callable
 
 from telebot import TeleBot, types
 
-from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
+from src.parser import ParsingError, parse
 from src.paths import LOG_FILE
 from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
-import botsrc.cmds as botcmd
 from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report, HELP_GUEST_MESSAGE
-
-
-ALLOW_USER = "rayannott"
+from botsrc.compiled import BOT_COMMANDS
 
 
 # TODO: set up file logging
@@ -25,57 +20,6 @@ logger = logging.getLogger(__name__)
 
 bot = TeleBot(TELEGRAM_TOKEN)
 access_rights_manager = AccessRightsManager()
-
-
-def load_bot_commands():
-    SIGNATURE = inspect.Signature(
-        parameters=[
-            inspect.Parameter(
-                "pos",
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=list[str],
-            ),
-            inspect.Parameter(
-                "kwargs",
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=dict[str, str],
-            ),
-            inspect.Parameter(
-                "flags",
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=set[str],
-            ),
-            inspect.Parameter(
-                "bot",
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=TeleBot,
-            ),
-            inspect.Parameter(
-                "message",
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=types.Message,
-            ),
-        ]
-    )
-
-    bot_commands: dict[
-        str,
-        Callable[[PositionalArgs, KeywordArgs, Flags, TeleBot, types.Message], None],
-    ] = {
-        method_name[4:]: getattr(botcmd, method_name)
-        for method_name in dir(botcmd)
-        if method_name.startswith("cmd_")
-    }
-
-    for bot_command in bot_commands.values():
-        assert inspect.signature(bot_command) == SIGNATURE, (
-            f"{bot_command} has a wrong signature."
-        )
-
-    return bot_commands
-
-
-BOT_COMMANDS = load_bot_commands()
 
 
 def pre_process_command(func):
@@ -106,7 +50,7 @@ def pre_process_command(func):
 def cmd_start(message: types.Message, extra_flags: set[str]):
     if "guest" in extra_flags:
         bot.send_message(
-            message.chat.id, "Hellp, dear guest! Type /help to see available commands."
+            message.chat.id, "Hello, dear guest! Type /help to see available commands."
         )
     else:
         bot.send_message(message.chat.id, "Hello, me!")
@@ -114,7 +58,7 @@ def cmd_start(message: types.Message, extra_flags: set[str]):
 
 @bot.message_handler(commands=["help"])
 @pre_process_command
-def cmd_help(message: types.Message, extra_flags: set[str]):
+def on_help(message: types.Message, extra_flags: set[str]):
     if "guest" in extra_flags:
         bot.send_message(message.chat.id, HELP_GUEST_MESSAGE)
     else:
@@ -124,7 +68,7 @@ def cmd_help(message: types.Message, extra_flags: set[str]):
 
 @bot.message_handler(commands=["stop"])
 @pre_process_command
-def cmd_stop(message: types.Message, extra_flags: set[str]):
+def on_stop(message: types.Message, extra_flags: set[str]):
     bot.send_message(message.chat.id, "Shutting down.")
     logger.info("Stopping bot via /stop")
     bot.stop_bot()
@@ -132,7 +76,7 @@ def cmd_stop(message: types.Message, extra_flags: set[str]):
 
 @bot.message_handler(commands=["log"])
 @pre_process_command
-def cmd_log(message: types.Message, extra_flags: set[str]):
+def on_log(message: types.Message, extra_flags: set[str]):
     if not LOG_FILE.exists():
         bot.reply_to(message, "Log file does not exist.")
         return
@@ -142,7 +86,7 @@ def cmd_log(message: types.Message, extra_flags: set[str]):
 
 @bot.message_handler(func=lambda msg: True)
 @pre_process_command
-def echo_all(message: types.Message, extra_flags: set[str]):
+def other(message: types.Message, extra_flags: set[str]):
     if message.text is None:
         bot.reply_to(message, "Only text is supported.")
         return
@@ -163,7 +107,7 @@ def echo_all(message: types.Message, extra_flags: set[str]):
     if "guest" in flags and root not in ALLOW_GUEST_COMMANDS:
         bot.reply_to(
             message,
-            f"Sorry, you are not allowed to use {root}. Type help to see available commands.",
+            f"Sorry, you are not allowed to use {root}. Type /help to see available commands.",
         )
         return
     logging.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")

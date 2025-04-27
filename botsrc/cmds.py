@@ -2,7 +2,7 @@ import telebot
 import logging
 
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.obj.entry import Entry, MalformedEntryException, build_tags
+from src.obj.entry import Entry, MalformedEntryException
 from src.mongo import Mongo
 from src.utils.utils import AccessRightsManager
 
