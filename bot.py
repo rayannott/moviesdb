@@ -11,7 +11,7 @@ from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.paths import LOG_FILE
 from src.utils.utils import AccessRightsManager
 import botsrc.cmds as botcmd
-from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID
+from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report
 
 dotenv.load_dotenv()
 
@@ -92,7 +92,9 @@ def pre_process_command(func):
     @wraps(func)
     def wrapper(message: types.Message):
         if message.from_user is None or message.from_user.username is None:
-            logger.error(f"Message without username: {message.chat.id=}; {message.text}")
+            logger.error(
+                f"Message without username: {message.chat.id=}; {message.text}"
+            )
             return
         username = message.from_user.username
         logger.info(f"{username}: {message.text}")
@@ -183,4 +185,5 @@ def echo_all(message: types.Message, extra_flags: set[str]):
 
 if __name__ == "__main__":
     logger.info("Bot started")
+    bot.send_message(ME_CHAT_ID, Report().report_repository_info())
     bot.infinity_polling()

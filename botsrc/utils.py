@@ -1,8 +1,13 @@
-import json
+from datetime import datetime
+
+from git import Repo, Commit
 
 from src.obj.entry import Entry, Type
 from src.paths import ALLOWED_USERS
 from src.mongo import Mongo
+
+
+BOT_STARTED = datetime.now()
 
 
 ALLOWED_USERS.parent.mkdir(exist_ok=True)
@@ -36,3 +41,26 @@ def process_watch_list_on_add_entry(entry: Entry) -> bool:
 ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find"}
 
 ME_CHAT_ID = 409474295
+
+
+class Report:
+    """Class to generate report about the bot."""
+
+    def __init__(self):
+        # repository info
+        self.repo = Repo(".")
+        self.recent_commits = list(self.repo.iter_commits(max_count=5))
+        self.on_branch = self.repo.active_branch.name
+
+    @staticmethod
+    def _commit_to_str(commit: Commit) -> str:
+        """Convert commit to string."""
+        return f"""commit {commit.hexsha}
+Author: {commit.author.name} <{commit.author.email}>
+Date:   {commit.authored_datetime}
+{commit.message}"""
+
+    def report_repository_info(self) -> str:
+        return f"""Bot started at {BOT_STARTED} on branch: {self.on_branch}.
+    - Last commit:
+{self._commit_to_str(self.recent_commits[0])}"""
