@@ -5,7 +5,7 @@ from statistics import mean, stdev
 
 import plotly.graph_objects as go
 
-from src.obj.entry import Entry, Type
+from src.obj.entry import Entry
 
 
 def get_plot(entries: list[Entry]) -> go.Figure:
