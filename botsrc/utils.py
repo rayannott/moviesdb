@@ -3,7 +3,7 @@ from datetime import datetime
 from git import Repo, Commit
 from telebot import TeleBot
 
-from src.obj.entry import Entry, Type
+from src.obj.entry import Entry
 from src.paths import ALLOWED_USERS
 from src.mongo import Mongo
 
@@ -23,20 +23,24 @@ def select_entry_by_oid_part(oid_part: str, entries: list[Entry]) -> Entry | Non
 
 def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) -> str:
     note_str = f": {entry.notes}" if entry.notes and verbose else ""
-    type_str = f" ({entry.type.name.lower()})" if entry.type != Type.MOVIE else ""
     watched_date_str = f" ({entry.date.strftime('%d.%m.%Y')})" if entry.date else ""
     tags_str = f" [{' '.join(entry.tags)}]" if entry.tags else ""
     oid_part = "{" + str(entry._id)[-4:] + "} " if with_oid else ""
-    return f"{oid_part}[{entry.rating:.2f}] {entry.title}{type_str}{watched_date_str}{note_str}{tags_str}"
+    return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{note_str}{tags_str}"
 
 
-def process_watch_list_on_add_entry(entry: Entry) -> bool:
+def format_title(title: str, is_series: bool) -> str:
+    return f"{title}{' (series)' if is_series else ''}"
+
+
+def process_watch_list_on_add_entry(entry: Entry) -> str:
+    title_fmt = format_title(entry.title, entry.is_series)
     watch_list = Mongo.load_watch_list()
-    is_series = entry.type == Type.SERIES
-    if watch_list.get(entry.title) is is_series:
-        Mongo.delete_watchlist_entry(entry.title, is_series)
-        return True
-    return False
+    if not watch_list.remove(entry.title, entry.is_series):
+        return ""
+    if not Mongo.delete_watchlist_entry(entry.title, entry.is_series):
+        return f"Could not delete {title_fmt} from watch list."
+    return f"Removed {title_fmt} from watch list."
 
 
 ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag"}
