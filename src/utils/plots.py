@@ -29,7 +29,7 @@ def get_plot(entries: list[Entry]) -> go.Figure:
         formatted_entry = (
             f"[{entry.rating:.2f}] <b>{entry.title}</b> ({entry.date:%d.%m})"
         )
-        if entry.type == Type.MOVIE:
+        if not entry.is_series:
             data[(year, month)][0].append(entry.rating)
             data[(year, month)][2].append(formatted_entry)
         else:

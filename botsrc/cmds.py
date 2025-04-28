@@ -8,6 +8,7 @@ from src.utils.utils import AccessRightsManager
 
 from botsrc.utils import (
     format_entry,
+    format_title,
     select_entry_by_oid_part,
     process_watch_list_on_add_entry,
     list_many_entries,
@@ -83,8 +84,8 @@ def cmd_add(
     bot.send_message(
         message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
     )
-    if process_watch_list_on_add_entry(entry):
-        bot.send_message(message.chat.id, f"Removed {entry.title} from watch list.")
+    if msg := process_watch_list_on_add_entry(entry):
+        bot.send_message(message.chat.id, msg)
 
 
 def cmd_find(
@@ -130,11 +131,9 @@ def cmd_watch(
     # TODO: refactor; move to own module
     watch_list = Mongo.load_watch_list()
     if not (pos or kwargs or flags):
-        movies = [title for title, is_series in watch_list.items() if not is_series]
-        series = [title for title, is_series in watch_list.items() if is_series]
         bot.send_message(
             message.chat.id,
-            f"Movies: {', '.join(movies)}\n\nSeries: {', '.join(series)}",
+            f"Movies: {', '.join(watch_list.movies)}\n\nSeries: {', '.join(watch_list.series)}",
         )
         return
     if "guest" in flags:
@@ -143,19 +142,18 @@ def cmd_watch(
     watch_title = "".join(pos)
     is_series = watch_title.endswith("+")
     title = watch_title.rstrip("+ ")
-    title_fmt = f"{title} ({'series' if is_series else ''})"
-    watch_list = Mongo.load_watch_list()
+    title_fmt = format_title(title, is_series)
     if "delete" in flags:
-        if title not in watch_list:
+        if not watch_list.remove(title, is_series):
             bot.reply_to(message, f"{title_fmt} is not in the watch list.")
             return
         if not Mongo.delete_watchlist_entry(title, is_series):
             bot.reply_to(message, f"There is no such watch list entry: {title_fmt}.")
             return
-        bot.send_message(message.chat.id, f"Deleted {title} from watch list.")
+        bot.send_message(message.chat.id, f"Deleted {title_fmt} from watch list.")
         return
-    if title in watch_list:
-        bot.reply_to(message, f"{title} is already in the watch list.")
+    if not watch_list.add(title, is_series):
+        bot.reply_to(message, f"{title_fmt} is already in the watch list.")
         return
     Mongo.add_watchlist_entry(title, is_series)
     bot.send_message(message.chat.id, f"Added {title_fmt} to watch list.")

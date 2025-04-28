@@ -59,6 +59,10 @@ class Entry:
         self.tags.update(find_hashtags(self.notes))
         self.notes = remove_hashtags(self.notes)
 
+    @property
+    def is_series(self) -> bool:
+        return self.type == Type.SERIES
+
     def __repr__(self):
         return self._repr(bool(is_verbose))
 

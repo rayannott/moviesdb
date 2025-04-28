@@ -4,6 +4,7 @@ from pymongo.collection import Collection
 from bson import ObjectId
 
 from src.obj.entry import Entry
+from src.obj.watch_list import WatchList
 from src.utils.env import MONGODB_PASSWORD
 
 
@@ -59,6 +60,6 @@ class Mongo:
         return [Entry.from_dict(entry) for entry in data]
 
     @staticmethod
-    def load_watch_list() -> dict[str, bool]:
+    def load_watch_list() -> WatchList:
         data = watchlist().find()
-        return {item["title"]: item["is_series"] for item in data}
+        return WatchList([(item["title"], item["is_series"]) for item in data])
