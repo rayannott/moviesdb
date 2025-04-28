@@ -7,7 +7,6 @@ import botsrc.cmds as botcmd
 
 
 def load_bot_commands():
-
     bot_commands: dict[
         str,
         Callable[[PositionalArgs, KeywordArgs, Flags, TeleBot, types.Message], None],
@@ -16,7 +15,6 @@ def load_bot_commands():
         for method_name in dir(botcmd)
         if method_name.startswith("cmd_")
     }
-
     return bot_commands
 
 
