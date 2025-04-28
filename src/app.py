@@ -17,7 +17,13 @@ with Console().status("Loading dependencies..."):
     from bson import ObjectId
 
     from src.obj.ai import ChatBot
-    from src.obj.entry import Entry, MalformedEntryException, Type, is_verbose, build_tags
+    from src.obj.entry import (
+        Entry,
+        MalformedEntryException,
+        Type,
+        is_verbose,
+        build_tags,
+    )
     from src.obj.entry_group import EntryGroup
     from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
@@ -26,7 +32,14 @@ with Console().status("Loading dependencies..."):
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
-    from src.utils.utils import possible_match, AccessRightsManager
+    from src.utils.utils import (
+        possible_match,
+        AccessRightsManager,
+        F_ALL,
+        F_MOVIES,
+        F_SERIES,
+        TAG_WATCH_AGAIN,
+    )
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -41,13 +54,6 @@ with Console().status("Loading dependencies..."):
 
 with Console().status("Connecting to MongoDB..."):
     from src.mongo import aimemory, Mongo
-
-
-F_SERIES = "series"
-F_MOVIES = "movies"
-F_ALL = "all"
-
-TAG_WATCH_AGAIN = "watch-again"
 
 
 def identity(x: str):

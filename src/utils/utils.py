@@ -12,6 +12,13 @@ HASHTAG_RE = re.compile(r"#[\w-]+")
 RATINGS_RE = re.compile(r"\[([0-9 _.]+)\]")
 
 
+F_SERIES = "series"
+F_MOVIES = "movies"
+F_ALL = "all"
+
+TAG_WATCH_AGAIN = "watch-again"
+
+
 def find_hashtags(text: str) -> set[str]:
     return set(ht[1:] for ht in HASHTAG_RE.findall(text))
 
