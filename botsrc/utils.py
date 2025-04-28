@@ -42,11 +42,11 @@ def process_watch_list_on_add_entry(entry: Entry) -> bool:
 ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag"}
 HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
 You can use the following commands (read-only):
-    - list: to view the entries
-    - find <title>: to find a title by name
-    - watch: to view the watch list
-    - suggest: to suggest me a movie!
-    - tag [<tagname>]: to view tags stats or entries with the given tag"""
+    - list - to view the entries
+    - find <title> - to find a title by name
+    - watch - to view the watch list
+    - suggest - to suggest me a movie!
+    - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
 

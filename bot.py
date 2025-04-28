@@ -9,6 +9,7 @@ from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
 from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report, HELP_GUEST_MESSAGE
 from botsrc.compiled import BOT_COMMANDS
+from botsrc.helper import get_help
 
 
 # TODO: set up file logging
@@ -45,6 +46,27 @@ def pre_process_command(func):
     return wrapper
 
 
+def managed_help(
+    root: str, pos: list[str], flags: set[str], bot: TeleBot, message: types.Message
+) -> bool:
+    if root == "help":
+        if "guest" in flags:
+            msg = HELP_GUEST_MESSAGE
+        elif not pos:
+            msg = get_help(BOT_COMMANDS)
+        elif len(pos) == 1:
+            msg = get_help(BOT_COMMANDS, pos[0])
+        else:
+            msg = "Too many arguments."
+        bot.send_message(message.chat.id, msg)
+        return True
+    if "help" in flags:
+        msg = get_help(BOT_COMMANDS, root)
+        bot.send_message(message.chat.id, msg)
+        return True
+    return False
+
+
 @bot.message_handler(commands=["start"])
 @pre_process_command
 def cmd_start(message: types.Message, extra_flags: set[str]):
@@ -54,16 +76,6 @@ def cmd_start(message: types.Message, extra_flags: set[str]):
         )
     else:
         bot.send_message(message.chat.id, "Hello, me!")
-
-
-@bot.message_handler(commands=["help"])
-@pre_process_command
-def on_help(message: types.Message, extra_flags: set[str]):
-    if "guest" in extra_flags:
-        bot.send_message(message.chat.id, HELP_GUEST_MESSAGE)
-    else:
-        # TODO: implement in a clever way to avoid code repetitions
-        bot.send_message(message.chat.id, "Help message.")
 
 
 @bot.message_handler(commands=["stop"])
@@ -91,12 +103,13 @@ def other(message: types.Message, extra_flags: set[str]):
         bot.reply_to(message, "Only text is supported.")
         return
     try:
-        root, pos, kwargs, flags = parse(message.text)
+        root, pos, kwargs, flags = parse(message.text.lstrip("/"))
     except ParsingError as e:
         bot.reply_to(message, f"{e}: {message.text!r}")
         logging.error(f"Parsing error: {e}")
         return
-    root = root.lstrip("/")
+    if managed_help(root, pos, flags, bot, message):
+        return
     command_method = BOT_COMMANDS.get(root)
     if command_method is None:
         msg = f"Unknown command: {message.text}"
