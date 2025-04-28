@@ -1,2 +1,2 @@
 source venv/bin/activate
-nohup python -u bot.py > bot.log &
+nohup python -u bot.py > bot.out &

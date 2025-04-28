@@ -9,4 +9,6 @@ venv/
 
 *.prof
 
-*.log
+*.out
+
+logs/

@@ -4,19 +4,15 @@ from functools import wraps
 from telebot import TeleBot, types
 
 from src.parser import ParsingError, parse
-from src.paths import LOG_FILE
 from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
 from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report, HELP_GUEST_MESSAGE
 from botsrc.compiled import BOT_COMMANDS
+from setup_logging import setup_logging
 
 
-# TODO: set up file logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s]:%(asctime)s:%(module)s:%(message)s",
-)
 logger = logging.getLogger(__name__)
+setup_logging()
 
 bot = TeleBot(TELEGRAM_TOKEN)
 access_rights_manager = AccessRightsManager()
@@ -38,7 +34,7 @@ def pre_process_command(func):
             extra_flags = {"guest"}
         else:
             bot.reply_to(message, "You are not allowed to use this bot.")
-            logger.warning(f"User {username} is not allowed to use the bot")
+            logger.info(f"User {username} is not allowed to use the bot")
             return
         func(message, extra_flags)
 
@@ -74,16 +70,6 @@ def on_stop(message: types.Message, extra_flags: set[str]):
     bot.stop_bot()
 
 
-@bot.message_handler(commands=["log"])
-@pre_process_command
-def on_log(message: types.Message, extra_flags: set[str]):
-    if not LOG_FILE.exists():
-        bot.reply_to(message, "Log file does not exist.")
-        return
-    lines = LOG_FILE.read_text().splitlines()
-    bot.send_message(message.chat.id, "\n".join(lines[-10:]))
-
-
 @bot.message_handler(func=lambda msg: True)
 @pre_process_command
 def other(message: types.Message, extra_flags: set[str]):
@@ -101,7 +87,7 @@ def other(message: types.Message, extra_flags: set[str]):
     if command_method is None:
         msg = f"Unknown command: {message.text}"
         bot.reply_to(message, msg)
-        logging.warning(msg)
+        logging.info(msg)
         return
     flags.update(extra_flags)
     if "guest" in flags and root not in ALLOW_GUEST_COMMANDS:
