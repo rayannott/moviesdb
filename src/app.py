@@ -791,6 +791,10 @@ class App:
         self.recently_popped.append(popped_entry)
 
     def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        def _print(what: str):
+            if "silent" not in flags:
+                self.cns.print(what)
+
         LOCAL_DIR.mkdir(exist_ok=True)
         dbfile = LOCAL_DIR / "db.json"
         with dbfile.open("w", encoding="utf-8") as f:
@@ -800,13 +804,11 @@ class App:
                 indent=2,
                 ensure_ascii=False,
             )
-            self.cns.print(
-                f"Exported {len(self.entries)} entries to {dbfile.absolute()}."
-            )
+            _print(f"Exported {len(self.entries)} entries to {dbfile.absolute()}.")
         wlfile = LOCAL_DIR / "watch_list.json"
         with wlfile.open("w", encoding="utf-8") as f:
-            json.dump(self.watch_list, f, indent=2, ensure_ascii=False)
-            self.cns.print(
+            json.dump(self.watch_list.items(), f, indent=2, ensure_ascii=False)
+            _print(
                 f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}."
             )
 
@@ -891,6 +893,7 @@ class App:
         command_method(pos, kwargs, flags)
 
     def run(self):
+        self.cmd_export([], {}, {"silent"})
         self.header()
         while self.running:
             try:
