@@ -150,10 +150,12 @@ class Entry:
 
     @staticmethod
     def parse_type(type: str) -> Type:
-        this_type = (
-            Type[type.upper()] if type.upper() in {"MOVIE", "SERIES"} else Type.MOVIE
-        )
-        return this_type
+        if not type:
+            return Type.MOVIE
+        try:
+            return Type[type.upper()]
+        except KeyError:
+            raise MalformedEntryException(f"Unknown type: {type}")
 
 
 def build_tags(entries: list[Entry]):
