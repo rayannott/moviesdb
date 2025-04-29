@@ -2,7 +2,6 @@ import telebot
 import logging
 
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.obj.entry import Entry, MalformedEntryException
 from src.mongo import Mongo
 from src.utils.utils import AccessRightsManager
 
@@ -10,7 +9,6 @@ from botsrc.utils import (
     format_entry,
     format_title,
     select_entry_by_oid_part,
-    process_watch_list_on_add_entry,
     list_many_entries,
 )
 from botsrc.commands import add, suggest, tag
@@ -63,29 +61,7 @@ def cmd_add(
         add --title "The Matrix" --rating 9.0 --date 30.10.2022 --notes "Great movie! #watch-again"
         add
     """
-    # TODO: refactor; move to own module
-    if not (pos or flags or kwargs):
-        add(message, bot)
-        return
-    try:
-        title = kwargs["title"]
-        rating = Entry.parse_rating(kwargs["rating"])
-        type_ = Entry.parse_type(kwargs.get("type", "movie"))
-        date = Entry.parse_date(kwargs.get("date", ""))
-        notes = kwargs.get("notes", "")
-    except MalformedEntryException as e:
-        bot.reply_to(message, str(e))
-        return
-    except KeyError:
-        bot.reply_to(message, "Need to specify title and rating")
-        return
-    entry = Entry(None, title, rating, date, type_, notes)
-    Mongo.add_entry(entry)
-    bot.send_message(
-        message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
-    )
-    if msg := process_watch_list_on_add_entry(entry):
-        bot.send_message(message.chat.id, msg)
+    add(pos, kwargs, flags, bot, message)
 
 
 def cmd_find(

@@ -623,24 +623,28 @@ class App:
         _same_title_with_watch_again: list[Entry] = []
         _same_title_num = 0
         for e in self.entries:
-            if e.title == for_entry.title:
-                _same_title_num += 1
-                if TAG_WATCH_AGAIN in e.tags:
-                    _same_title_with_watch_again.append(e)
-        if _same_title_with_watch_again:
-            resp = Prompt.ask(
-                f"[bold blue] NOTE: some entries ({len(_same_title_with_watch_again)}/{_same_title_num}) associated with "
-                f"the newly added entry have the tag {format_tag(TAG_WATCH_AGAIN)}. "
-                "Do you want to remove it (them)?",
-                choices=["y", "n"],
-                default="n",
+            if e.title != for_entry.title or e.type != for_entry.type:
+                continue
+            _same_title_num += 1
+            if TAG_WATCH_AGAIN in e.tags:
+                _same_title_with_watch_again.append(e)
+        if not _same_title_with_watch_again:
+            return
+        resp = Prompt.ask(
+            f"[bold blue] NOTE: some entries ({len(_same_title_with_watch_again)}/{_same_title_num}) associated with "
+            f"the newly added entry have the tag {format_tag(TAG_WATCH_AGAIN)}. "
+            "Do you want to remove it (them)?",
+            choices=["y", "n"],
+            default="n",
+        )
+        if resp.lower() != "y":
+            return
+        for e in _same_title_with_watch_again:
+            e.tags.remove(TAG_WATCH_AGAIN)
+            Mongo.update_entry(e)
+            self.cns.print(
+                f"[green]󰺝 Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
             )
-            if resp.lower() == "y":
-                for e in _same_title_with_watch_again:
-                    e.tags.remove(TAG_WATCH_AGAIN)
-                    self.cns.print(
-                        f"[green]󰺝 Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
-                    )
 
     def cmd_add(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         title = " ".join(pos)

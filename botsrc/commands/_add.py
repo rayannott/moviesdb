@@ -3,7 +3,13 @@ from datetime import datetime
 import telebot
 from src.obj.entry import Entry, MalformedEntryException, Type
 from src.mongo import Mongo
-from botsrc.utils import format_entry, process_watch_list_on_add_entry, format_title
+from src.parser import Flags, KeywordArgs, PositionalArgs
+from botsrc.utils import (
+    format_entry,
+    process_watch_list_on_add_entry,
+    format_title,
+    process_watch_again_tag_on_add_entry,
+)
 
 
 def text(message: telebot.types.Message) -> str:
@@ -34,10 +40,37 @@ def get_skip_kb(extra_buttons: list[str] = []) -> telebot.types.ReplyKeyboardMar
     return kb
 
 
-def add(message: telebot.types.Message, bot: telebot.TeleBot):
+def add(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
     # Start the process by asking for the movie title
-    sent = bot.send_message(message.chat.id, "Please enter the title:")
-    bot.register_next_step_handler(sent, _get_title, bot=bot)
+    if not (pos or flags or kwargs):
+        sent = bot.send_message(message.chat.id, "Please enter the title:")
+        bot.register_next_step_handler(sent, _get_title, bot=bot)
+        return
+    try:
+        title = kwargs["title"]
+        rating = Entry.parse_rating(kwargs["rating"])
+        type_ = Entry.parse_type(kwargs.get("type", "movie"))
+        date = Entry.parse_date(kwargs.get("date", ""))
+        notes = kwargs.get("notes", "")
+    except MalformedEntryException as e:
+        bot.reply_to(message, str(e))
+        return
+    except KeyError:
+        bot.reply_to(message, "Need to specify title and rating")
+        return
+    entry = Entry(None, title, rating, date, type_, notes)
+    Mongo.add_entry(entry)
+    bot.send_message(
+        message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
+    )
+    if msg := process_watch_list_on_add_entry(entry):
+        bot.send_message(message.chat.id, msg)
 
 
 def _get_title(message: telebot.types.Message, bot: telebot.TeleBot):
@@ -165,18 +198,20 @@ def _get_notes(
 
 
 def _confirm_add(message: telebot.types.Message, bot: telebot.TeleBot, entry: Entry):
-    if text(message).lower() == "confirm":
-        Mongo.add_entry(entry)
-        bot.send_message(
-            message.chat.id,
-            f"Entry added:\n{format_entry(entry, True, True)}",
-            reply_markup=telebot.types.ReplyKeyboardRemove(),
-        )
-        if msg := process_watch_list_on_add_entry(entry):
-            bot.send_message(message.chat.id, msg)
-    else:
+    if text(message).lower() != "confirm":
         bot.send_message(
             message.chat.id,
             "Entry creation canceled.",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        return
+    Mongo.add_entry(entry)
+    bot.send_message(
+        message.chat.id,
+        f"Entry added:\n{format_entry(entry, True, True)}",
+        reply_markup=telebot.types.ReplyKeyboardRemove(),
+    )
+    if msg := process_watch_list_on_add_entry(entry):
+        bot.send_message(message.chat.id, msg)
+    if msg := process_watch_again_tag_on_add_entry(entry):
+        bot.send_message(message.chat.id, msg)

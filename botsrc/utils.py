@@ -4,6 +4,7 @@ from git import Repo, Commit
 from telebot import TeleBot
 
 from src.obj.entry import Entry
+from src.utils.utils import TAG_WATCH_AGAIN
 from src.paths import ALLOWED_USERS
 from src.mongo import Mongo
 
@@ -41,6 +42,25 @@ def process_watch_list_on_add_entry(entry: Entry) -> str:
     if not Mongo.delete_watchlist_entry(entry.title, entry.is_series):
         return f"Could not delete {title_fmt} from watch list."
     return f"Removed {title_fmt} from watch list."
+
+
+def process_watch_again_tag_on_add_entry(entry: Entry) -> str:
+    entries = Mongo.load_entries()
+    entries_wa = [
+        ent
+        for ent in entries
+        if TAG_WATCH_AGAIN in ent.tags
+        and ent.title == entry.title
+        and ent.type == entry.type
+    ]
+    if not entries_wa:
+        return ""
+    msg = "Removed the watch again tag from:"
+    for ent in entries_wa:
+        ent.tags.remove(TAG_WATCH_AGAIN)
+        Mongo.update_entry(ent)
+        msg += f"\n{format_entry(ent)}"
+    return msg
 
 
 ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag"}
