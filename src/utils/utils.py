@@ -17,10 +17,14 @@ F_MOVIES = "movies"
 F_ALL = "all"
 
 TAG_WATCH_AGAIN = "watch-again"
+TAG_WATCH_AGAIN_ALIAS = "wa"
+
+def replace_tag_alias(tagname: str) -> str:
+    return tagname if tagname != TAG_WATCH_AGAIN_ALIAS else TAG_WATCH_AGAIN
 
 
 def find_hashtags(text: str) -> set[str]:
-    return set(ht[1:] for ht in HASHTAG_RE.findall(text))
+    return set(replace_tag_alias(ht[1:]) for ht in HASHTAG_RE.findall(text))
 
 
 def remove_hashtags(text: str) -> str:

@@ -40,6 +40,7 @@ with Console().status("Loading dependencies..."):
         F_MOVIES,
         F_SERIES,
         TAG_WATCH_AGAIN,
+        replace_tag_alias,
     )
     from src.utils.rich_utils import (
         format_entry,
@@ -396,7 +397,7 @@ class App:
                 )
             )
             return
-        tagname = pos[0]
+        tagname = replace_tag_alias(pos[0])
         if len(pos) == 1:
             if tagname not in tags:
                 self.error(f"No such tag: {tagname}.")
@@ -411,9 +412,8 @@ class App:
         exact_matches = self._find_exact_matches(title_or_idx)
         if exact_matches:
             entry = exact_matches[-1][1]
-        else:
-            if not (entry := self.entry_by_idx(title_or_idx)):
-                return
+        elif not (entry := self.entry_by_idx(title_or_idx)):
+            return
         if {"d", "delete"} & flags:
             try:
                 entry.tags.remove(tagname)
@@ -720,7 +720,7 @@ class App:
 
     def cmd_random(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         to_choose_from = (
-            [e for e in self.entries if tag in e.tags]
+            [e for e in self.entries if replace_tag_alias(tag) in e.tags]
             if (tag := kwargs.get("tag"))
             else self.entries
         )

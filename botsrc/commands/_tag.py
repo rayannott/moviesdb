@@ -2,6 +2,7 @@ import telebot
 
 from src.obj.entry import build_tags
 from src.parser import Flags, PositionalArgs
+from src.utils.utils import replace_tag_alias
 from src.mongo import Mongo
 from botsrc.utils import list_many_entries
 
@@ -24,7 +25,7 @@ def tag(
         bot.send_message(message.chat.id, msg)
         return
     if len(pos) == 1:
-        tag = pos[0]
+        tag = replace_tag_alias(pos[0])
         if (entries := tags.get(tag)) is None:
             bot.send_message(message.chat.id, f"Tag {tag} not found.")
             return
