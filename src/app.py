@@ -41,6 +41,7 @@ with Console().status("Loading dependencies..."):
         F_SERIES,
         TAG_WATCH_AGAIN,
         replace_tag_alias,
+        RepoInfo,
     )
     from src.utils.rich_utils import (
         format_entry,
@@ -207,6 +208,8 @@ class App:
             if method_name.startswith("cmd_")
         }
 
+        self.repo_info = RepoInfo()
+
         self.recently_popped: list[Entry] = []
 
     def _load_all(self):
@@ -320,7 +323,13 @@ class App:
             return None
 
     def header(self):
-        self.cns.rule(f"[bold green]{len(self.entries)}[/] entries")
+        branch = f"[violet] {self.repo_info.on_branch}[/]"
+        last_commit_from = (
+            f"[gold3]󰚰 {self.repo_info.recent_commits[0].authored_datetime:%d %b %Y}[/]"
+        )
+        self.cns.rule(
+            rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
+        )
 
     def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         title = " ".join(pos)

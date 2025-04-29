@@ -7,7 +7,12 @@ from src.parser import ParsingError, parse
 from src.paths import LOG_FILE
 from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
-from botsrc.utils import ALLOW_GUEST_COMMANDS, ME_CHAT_ID, Report, HELP_GUEST_MESSAGE
+from botsrc.utils import (
+    ALLOW_GUEST_COMMANDS,
+    ME_CHAT_ID,
+    HELP_GUEST_MESSAGE,
+    report_repository_info,
+)
 from botsrc.compiled import BOT_COMMANDS
 from botsrc.helper import get_help
 
@@ -129,5 +134,5 @@ def other(message: types.Message, extra_flags: set[str]):
 
 if __name__ == "__main__":
     logger.info("Bot started")
-    bot.send_message(ME_CHAT_ID, Report().report_repository_info())
+    bot.send_message(ME_CHAT_ID, report_repository_info())
     bot.infinity_polling()

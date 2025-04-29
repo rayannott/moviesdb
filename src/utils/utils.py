@@ -2,6 +2,7 @@ import datetime
 import difflib
 import re
 import json
+from git import Repo
 
 from src.paths import ALLOWED_USERS
 
@@ -18,6 +19,7 @@ F_ALL = "all"
 
 TAG_WATCH_AGAIN = "watch-again"
 TAG_WATCH_AGAIN_ALIAS = "wa"
+
 
 def replace_tag_alias(tagname: str) -> str:
     return tagname if tagname != TAG_WATCH_AGAIN_ALIAS else TAG_WATCH_AGAIN
@@ -111,3 +113,11 @@ class AccessRightsManager:
     def __contains__(self, username: str) -> bool:
         self.guests = self.load_allowed_users()
         return username in self.guests
+
+
+class RepoInfo:
+    def __init__(self):
+        self.repo = Repo(".")
+        self.recent_commits = list(self.repo.iter_commits(max_count=5))
+        self.on_branch = self.repo.active_branch.name
+        self.last_commit = self.recent_commits[0]
