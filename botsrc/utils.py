@@ -69,7 +69,7 @@ You can use the following commands (read-only):
     - list - to view the entries
     - find <title> - to find a title by name
     - watch - to view the watch list
-    - suggest - to suggest me a movie!
+    - suggest <message> - to suggest me a movie!
     - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
