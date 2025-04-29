@@ -147,7 +147,7 @@ def _get_date(
 ):
     try:
         date = Entry.parse_date(
-            text(message).lower() if text(message) != "Skip" else ""
+            text(message).lower() if text(message).lower() != "skip" else ""
         )
     except MalformedEntryException as e:
         bot.reply_to(
@@ -181,7 +181,7 @@ def _get_notes(
     type_: Type,
     date: datetime | None,
 ):
-    notes = text(message) if text(message) != "Skip" else ""
+    notes = text(message).lower() if text(message).lower() != "skip" else ""
 
     entry = Entry(None, title, rating, date, type_, notes)
     bot.send_message(
