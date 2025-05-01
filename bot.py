@@ -33,7 +33,8 @@ def pre_process_command(func):
             )
             return
         username = message.from_user.username
-        logger.info(f"{username}: {message.text}")
+        name = message.from_user.first_name
+        logger.info(f"{name}(@{username};{message.chat.id}):{message.text}")
         if message.chat.id == ME_CHAT_ID:
             extra_flags = set()
         elif username in access_rights_manager:
