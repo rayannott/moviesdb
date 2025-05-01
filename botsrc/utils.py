@@ -54,6 +54,7 @@ def process_watch_again_tag_on_add_entry(entry: Entry) -> str:
         if TAG_WATCH_AGAIN in ent.tags
         and ent.title == entry.title
         and ent.type == entry.type
+        and ent._id != entry._id
     ]
     if not entries_wa:
         return ""
