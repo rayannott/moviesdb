@@ -4,7 +4,7 @@ from src.obj.entry import build_tags
 from src.parser import Flags, PositionalArgs
 from src.utils.utils import replace_tag_alias
 from src.mongo import Mongo
-from botsrc.utils import list_many_entries
+from botsrc.utils import list_many_entries, format_entry
 
 
 def tag(
@@ -44,10 +44,10 @@ def tag(
                 return
             entry.tags.remove(tag_name)
             Mongo.update_entry(entry)
-            bot.send_message(message.chat.id, f"Tag removed:\n{entry}")
+            bot.send_message(message.chat.id, f"Tag removed:\n{format_entry(entry)}")
             return
         entry.tags.add(tag_name)
         Mongo.update_entry(entry)
-        bot.send_message(message.chat.id, f"Tag added:\n{entry}")
+        bot.send_message(message.chat.id, f"Tag added:\n{format_entry(entry)}")
         return
     bot.reply_to(message, "Too many arguments.")
