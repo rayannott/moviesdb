@@ -81,10 +81,11 @@ def cmd_find(
         return
     if "guest" in flags:
         flags = set()
+    title = " ".join(pos)
     entries = sorted(Mongo.load_entries())
-    filtered = [ent for ent in entries if pos[0].lower() in ent.title.lower()]
+    filtered = [ent for ent in entries if title.lower() in ent.title.lower()]
     if not filtered:
-        bot.reply_to(message, f"No entries found with {pos[0]}.")
+        bot.reply_to(message, f"No entries found with {title!r}.")
         return
     res = list_many_entries(filtered, "verbose" in flags, "oid" in flags)
     bot.send_message(message.chat.id, res)
@@ -114,7 +115,7 @@ def cmd_watch(
     if "guest" in flags:
         bot.reply_to(message, "Sorry, you can't modify anything.")
         return
-    watch_title = "".join(pos)
+    watch_title = " ".join(pos)
     is_series = watch_title.endswith("+")
     title = watch_title.rstrip("+ ")
     title_fmt = format_title(title, is_series)
