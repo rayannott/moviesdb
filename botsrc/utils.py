@@ -65,13 +65,14 @@ def process_watch_again_tag_on_add_entry(entry: Entry) -> str:
     return msg
 
 
-ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag"}
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group"}
 HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
 You can use the following commands (read-only):
     - list - to view the entries
     - find <title> - to find a title by name
     - watch - to view the watch list
     - suggest <message> - to suggest me a movie!
+    - group [<title>] - group entries by title
     - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
