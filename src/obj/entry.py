@@ -59,6 +59,10 @@ class Entry:
         self.tags.update(find_hashtags(self.notes))
         self.notes = remove_hashtags(self.notes)
 
+    @property
+    def is_series(self) -> bool:
+        return self.type == Type.SERIES
+
     def __repr__(self):
         return self._repr(bool(is_verbose))
 
@@ -146,10 +150,12 @@ class Entry:
 
     @staticmethod
     def parse_type(type: str) -> Type:
-        this_type = (
-            Type[type.upper()] if type.upper() in {"MOVIE", "SERIES"} else Type.MOVIE
-        )
-        return this_type
+        if not type:
+            return Type.MOVIE
+        try:
+            return Type[type.upper()]
+        except KeyError:
+            raise MalformedEntryException(f"Unknown type: {type}")
 
 
 def build_tags(entries: list[Entry]):

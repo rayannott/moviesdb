@@ -8,6 +8,7 @@ from rich.table import Table
 
 from src.obj.entry import Entry, Type, is_verbose
 from src.obj.entry_group import EntryGroup
+from src.utils.utils import TAG_WATCH_AGAIN
 
 
 def get_rich_table(
@@ -94,7 +95,8 @@ def format_movie_series(title: str, is_series: bool) -> str:
 
 
 def format_tag(tag: str) -> str:
-    return f"[bold blue]󰓹 {tag}[/]"
+    style = "bold blue" if tag != TAG_WATCH_AGAIN else "dodger_blue2"
+    return f"[{style}]󰓹 {tag}[/]"
 
 
 def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:

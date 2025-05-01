@@ -5,15 +5,14 @@ import zipfile
 import telebot
 
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.obj.entry import Entry, MalformedEntryException
 from src.mongo import Mongo
 from src.utils.utils import AccessRightsManager
 from src.paths import STDOUT_STREAM_FILE, LOGS_DIR
 
 from botsrc.utils import (
     format_entry,
+    format_title,
     select_entry_by_oid_part,
-    process_watch_list_on_add_entry,
     list_many_entries,
 )
 from botsrc.commands import add, suggest, tag
@@ -29,6 +28,11 @@ def cmd_list(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    """list [--verbose] [--oid]
+    List the last 5 entries in the database.
+        verbose(flag): show the notes
+        oid(flag): show the mongoDB OIDs
+    """
     if "guest" in flags:
         flags = set()
     entries = sorted(Mongo.load_entries())
@@ -49,29 +53,19 @@ def cmd_add(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
-    # TODO: refactor; move to own module
-    if not kwargs:
-        add(message, bot)
-        return
-    try:
-        title = kwargs["title"]
-        rating = Entry.parse_rating(kwargs["rating"])
-        type_ = Entry.parse_type(kwargs.get("type", "movie"))
-        date = Entry.parse_date(kwargs.get("date", ""))
-        notes = kwargs.get("notes", "")
-    except MalformedEntryException as e:
-        bot.reply_to(message, str(e))
-        return
-    except KeyError:
-        bot.reply_to(message, "Need to specify title and rating")
-        return
-    entry = Entry(None, title, rating, date, type_, notes)
-    Mongo.add_entry(entry)
-    bot.send_message(
-        message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
-    )
-    if process_watch_list_on_add_entry(entry):
-        bot.send_message(message.chat.id, f"Removed {entry.title} from watch list.")
+    """add [--title <title> --rating <rating> [--type <type>] [--date <date>] [--notes <notes>]]
+    Add a new entry to the database.
+    If no arguments are specified, start the multi-step process.
+        title: the title of the entry
+        rating: the rating of the entry (0-10)
+        type: the type of the entry (movie or series; default: movie)
+        date: the date of the entry (dd.mm.yyyy or today or ""; default: "")
+        notes: the notes of the entry (default: "")
+    Examples:
+        add --title "The Matrix" --rating 9.0 --date 30.10.2022 --notes "Great movie! #watch-again"
+        add
+    """
+    add(pos, kwargs, flags, bot, message)
 
 
 def cmd_find(
@@ -81,6 +75,11 @@ def cmd_find(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    """find <title> [--verbose] [--oid]
+    Find an entry by title.
+        verbose(flag): show the notes
+        oid(flag): show the mongoDB OIDs
+    """
     # TODO: refactor; move to own module
     if not pos:
         bot.reply_to(message, "You must specify a title.")
@@ -103,14 +102,18 @@ def cmd_watch(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    """watch [<title>] [--delete]
+    Show the watch list or add/delete an entry.
+    If no arguments are specified, show the watch list.
+        title: the title of the entry; if ends with "+", it is a series
+        delete(flag): if specified, delete the entry from the watch list instead of adding it
+    """
     # TODO: refactor; move to own module
     watch_list = Mongo.load_watch_list()
-    if not pos:
-        movies = [title for title, is_series in watch_list.items() if not is_series]
-        series = [title for title, is_series in watch_list.items() if is_series]
+    if not (pos or kwargs or flags):
         bot.send_message(
             message.chat.id,
-            f"Movies: {', '.join(movies)}\n\nSeries: {', '.join(series)}",
+            f"Movies: {', '.join(watch_list.movies)}\n\nSeries: {', '.join(watch_list.series)}",
         )
         return
     if "guest" in flags:
@@ -119,19 +122,18 @@ def cmd_watch(
     watch_title = "".join(pos)
     is_series = watch_title.endswith("+")
     title = watch_title.rstrip("+ ")
-    title_fmt = f"{title} ({'series' if is_series else ''})"
-    watch_list = Mongo.load_watch_list()
+    title_fmt = format_title(title, is_series)
     if "delete" in flags:
-        if title not in watch_list:
+        if not watch_list.remove(title, is_series):
             bot.reply_to(message, f"{title_fmt} is not in the watch list.")
             return
         if not Mongo.delete_watchlist_entry(title, is_series):
             bot.reply_to(message, f"There is no such watch list entry: {title_fmt}.")
             return
-        bot.send_message(message.chat.id, f"Deleted {title} from watch list.")
+        bot.send_message(message.chat.id, f"Deleted {title_fmt} from watch list.")
         return
-    if title in watch_list:
-        bot.reply_to(message, f"{title} is already in the watch list.")
+    if not watch_list.add(title, is_series):
+        bot.reply_to(message, f"{title_fmt} is already in the watch list.")
         return
     Mongo.add_watchlist_entry(title, is_series)
     bot.send_message(message.chat.id, f"Added {title_fmt} to watch list.")
@@ -144,6 +146,10 @@ def cmd_pop(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    """pop <oid>
+    Delete an entry by OID.
+        oid: the OID of the entry
+    """
     # TODO: refactor; move to own module
     if not pos:
         bot.reply_to(message, "You must specify an oid.")
@@ -179,6 +185,12 @@ def cmd_guest(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    """guest [--add <name>] [--remove <name>]
+    Show the guest list or add/remove a name.
+    If no arguments are specified, show the guest list.
+        add: add the name to the guest list
+        remove: remove the name from the guest list
+    """
     # TODO: refactor; move to own module
     am = AccessRightsManager()
     if (name := kwargs.get("add")) is not None:
@@ -203,6 +215,15 @@ def cmd_tag(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
+    """tag [<tagname>] [<oid>] [--delete] [--verbose] [--oid]
+    Show the tags or add/delete a tag.
+    If no arguments are specified, show the tag counts.
+        tagname: if only argument, show the entries with the given tag
+        oid: add/delete the tag to/from the entry with the given OID
+        delete(flag): ...
+        verbose(flag): show the notes
+        oid(flag): show the mongoDB OIDs
+    """
     tag(message, bot, pos, flags)
 
 

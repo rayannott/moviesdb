@@ -2,6 +2,7 @@ import datetime
 import difflib
 import re
 import json
+from git import Repo
 
 from src.paths import ALLOWED_USERS
 
@@ -12,8 +13,20 @@ HASHTAG_RE = re.compile(r"#[\w-]+")
 RATINGS_RE = re.compile(r"\[([0-9 _.]+)\]")
 
 
+F_SERIES = "series"
+F_MOVIES = "movies"
+F_ALL = "all"
+
+TAG_WATCH_AGAIN = "watch-again"
+TAG_WATCH_AGAIN_ALIAS = "wa"
+
+
+def replace_tag_alias(tagname: str) -> str:
+    return tagname if tagname != TAG_WATCH_AGAIN_ALIAS else TAG_WATCH_AGAIN
+
+
 def find_hashtags(text: str) -> set[str]:
-    return set(ht[1:] for ht in HASHTAG_RE.findall(text))
+    return set(replace_tag_alias(ht[1:]) for ht in HASHTAG_RE.findall(text))
 
 
 def remove_hashtags(text: str) -> str:
@@ -100,3 +113,11 @@ class AccessRightsManager:
     def __contains__(self, username: str) -> bool:
         self.guests = self.load_allowed_users()
         return username in self.guests
+
+
+class RepoInfo:
+    def __init__(self):
+        self.repo = Repo(".")
+        self.recent_commits = list(self.repo.iter_commits(max_count=5))
+        self.on_branch = self.repo.active_branch.name
+        self.last_commit = self.recent_commits[0]

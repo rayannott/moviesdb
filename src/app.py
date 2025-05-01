@@ -17,16 +17,32 @@ with Console().status("Loading dependencies..."):
     from bson import ObjectId
 
     from src.obj.ai import ChatBot
-    from src.obj.entry import Entry, MalformedEntryException, Type, is_verbose, build_tags
+    from src.obj.entry import (
+        Entry,
+        MalformedEntryException,
+        Type,
+        is_verbose,
+        build_tags,
+    )
     from src.obj.entry_group import EntryGroup
     from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
     from src.obj.sql_mode import SqlMode
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
+    from src.obj.watch_list import WatchList
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
-    from src.utils.utils import possible_match, AccessRightsManager
+    from src.utils.utils import (
+        possible_match,
+        AccessRightsManager,
+        F_ALL,
+        F_MOVIES,
+        F_SERIES,
+        TAG_WATCH_AGAIN,
+        replace_tag_alias,
+        RepoInfo,
+    )
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -41,13 +57,6 @@ with Console().status("Loading dependencies..."):
 
 with Console().status("Connecting to MongoDB..."):
     from src.mongo import aimemory, Mongo
-
-
-F_SERIES = "series"
-F_MOVIES = "movies"
-F_ALL = "all"
-
-TAG_WATCH_AGAIN = "watch-again"
 
 
 def identity(x: str):
@@ -148,17 +157,17 @@ class App:
         return Mongo.load_entries()
 
     @staticmethod
-    def load_watch_list() -> dict[str, bool]:
+    def load_watch_list() -> WatchList:
         return Mongo.load_watch_list()
 
     @staticmethod
-    def get_watch_table(watch_list: dict[str, bool]):
-        n_cols = 3 if len(watch_list) >= 3 else len(watch_list)
+    def get_watch_table(watch_list_items: list[tuple[str, bool]]):
+        n_cols = 3 if len(watch_list_items) >= 3 else len(watch_list_items)
         return get_rich_table(
             [
                 list(titles) + [""] * (n_cols - len(titles))
                 for titles in batched(
-                    starmap(format_movie_series, watch_list.items()), n_cols
+                    starmap(format_movie_series, watch_list_items), n_cols
                 )
             ],
             title="Watch list",
@@ -198,6 +207,8 @@ class App:
             for method_name in dir(self)
             if method_name.startswith("cmd_")
         }
+
+        self.repo_info = RepoInfo()
 
         self.recently_popped: list[Entry] = []
 
@@ -239,10 +250,8 @@ class App:
             if title.lower() in e.title.lower() and title.lower() != e.title.lower()
         ]
 
-    def _watch(self, title_given: str):
-        is_series = title_given.endswith("+")
-        title = title_given.rstrip("+ ")
-        if title in self.watch_list and self.watch_list[title] is is_series:
+    def _watch(self, title: str, is_series: bool):
+        if (title, is_series) in self.watch_list:
             self.cns.print(
                 f" {format_title(title, Type.SERIES if is_series else Type.MOVIE)} "
                 "[bold red]is already in the watch list[/]",
@@ -272,7 +281,7 @@ class App:
                 return
             return
         possible_title = possible_match(
-            title, set(self.watch_list.keys()), score_threshold=0.7
+            title, set(self.watch_list), score_threshold=0.7
         )
         if possible_title is not None and possible_title != title:
             update_title = Prompt.ask(
@@ -283,34 +292,24 @@ class App:
             )
             if update_title == "y":
                 title = possible_title
-        self.watch_list[title] = is_series
+        self.watch_list.add(title, is_series)
         Mongo.add_watchlist_entry(title, is_series)
         self.cns.print(
             format_title(title, Type.SERIES if is_series else Type.MOVIE)
             + "[bold green] has been added to the watch list."
         )
 
-    def _unwatch(self, title_given: str):
-        title = title_given.rstrip("+ ")
-        is_series = title_given.endswith("+")
+    def _unwatch(self, title: str, is_series: bool):
         if not title:
             self.cns.print(" Empty title.", style="red")
             return
-        if title not in self.watch_list:
-            self.warning(f"{title} is not in the watch list")
-            return
-        title_fmtd = format_title(
-            title, Type.SERIES if self.watch_list[title] else Type.MOVIE
-        )
-        if self.watch_list[title] is not is_series:
-            self.error(
-                f"Entry types do not match. There is no {title_fmtd} in the watch list."
-            )
+        title_fmtd = format_title(title, Type.SERIES if is_series else Type.MOVIE)
+        if not self.watch_list.remove(title, is_series):
+            self.error(f"{title_fmtd} is not in the watch list.")
             return
         if not Mongo.delete_watchlist_entry(title, is_series):
             self.error(f"There is no such watch list entry: {title_fmtd}.")
             return
-        del self.watch_list[title]
         self.cns.print(
             title_fmtd + "[bold green] has been removed from the watch list."
         )
@@ -324,7 +323,13 @@ class App:
             return None
 
     def header(self):
-        self.cns.rule(f"[bold green]{len(self.entries)}[/] entries")
+        branch = f"[violet] {self.repo_info.on_branch}[/]"
+        last_commit_from = (
+            f"[gold3]󰚰 {self.repo_info.recent_commits[0].authored_datetime:%d %b %Y}[/]"
+        )
+        self.cns.rule(
+            rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
+        )
 
     def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         title = " ".join(pos)
@@ -333,11 +338,9 @@ class App:
             return
         exact = self._find_exact_matches(title)
         sub = self._find_substring_matches(title)
-        watch = {
-            watch_title: _is_series
-            for watch_title, _is_series in self.watch_list.items()
-            if title.lower() in watch_title.lower()
-        }
+        watch = self.watch_list.filter_items(
+            key=lambda t, _: title.lower() in t.lower()
+        )
         if exact:
             ids, matches = zip(*exact)
             self.cns.print(
@@ -367,7 +370,7 @@ class App:
         entry_app = EntryFormApp(
             title=entry.title,
             rating=str(entry.rating),
-            is_series=entry.type == Type.SERIES,
+            is_series=entry.is_series,
             date=entry.date.strftime("%d.%m.%Y") if entry.date else "",
             notes=entry.notes + " " + " ".join(f"#{t}" for t in entry.tags),
             button_text="Modify",
@@ -403,7 +406,7 @@ class App:
                 )
             )
             return
-        tagname = pos[0]
+        tagname = replace_tag_alias(pos[0])
         if len(pos) == 1:
             if tagname not in tags:
                 self.error(f"No such tag: {tagname}.")
@@ -418,9 +421,8 @@ class App:
         exact_matches = self._find_exact_matches(title_or_idx)
         if exact_matches:
             entry = exact_matches[-1][1]
-        else:
-            if not (entry := self.entry_by_idx(title_or_idx)):
-                return
+        elif not (entry := self.entry_by_idx(title_or_idx)):
+            return
         if {"d", "delete"} & flags:
             try:
                 entry.tags.remove(tagname)
@@ -531,9 +533,9 @@ class App:
             return
         entries = self.entries
         if F_SERIES in flags:
-            entries = [ent for ent in entries if ent.type == Type.SERIES]
+            entries = [ent for ent in entries if ent.is_series]
         elif F_MOVIES in flags:
-            entries = [ent for ent in entries if ent.type == Type.MOVIE]
+            entries = [ent for ent in entries if not ent.is_series]
         _slice = slice(0, None, None) if F_ALL in flags else slice(-n, None, None)
         self.cns.print(get_entries_table(entries[_slice], title=f"Last {n} entries"))
 
@@ -564,23 +566,21 @@ class App:
             if not self.watch_list:
                 self.warning("Watch list is empty")
                 return
-            self.cns.print(self.get_watch_table(self.watch_list))
+            self.cns.print(self.get_watch_table(self.watch_list.items()))
             return
         if {"r", "random"} & flags:
-            self.cns.print(
-                format_movie_series(*random.choice(list(self.watch_list.items())))
-            )
+            self.cns.print(format_movie_series(*random.choice(self.watch_list.items())))
             return
         if {"d", "delete"} & flags:
-            self._unwatch(title)
+            self._unwatch(title.rstrip("+"), title.endswith("+"))
         else:
-            self._watch(title)
+            self._watch(title.rstrip("+"), title.endswith("+"))
 
     def cmd_stats(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         # TODO: make pretty
         self.cns.print(f"Total entries:\n  {len(self.entries)}")
-        movies = [e.rating for e in self.entries if e.type == Type.MOVIE]
-        series = [e.rating for e in self.entries if e.type == Type.SERIES]
+        movies = [e.rating for e in self.entries if not e.is_series]
+        series = [e.rating for e in self.entries if e.is_series]
         avg_movies = mean(movies)
         avg_series = mean(series)
         stdev_movies = stdev(movies)
@@ -632,24 +632,28 @@ class App:
         _same_title_with_watch_again: list[Entry] = []
         _same_title_num = 0
         for e in self.entries:
-            if e.title == for_entry.title:
-                _same_title_num += 1
-                if TAG_WATCH_AGAIN in e.tags:
-                    _same_title_with_watch_again.append(e)
-        if _same_title_with_watch_again:
-            resp = Prompt.ask(
-                f"[bold blue] NOTE: some entries ({len(_same_title_with_watch_again)}/{_same_title_num}) associated with "
-                f"the newly added entry have the tag {format_tag(TAG_WATCH_AGAIN)}. "
-                "Do you want to remove it (them)?",
-                choices=["y", "n"],
-                default="n",
+            if e.title != for_entry.title or e.type != for_entry.type:
+                continue
+            _same_title_num += 1
+            if TAG_WATCH_AGAIN in e.tags:
+                _same_title_with_watch_again.append(e)
+        if not _same_title_with_watch_again:
+            return
+        resp = Prompt.ask(
+            f"[bold blue] NOTE: some entries ({len(_same_title_with_watch_again)}/{_same_title_num}) associated with "
+            f"the newly added entry have the tag {format_tag(TAG_WATCH_AGAIN)}. "
+            "Do you want to remove it (them)?",
+            choices=["y", "n"],
+            default="n",
+        )
+        if resp.lower() != "y":
+            return
+        for e in _same_title_with_watch_again:
+            e.tags.remove(TAG_WATCH_AGAIN)
+            Mongo.update_entry(e)
+            self.cns.print(
+                f"[green]󰺝 Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
             )
-            if resp.lower() == "y":
-                for e in _same_title_with_watch_again:
-                    e.tags.remove(TAG_WATCH_AGAIN)
-                    self.cns.print(
-                        f"[green]󰺝 Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
-                    )
 
     def cmd_add(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         title = " ".join(pos)
@@ -666,7 +670,7 @@ class App:
             title, {e.title for e in self.entries}, score_threshold=0.65
         )
         possible_title_in_watch_list = possible_match(
-            title, set(self.watch_list.keys()), score_threshold=0.65
+            title, set(self.watch_list), score_threshold=0.65
         )
         possible_title = possible_title_entries or possible_title_in_watch_list
         if (
@@ -722,22 +726,14 @@ class App:
         self._process_watch_again_tag_on_add(entry)
         self.add_entry(entry)
         self.cns.print(f"[green] Added [/]\n{format_entry(entry)}")
-        if entry.title in self.watch_list:
-            if (entry.type == Type.SERIES) is self.watch_list[
-                entry.title
-            ] or Prompt.ask(
-                "[bold blue] NOTE: Entry type does not match the watch list: "
-                f"{entry.type} vs {'series' if self.watch_list[entry.title] else 'movie'}. "
-                "The entry will not be removed from the watch list. "
-                "Do you want to remove it anyway?",
-                choices=["y", "n"],
-                default="n",
-            ) == "y":
-                self._unwatch(entry.title)
+        if self.watch_list.remove(entry.title, entry.type == Type.SERIES):
+            self.cns.print(
+                f"[green]󰺝 Removed from watch list[/]\n{format_entry(entry)}"
+            )
 
     def cmd_random(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         to_choose_from = (
-            [e for e in self.entries if tag in e.tags]
+            [e for e in self.entries if replace_tag_alias(tag) in e.tags]
             if (tag := kwargs.get("tag"))
             else self.entries
         )
@@ -795,6 +791,10 @@ class App:
         self.recently_popped.append(popped_entry)
 
     def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        def _print(what: str):
+            if "silent" not in flags:
+                self.cns.print(what)
+
         LOCAL_DIR.mkdir(exist_ok=True)
         dbfile = LOCAL_DIR / "db.json"
         with dbfile.open("w", encoding="utf-8") as f:
@@ -804,13 +804,11 @@ class App:
                 indent=2,
                 ensure_ascii=False,
             )
-            self.cns.print(
-                f"Exported {len(self.entries)} entries to {dbfile.absolute()}."
-            )
+            _print(f"Exported {len(self.entries)} entries to {dbfile.absolute()}.")
         wlfile = LOCAL_DIR / "watch_list.json"
         with wlfile.open("w", encoding="utf-8") as f:
-            json.dump(self.watch_list, f, indent=2, ensure_ascii=False)
-            self.cns.print(
+            json.dump(self.watch_list.items(), f, indent=2, ensure_ascii=False)
+            _print(
                 f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}."
             )
 
@@ -895,6 +893,7 @@ class App:
         command_method(pos, kwargs, flags)
 
     def run(self):
+        self.cmd_export([], {}, {"silent"})
         self.header()
         while self.running:
             try:
