@@ -39,6 +39,7 @@ def tag(
         return
     if len(pos) == 2 and "guest" not in flags:
         tag_name, oid = pos
+        tag_name = replace_tag_alias(tag_name)
         entry = next((ent for ent in entries if oid in str(ent._id)), None)
         if entry is None:
             bot.reply_to(message, "Could not find an entry.")
