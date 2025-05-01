@@ -12,5 +12,8 @@ It can
 - run a telegram bot that mirrors the functionality of the terminal app;
 - and much more!
 
+### A Telegram Bot?
+Yes, you can try it out [here](https://t.me/mymoviesdbbot) in the read-only mode.
+
 ## Who is it for?
 For me.

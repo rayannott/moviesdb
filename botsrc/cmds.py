@@ -11,7 +11,7 @@ from botsrc.utils import (
     select_entry_by_oid_part,
     list_many_entries,
 )
-from botsrc.commands import add, suggest, tag
+from botsrc.commands import add, suggest, tag, group
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,6 @@ def cmd_list(
         entries[-5:],
         "verbose" in flags,
         "oid" in flags,
-        bot,
         override_title="Last 5 entries:",
     )
     bot.send_message(message.chat.id, msg)
@@ -87,7 +86,7 @@ def cmd_find(
     if not filtered:
         bot.reply_to(message, f"No entries found with {pos[0]}.")
         return
-    res = list_many_entries(filtered, "verbose" in flags, "oid" in flags, bot)
+    res = list_many_entries(filtered, "verbose" in flags, "oid" in flags)
     bot.send_message(message.chat.id, res)
 
 
@@ -221,3 +220,15 @@ def cmd_tag(
         oid(flag): show the mongoDB OIDs
     """
     tag(message, bot, pos, flags)
+
+
+def cmd_group(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    """group [<title>]
+    List entries grouped by title."""
+    group(message, bot, pos)

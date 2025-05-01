@@ -29,7 +29,12 @@ def tag(
         if (entries := tags.get(tag)) is None:
             bot.send_message(message.chat.id, f"Tag {tag} not found.")
             return
-        res = list_many_entries(entries, "verbose" in flags, "oid" in flags, bot)
+        res = list_many_entries(
+            entries,
+            "verbose" in flags,
+            "oid" in flags,
+            override_title=f"{len(entries)} entries with tag {tag!r}",
+        )
         bot.send_message(message.chat.id, res)
         return
     if len(pos) == 2 and "guest" not in flags:

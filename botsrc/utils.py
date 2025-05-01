@@ -1,9 +1,11 @@
 from datetime import datetime
+from typing import TypeVar
+from collections.abc import Callable
 
 from git import Commit
-from telebot import TeleBot
 
 from src.obj.entry import Entry
+from src.obj.entry_group import EntryGroup
 from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
 from src.paths import ALLOWED_USERS
 from src.mongo import Mongo
@@ -89,20 +91,52 @@ Date:   {commit.authored_datetime}
 {_commit_to_str(repo_info.last_commit)}"""
 
 
+ObjectT = TypeVar("ObjectT")
+
+
+def list_many(
+    objects: list[ObjectT],
+    format_fn: Callable[[ObjectT], str],
+    first_n: bool,
+    override_title: str | None = None,
+    **kwargs,
+) -> str:
+    # TODO: move to own module? also make return a response?
+    n = min(7, len(objects))
+    _s = slice(None, n, None) if first_n else slice(-n, None, None)
+    data = "\n".join(format_fn(obj, **kwargs) for obj in objects[_s])
+    return (
+        (f"{len(objects)} found:" if override_title is None else override_title)
+        + "\n"
+        + (
+            (data + ("\n..." if len(objects) > n else ""))
+            if first_n
+            else (("...\n" if len(objects) > n else "") + data)
+        )
+    )
+
+
 def list_many_entries(
     entries: list[Entry],
     verbose: bool,
     with_oid: bool,
-    bot: TeleBot,
     override_title: str | None = None,
 ) -> str:
-    # TODO: move to own module? also make return a response?
-    n = min(7, len(entries))
-    return (
-        (f"{len(entries)} found:\n" if override_title is None else "")
-        + ("...\n" if len(entries) > n else "")
-        + "\n".join(
-            format_entry(ent, verbose=verbose, with_oid=with_oid)
-            for ent in entries[-n:]
-        )
+    return list_many(
+        entries,
+        lambda entry: format_entry(entry, verbose, with_oid),
+        first_n=False,
+        override_title=override_title,
+    )
+
+
+def list_many_groups(
+    groups: list[EntryGroup],
+    override_title: str | None = None,
+) -> str:
+    return list_many(
+        groups,
+        EntryGroup.__str__,
+        first_n=True,
+        override_title=override_title,
     )
