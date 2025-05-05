@@ -1,9 +1,11 @@
 from datetime import datetime
+from typing import TypeVar
+from collections.abc import Callable
 
 from git import Commit
-from telebot import TeleBot
 
 from src.obj.entry import Entry
+from src.obj.entry_group import EntryGroup
 from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
 from src.paths import ALLOWED_USERS
 from src.mongo import Mongo
@@ -52,6 +54,7 @@ def process_watch_again_tag_on_add_entry(entry: Entry) -> str:
         if TAG_WATCH_AGAIN in ent.tags
         and ent.title == entry.title
         and ent.type == entry.type
+        and ent._id != entry._id
     ]
     if not entries_wa:
         return ""
@@ -63,13 +66,14 @@ def process_watch_again_tag_on_add_entry(entry: Entry) -> str:
     return msg
 
 
-ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag"}
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group"}
 HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
 You can use the following commands (read-only):
     - list - to view the entries
     - find <title> - to find a title by name
     - watch - to view the watch list
     - suggest <message> - to suggest me a movie!
+    - group [<title>] - group entries by title
     - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
@@ -89,20 +93,52 @@ Date:   {commit.authored_datetime}
 {_commit_to_str(repo_info.last_commit)}"""
 
 
+ObjectT = TypeVar("ObjectT")
+
+
+def list_many(
+    objects: list[ObjectT],
+    format_fn: Callable[[ObjectT], str],
+    first_n: bool,
+    override_title: str | None = None,
+    **kwargs,
+) -> str:
+    # TODO: move to own module? also make return a response?
+    n = min(7, len(objects))
+    _s = slice(None, n, None) if first_n else slice(-n, None, None)
+    data = "\n".join(format_fn(obj, **kwargs) for obj in objects[_s])
+    return (
+        (f"{len(objects)} found:" if override_title is None else override_title)
+        + "\n"
+        + (
+            (data + ("\n..." if len(objects) > n else ""))
+            if first_n
+            else (("...\n" if len(objects) > n else "") + data)
+        )
+    )
+
+
 def list_many_entries(
     entries: list[Entry],
     verbose: bool,
     with_oid: bool,
-    bot: TeleBot,
     override_title: str | None = None,
 ) -> str:
-    # TODO: move to own module? also make return a response?
-    n = min(7, len(entries))
-    return (
-        (f"{len(entries)} found:\n" if override_title is None else "")
-        + ("...\n" if len(entries) > n else "")
-        + "\n".join(
-            format_entry(ent, verbose=verbose, with_oid=with_oid)
-            for ent in entries[-n:]
-        )
+    return list_many(
+        entries,
+        lambda entry: format_entry(entry, verbose, with_oid),
+        first_n=False,
+        override_title=override_title,
+    )
+
+
+def list_many_groups(
+    groups: list[EntryGroup],
+    override_title: str | None = None,
+) -> str:
+    return list_many(
+        groups,
+        EntryGroup.__str__,
+        first_n=True,
+        override_title=override_title,
     )

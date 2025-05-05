@@ -5,7 +5,6 @@ with Console().status("Loading dependencies..."):
     import random
     import json
     import time
-    from collections import defaultdict
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
@@ -24,7 +23,7 @@ with Console().status("Loading dependencies..."):
         is_verbose,
         build_tags,
     )
-    from src.obj.entry_group import EntryGroup
+    from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
     from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
     from src.obj.sql_mode import SqlMode
@@ -226,14 +225,7 @@ class App:
         Group entries by title.
         Returns a list of EntryGroup objects, sorted by average rating descending.
         """
-        grouped = defaultdict(list)
-        for entry in self.entries:
-            grouped[entry.title].append(entry)
-        return sorted(
-            [EntryGroup.from_list_of_entries(entries) for entries in grouped.values()],
-            key=lambda group: group.mean_rating,
-            reverse=True,
-        )
+        return groups_from_list_of_entries(self.entries)
 
     def _find_exact_matches(
         self, title: str, ignore_case: bool = True

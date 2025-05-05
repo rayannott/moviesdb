@@ -17,7 +17,7 @@ def tag(
     tags = build_tags(entries)
     if not pos:
         msg = "Tags:\n" + "\n".join(
-            f"{tag:<18} {len(entries)}"
+            f"{len(entries):>3}   {tag:<18}"
             for tag, entries in sorted(
                 tags.items(), key=lambda x: len(x[1]), reverse=True
             )
@@ -29,11 +29,17 @@ def tag(
         if (entries := tags.get(tag)) is None:
             bot.send_message(message.chat.id, f"Tag {tag} not found.")
             return
-        res = list_many_entries(entries, "verbose" in flags, "oid" in flags, bot)
+        res = list_many_entries(
+            entries,
+            "verbose" in flags,
+            "oid" in flags,
+            override_title=f"{len(entries)} entries with tag {tag!r}",
+        )
         bot.send_message(message.chat.id, res)
         return
     if len(pos) == 2 and "guest" not in flags:
         tag_name, oid = pos
+        tag_name = replace_tag_alias(tag_name)
         entry = next((ent for ent in entries if oid in str(ent._id)), None)
         if entry is None:
             bot.reply_to(message, "Could not find an entry.")

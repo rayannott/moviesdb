@@ -100,6 +100,7 @@ def other(message: types.Message, extra_flags: set[str]):
         bot.reply_to(message, f"{e}: {message.text!r}")
         logging.error(f"Parsing error: {e}")
         return
+    flags.update(extra_flags)
     if managed_help(root, pos, flags, bot, message):
         return
     command_method = BOT_COMMANDS.get(root)
@@ -108,7 +109,6 @@ def other(message: types.Message, extra_flags: set[str]):
         bot.reply_to(message, msg)
         logging.info(msg)
         return
-    flags.update(extra_flags)
     if "guest" in flags and root not in ALLOW_GUEST_COMMANDS:
         bot.reply_to(
             message,
