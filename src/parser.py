@@ -54,13 +54,13 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
         raise ParsingError(str(e))
 
     if not parts:
-        raise ParsingError(" No command provided.")
+        raise ParsingError("No command provided.")
 
     root: str = parts.pop(0)
 
     if not VALID_ROOT_NAME_RE.match(root):
         raise ParsingError(
-            f" Invalid command name {root!r}. "
+            f"Invalid command name {root!r}. "
             "Command names can only contain alphanumeric characters, underscores, and hyphens,"
             " and must start with an alphanumeric character."
         )
@@ -75,11 +75,11 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
         if is_flag(token):
             arg = strip_flag_chrs(token)
             if not arg:
-                raise ParsingError(" Empty flag/key name.")
+                raise ParsingError("Empty flag/key name.")
             if "=" in arg:
                 key, value = arg.split("=", 1)
                 if not value:
-                    raise ParsingError(f" Empty value for argument {key!r}.")
+                    raise ParsingError(f"Empty value for argument {key!r}.")
                 kwargs[key] = value
             else:
                 if i + 1 < len(parts) and not is_flag(parts[i + 1]):
@@ -90,7 +90,7 @@ def parse(cmd: str) -> tuple[str, PositionalArgs, KeywordArgs, Flags]:
         else:
             if flags or kwargs:
                 raise ParsingError(
-                    f" Invalid positional argument {token!r} after flags or keyword arguments."
+                    f"Invalid positional argument {token!r} after flags or keyword arguments."
                 )
             positional.append(token)
         i += 1
