@@ -34,7 +34,7 @@ def pre_process_command(func):
             return
         username = message.from_user.username
         name = message.from_user.first_name
-        logger.info(f"{name}(@{username};{message.chat.id}):{message.text}")
+        logger.info(f"{name}(@{username};id={message.chat.id}):{message.text}")
         if message.chat.id == ME_CHAT_ID:
             extra_flags = set()
         elif username in access_rights_manager:
@@ -76,6 +76,7 @@ def cmd_start(message: types.Message, extra_flags: set[str]):
         bot.send_message(
             message.chat.id, "Hello, dear guest! Type /help to see available commands."
         )
+        logger.info("guest message shown")
     else:
         bot.send_message(message.chat.id, "Hello, me!")
 
@@ -98,7 +99,7 @@ def other(message: types.Message, extra_flags: set[str]):
         root, pos, kwargs, flags = parse(message.text.lstrip("/"))
     except ParsingError as e:
         bot.reply_to(message, f"{e}: {message.text!r}")
-        logging.error(f"Parsing error: {e}")
+        logger.info("parsing error", exc_info=True)
         return
     flags.update(extra_flags)
     if managed_help(root, pos, flags, bot, message):
@@ -107,15 +108,16 @@ def other(message: types.Message, extra_flags: set[str]):
     if command_method is None:
         msg = f"Unknown command: {message.text}"
         bot.reply_to(message, msg)
-        logging.info(msg)
+        logger.info(msg)
         return
     if "guest" in flags and root not in ALLOW_GUEST_COMMANDS:
         bot.reply_to(
             message,
             f"Sorry, you are not allowed to use {root}. Type /help to see available commands.",
         )
+        logger.info(f"guest: command {root} not allowed")
         return
-    logging.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")
+    logger.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")
     command_method(pos, kwargs, flags, bot, message)
 
 
