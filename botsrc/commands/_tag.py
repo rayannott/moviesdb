@@ -17,7 +17,7 @@ def tag(
     tags = build_tags(entries)
     if not pos:
         msg = "Tags:\n" + "\n".join(
-            f"{tag:<18} {len(entries)}"
+            f"{len(entries):>3}   {tag:<18}"
             for tag, entries in sorted(
                 tags.items(), key=lambda x: len(x[1]), reverse=True
             )
