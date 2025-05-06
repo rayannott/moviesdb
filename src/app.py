@@ -720,7 +720,8 @@ class App:
         self.cns.print(f"[green] Added [/]\n{format_entry(entry)}")
         if self.watch_list.remove(entry.title, entry.type == Type.SERIES):
             self.cns.print(
-                f"[green]󰺝 Removed from watch list[/]\n{format_entry(entry)}"
+                "[green]󰺝 Removed from watch list[/]: "
+                + format_title(entry.title, entry.type)
             )
 
     def cmd_random(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
