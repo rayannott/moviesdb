@@ -55,7 +55,7 @@ with Console().status("Loading dependencies..."):
     )
 
 with Console().status("Connecting to MongoDB..."):
-    from src.mongo import aimemory, Mongo
+    from src.mongo import Mongo
 
 
 def identity(x: str):
@@ -197,7 +197,7 @@ class App:
         self.cns = Console()
         self.input = partial(rinput, self.cns)
 
-        self.chatbot = ChatBot(self.entries, aimemory)
+        self.chatbot = ChatBot(self.entries, Mongo)
 
         self.command_methods: dict[
             str, Callable[[PositionalArgs, KeywordArgs, Flags], None]
@@ -470,7 +470,7 @@ class App:
             self.chatbot.reset()
             return
         if "memory" in flags:
-            mem_items = self.chatbot.get_memory_items()
+            mem_items = Mongo.load_aimemory_items()
             if not mem_items:
                 self.warning("No context about the user.")
                 return
@@ -478,16 +478,18 @@ class App:
                 self.cns.print(rf"[blue]\[{mi_id[-7:]}][/] [green]{mi_info}[/]")
             return
         if (mi_id_to_remove := kwargs.get("forget")) is not None:
-            for mi_id, mi_info in self.chatbot.get_memory_items():
+            for mi_id, mi_info in Mongo.load_aimemory_items():
                 if mi_id_to_remove in mi_id:
-                    aimemory().delete_one({"_id": ObjectId(mi_id)})
+                    if not Mongo.delete_aimemory_item(ObjectId(mi_id)):
+                        self.error(f"Failed to delete memory with {mi_id}.")
+                        return
                     self.cns.print(f"󰺝 Deleted [blue]{mi_id}.")
                     break
             else:
                 self.warning(f"No memory with {mi_id_to_remove}.")
             return
         if (to_remember := kwargs.get("remember")) is not None:
-            oid = self.chatbot.add_memory_item(to_remember)
+            oid = Mongo.add_aimemory_item(to_remember)
             self.cns.print(f"Inserted under [blue]{oid}.")
             return
 

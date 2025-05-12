@@ -1,19 +1,17 @@
-from typing import Iterable, TypedDict
-from collections.abc import Callable
+from typing import Iterable, TypedDict, TYPE_CHECKING
 
 from openai import OpenAI
 from pydantic import BaseModel
-from pymongo.collection import Collection
-from bson import ObjectId
 
 from src.obj.entry import Entry
 from src.utils.env import OPENAI_API_KEY, OPENAI_PROJECT_ID
 
+if TYPE_CHECKING:
+    from src.mongo import Mongo
 
 
 GPT4O = "gpt-4.1"
 GPT4O_MINI = "gpt-4.1-mini"
-
 
 
 class Message(TypedDict):
@@ -84,25 +82,14 @@ The user has already watched the following movies:
 {movies_watched_info}
 """
 
-    def __init__(
-        self, entries: list[Entry], ai_memory_collection_fn: Callable[[], Collection]
-    ):
+    def __init__(self, entries: list[Entry], mongo: type["Mongo"]):
         self.entries = entries
-        self.ai_memory_collection_fn = ai_memory_collection_fn
+        self.mongo = mongo
         self._client = None
         self._conversation_history: list[tuple[str, str]] = []
 
-    def get_memory_items(self) -> list[tuple[str, str]]:
-        return [
-            (str(mem["_id"]), mem["item"])
-            for mem in self.ai_memory_collection_fn().find()
-        ]
-
-    def add_memory_item(self, mem: str) -> ObjectId:
-        return self.ai_memory_collection_fn().insert_one({"item": mem}).inserted_id
-
     def get_context(self) -> str:
-        mem_items = self.get_memory_items()
+        mem_items = self.mongo.load_aimemory_items()
         return self.CONTEXT.format(
             movies_watched_info=";".join({entry.title for entry in self.entries}),
             user_info="\n".join(mem for _, mem in mem_items),
@@ -144,6 +131,6 @@ The user has already watched the following movies:
             return " No response from AI"
         resp_text = resp.text
         if resp.to_remember:
-            self.add_memory_item(resp.to_remember)
+            self.mongo.add_aimemory_item(resp.to_remember)
         self._add_new_conversation(text, resp_text)
         return resp_text

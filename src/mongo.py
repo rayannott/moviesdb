@@ -63,3 +63,15 @@ class Mongo:
     def load_watch_list() -> WatchList:
         data = watchlist().find()
         return WatchList([(item["title"], item["is_series"]) for item in data])
+
+    @staticmethod
+    def load_aimemory_items() -> list[tuple[str, str]]:
+        return [(str(mem["_id"]), mem["item"]) for mem in aimemory().find()]
+
+    @staticmethod
+    def add_aimemory_item(mem: str) -> ObjectId:
+        return aimemory().insert_one({"item": mem}).inserted_id
+
+    @staticmethod
+    def delete_aimemory_item(oid: ObjectId) -> bool:
+        return aimemory().delete_one({"_id": oid}).deleted_count == 1
