@@ -71,6 +71,9 @@ VALUE_MAP: dict[str, Callable[[str], Any]] = {
 }
 
 
+COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}
+
+
 class App:
     HELP_DATA: list[tuple[str, str]] = [
         ("help", "show help for all commands"),
@@ -132,7 +135,7 @@ class App:
         ),
         ("verbose", "toggle verbose mode"),
         ("reload", "bring the in-memory data up to date with the cloud database"),
-        ("cls", "clear the terminal"),
+        ("cls | clear", "clear the terminal"),
         (
             "ai <prompt> [--full]",
             "ask the chatGPT a question; --full to use chatGPT-4o instead of chatGPT-4o-mini",
@@ -206,6 +209,8 @@ class App:
             for method_name in dir(self)
             if method_name.startswith("cmd_")
         }
+        for alias, command in COMMAND_ALIASES.items():
+            self.command_methods[alias] = self.command_methods[command]
 
         self.repo_info = RepoInfo()
 
