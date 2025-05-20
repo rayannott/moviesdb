@@ -1,10 +1,11 @@
 from rich.console import Console
+import time
 
 with Console().status("Loading dependencies..."):
+    _t_dep_0 = time.perf_counter()
     import os
     import random
     import json
-    import time
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
@@ -54,8 +55,13 @@ with Console().status("Loading dependencies..."):
         rinput,
     )
 
+    DEP_LOADING_TIME = time.perf_counter() - _t_dep_0
+
 with Console().status("Connecting to MongoDB..."):
+    _t_mongo_0 = time.perf_counter()
     from src.mongo import Mongo
+
+    MONGO_LOADING_TIME = time.perf_counter() - _t_mongo_0
 
 
 def identity(x: str):
@@ -104,7 +110,7 @@ class App:
             "get <idx> [--verbose]",
             "get entry by index; --verbose to override verbosity and show all details",
         ),
-        ("stats", "show some statistics about the entries"),
+        ("stats [--dev]", "show some statistics about the entries; --dev to show app stats"),
         (
             "add <title>",
             r'start adding a new entry; will ask for [bold blue]rating[/]: floating point number r, 0 <= r <= 10, \[[bold blue]type[/]: "series" or "movie" or nothing(default="movie"), '
@@ -212,7 +218,9 @@ class App:
         for alias, command in COMMAND_ALIASES.items():
             self.command_methods[alias] = self.command_methods[command]
 
+        _t_repo_0 = time.perf_counter()
         self.repo_info = RepoInfo()
+        self.repo_info_loading_time = time.perf_counter() - _t_repo_0
 
         self.recently_popped: list[Entry] = []
 
@@ -585,12 +593,34 @@ class App:
         stdev_movies = stdev(movies)
         stdev_series = stdev(series)
         self.cns.print(
-            f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.3f} (n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
+            f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.3f} "
+            f"(n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
         )
         groups = self.get_groups()
         watched_more_than_once = [g for g in groups if len(g.ratings) > 1]
         self.cns.print(
-            f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been watched more than once."
+            f"There are {len(groups)} unique entries; {len(watched_more_than_once)} "
+            "of them have been watched more than once."
+        )
+
+        if "dev" not in flags:
+            return
+
+        def format_commit(commit):
+            return (
+                f"[bold cyan]{commit.hexsha[:8]}[/] "
+                f"[dim]<{commit.author.name} <{commit.author.email}>[/] "
+                f"[green]{commit.committed_datetime.strftime('%Y-%m-%d %H:%M:%S')}[/]\n  "
+                f"{commit.message}"
+            )
+
+        self.cns.rule("Dev stats", style="bold magenta")
+        self.cns.print(
+            f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
+            f"[magenta]Last commit:[/]\n"
+            f"  {format_commit(self.repo_info.last_commit)}"
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
