@@ -631,21 +631,19 @@ class App:
                 _same_title_with_watch_again.append(e)
         if not _same_title_with_watch_again:
             return
-        resp = Prompt.ask(
-            f"[bold blue] NOTE: some entries ({len(_same_title_with_watch_again)}/{_same_title_num}) associated with "
-            f"the newly added entry have the tag {format_tag(TAG_WATCH_AGAIN)}. "
-            "Do you want to remove it (them)?",
-            choices=["y", "n"],
-            default="n",
-        )
-        if resp.lower() != "y":
-            return
         for e in _same_title_with_watch_again:
             e.tags.remove(TAG_WATCH_AGAIN)
             Mongo.update_entry(e)
             self.cns.print(
                 f"[green]󰺝 Removed tag {format_tag(TAG_WATCH_AGAIN)} from[/]\n{format_entry(e)}"
             )
+        resp = Prompt.ask(
+            f"Do you want to add the {format_tag(TAG_WATCH_AGAIN)} to this entry?",
+            choices=["y", "n"],
+            default="n",
+        )
+        if resp == "y":
+            for_entry.tags.add(TAG_WATCH_AGAIN)
 
     def cmd_add(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         title = " ".join(pos)
