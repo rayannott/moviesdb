@@ -181,7 +181,7 @@ def _get_notes(
     type_: Type,
     date: datetime | None,
 ):
-    notes = text(message).lower() if text(message).lower() != "skip" else ""
+    notes = text(message) if text(message).lower() != "skip" else ""
 
     entry = Entry(None, title, rating, date, type_, notes)
     bot.send_message(
