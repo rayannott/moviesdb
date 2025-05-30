@@ -6,5 +6,5 @@ python-dotenv
 plotly
 requests
 textual
-pymongo[srv]
+pymongo
 pyTelegramBotAPI
