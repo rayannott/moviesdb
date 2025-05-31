@@ -43,7 +43,7 @@ class EntryGroup:
 def groups_from_list_of_entries(entries: list[Entry]) -> list[EntryGroup]:
     grouped = defaultdict(list)
     for entry in entries:
-        grouped[entry.title].append(entry)
+        grouped[(entry.title, entry.type)].append(entry)
     return sorted(
         [EntryGroup.from_list_of_entries(entries) for entries in grouped.values()],
         key=lambda group: group.mean_rating,
