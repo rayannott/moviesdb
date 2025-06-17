@@ -578,12 +578,17 @@ class App:
         stdev_movies = stdev(movies)
         stdev_series = stdev(series)
         self.cns.print(
-            f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.3f} (n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
+            f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.2f} (n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
         )
         groups = self.get_groups()
         watched_more_than_once = [g for g in groups if len(g.ratings) > 1]
+        watched_times = [len(g.ratings) for g in groups]
+        watched_times_mean = mean(watched_times)
+        watched_times_stdev = stdev(watched_times) if len(watched_times) > 1 else 0
         self.cns.print(
-            f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been watched more than once."
+            f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been "
+            f"watched more than once ({watched_times_mean:.2f} ± {watched_times_stdev:.2f} times on average).\n"
+            f"There are {len(self.watch_list)} items in the watch list ({len(self.watch_list.movies)} movies, {len(self.watch_list.series)} series)."
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
