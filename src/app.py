@@ -598,29 +598,13 @@ class App:
         )
         groups = self.get_groups()
         watched_more_than_once = [g for g in groups if len(g.ratings) > 1]
+        watched_times = [len(g.ratings) for g in groups]
+        watched_times_mean = mean(watched_times)
+        watched_times_stdev = stdev(watched_times) if len(watched_times) > 1 else 0
         self.cns.print(
-            f"There are {len(groups)} unique entries; {len(watched_more_than_once)} "
-            "of them have been watched more than once."
-        )
-
-        if "dev" not in flags:
-            return
-
-        def format_commit(commit):
-            return (
-                f"[bold cyan]{commit.hexsha[:8]}[/] "
-                f"[dim]<{commit.author.name} <{commit.author.email}>[/] "
-                f"[green]{commit.committed_datetime.strftime('%Y-%m-%d %H:%M:%S')}[/]\n  "
-                f"{commit.message}"
-            )
-
-        self.cns.rule("Dev stats", style="bold magenta")
-        self.cns.print(
-            f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
-            f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
-            f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
-            f"[magenta]Last commit:[/]\n"
-            f"  {format_commit(self.repo_info.last_commit)}"
+            f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been "
+            f"watched more than once ({watched_times_mean:.2f} ± {watched_times_stdev:.2f} times on average).\n"
+            f"There are {len(self.watch_list)} items in the watch list ({len(self.watch_list.movies)} movies, {len(self.watch_list.series)} series)."
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
