@@ -111,7 +111,10 @@ class App:
             "get <idx> [--verbose]",
             "get entry by index; --verbose to override verbosity and show all details",
         ),
-        ("stats [--dev]", "show some statistics about the entries; --dev to show app stats"),
+        (
+            "stats [--dev]",
+            "show some statistics about the entries; --dev to show app stats",
+        ),
         (
             "add <title>",
             r'start adding a new entry; will ask for [bold blue]rating[/]: floating point number r, 0 <= r <= 10, \[[bold blue]type[/]: "series" or "movie" or nothing(default="movie"), '
