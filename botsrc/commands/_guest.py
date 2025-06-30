@@ -1,7 +1,11 @@
+import logging
+
 import telebot
 
-from src.utils.utils import AccessRightsManager
 from src.parser import KeywordArgs
+from src.utils.utils import AccessRightsManager
+
+logger = logging.getLogger(__name__)
 
 
 def guest(
@@ -23,3 +27,4 @@ def guest(
     else:
         msg = "Guests: " + ", ".join(am.guests)
     bot.send_message(message.chat.id, msg)
+    logger.info(f"{msg}; (current guests: {am.guests})")
