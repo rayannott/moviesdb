@@ -607,6 +607,26 @@ class App:
             f"There are {len(self.watch_list)} items in the watch list ({len(self.watch_list.movies)} movies, {len(self.watch_list.series)} series)."
         )
 
+        if "dev" not in flags:
+            return
+
+        def format_commit(commit):
+            return (
+                f"[bold cyan]{commit.hexsha[:8]}[/] "
+                f"[dim]<{commit.author.name} <{commit.author.email}>[/] "
+                f"[green]{commit.committed_datetime.strftime('%Y-%m-%d %H:%M:%S')}[/]\n  "
+                f"{commit.message}"
+            )
+
+        self.cns.rule("Dev stats", style="bold magenta")
+        self.cns.print(
+            f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
+            f"[magenta]Last commit:[/]\n"
+            f"  {format_commit(self.repo_info.last_commit)}"
+        )
+
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         cmd = pos[0] if pos else ""
         if cmd:
