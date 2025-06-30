@@ -7,6 +7,7 @@ with Console().status("Loading dependencies..."):
     import json
     import os
     import random
+    import logging
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
@@ -17,6 +18,7 @@ with Console().status("Loading dependencies..."):
     from rich.panel import Panel
     from rich.prompt import Prompt
 
+    from setup_logging import setup_logging
     from src.obj.ai import ChatBot
     from src.obj.entry import (
         Entry,
@@ -79,6 +81,9 @@ VALUE_MAP: dict[str, Callable[[str], Any]] = {
 
 
 COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}
+
+logger = logging.getLogger(__name__)
+setup_logging()
 
 
 class App:
@@ -226,11 +231,19 @@ class App:
         self.repo_info = RepoInfo()
         self.repo_info_loading_time = time.perf_counter() - _t_repo_0
 
+        logger.info(
+            f"""init App; loading times:
+dependencies={DEP_LOADING_TIME:.3f}s,
+mongo={MONGO_LOADING_TIME:.3f}s,
+repo={self.repo_info_loading_time:.3f}s;
+{len(self.entries)} entries,
+{len(self.watch_list)} watch list items""".replace("\n", " ")
+        )
+
         self.recently_popped: list[Entry] = []
 
     def _load_all(self):
         self.entries = sorted(self.load_entries())
-        # TODO: make watch list a list of {"title": str, "is_series": bool} objects to allow for duplicate names
         self.watch_list = self.load_watch_list()
 
     def add_entry(self, entry: Entry):
@@ -918,6 +931,7 @@ class App:
             root, pos, kwargs, flags = parse(command)
         except ParsingError as e:
             self.error(f"{e}: {command!r}")
+            logger.error(f"parsing error: {e} for command {command!r}")
             return
         command_method = self.command_methods.get(root)
         if command_method is None:
@@ -927,8 +941,10 @@ class App:
             self.cmd_help([root], {}, set())
             return
         command_method(pos, kwargs, flags)
+        logger.info(f"executed command: {root=!r}, {pos=!r}, {kwargs=!r}, {flags=!r}")
 
     def run(self):
+        logger.info("starting App")
         self.cmd_export([], {}, {"silent"})
         self.header()
         while self.running:
@@ -939,3 +955,5 @@ class App:
                 return
             except Exception as _:
                 self.cns.print_exception()
+                logger.error("unhandled exception", exc_info=True)
+        logger.info("stopping App")
