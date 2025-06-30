@@ -1,14 +1,12 @@
-import logging
 import io
+import logging
 import zipfile
 
 import telebot
 
+from botsrc.commands import add, find, group, guest, list_, pop, suggest, tag, watch
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.paths import LOGS_DIR, STDOUT_STREAM_FILE
-
-from botsrc.commands import add, suggest, tag, group, find, list_, watch, pop, guest
-
 
 logger = logging.getLogger(__name__)
 

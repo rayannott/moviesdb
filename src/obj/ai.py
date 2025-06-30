@@ -1,4 +1,4 @@
-from typing import Iterable, TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, TypedDict
 
 from openai import OpenAI
 from pydantic import BaseModel

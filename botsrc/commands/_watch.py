@@ -1,8 +1,8 @@
 import telebot
 
-from src.mongo import Mongo
 from botsrc.utils import format_title
-from src.parser import Flags, PositionalArgs, KeywordArgs
+from src.mongo import Mongo
+from src.parser import Flags, KeywordArgs, PositionalArgs
 
 
 def watch(

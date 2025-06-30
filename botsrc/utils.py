@@ -1,15 +1,14 @@
+from collections.abc import Callable
 from datetime import datetime
 from typing import TypeVar
-from collections.abc import Callable
 
 from git import Commit
 
+from src.mongo import Mongo
 from src.obj.entry import Entry
 from src.obj.entry_group import EntryGroup
-from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
 from src.paths import ALLOWED_USERS
-from src.mongo import Mongo
-
+from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
 
 BOT_STARTED = datetime.now()
 

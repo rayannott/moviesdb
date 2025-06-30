@@ -1,10 +1,10 @@
 import telebot
 
+from botsrc.utils import format_entry, list_many_entries
+from src.mongo import Mongo
 from src.obj.entry import build_tags
 from src.parser import Flags, PositionalArgs
 from src.utils.utils import replace_tag_alias
-from src.mongo import Mongo
-from botsrc.utils import list_many_entries, format_entry
 
 
 def tag(

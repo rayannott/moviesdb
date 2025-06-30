@@ -2,10 +2,9 @@ import logging
 
 import telebot
 
-from src.mongo import Mongo
 from botsrc.utils import list_many_entries
+from src.mongo import Mongo
 from src.parser import Flags, PositionalArgs
-
 
 logger = logging.getLogger(__name__)
 

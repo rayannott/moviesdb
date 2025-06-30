@@ -1,28 +1,29 @@
-from rich.console import Console
 import time
+
+from rich.console import Console
 
 with Console().status("Loading dependencies..."):
     _t_dep_0 = time.perf_counter()
+    import json
     import os
     import random
-    import json
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
     from typing import Any, Callable
 
+    from bson import ObjectId
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
-    from bson import ObjectId
 
     from src.obj.ai import ChatBot
     from src.obj.entry import (
         Entry,
         MalformedEntryException,
         Type,
-        is_verbose,
         build_tags,
+        is_verbose,
     )
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
     from src.obj.game import GuessingGame
@@ -33,16 +34,6 @@ with Console().status("Loading dependencies..."):
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
-    from src.utils.utils import (
-        possible_match,
-        AccessRightsManager,
-        F_ALL,
-        F_MOVIES,
-        F_SERIES,
-        TAG_WATCH_AGAIN,
-        replace_tag_alias,
-        RepoInfo,
-    )
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -53,6 +44,16 @@ with Console().status("Loading dependencies..."):
         get_groups_table,
         get_rich_table,
         rinput,
+    )
+    from src.utils.utils import (
+        F_ALL,
+        F_MOVIES,
+        F_SERIES,
+        TAG_WATCH_AGAIN,
+        AccessRightsManager,
+        RepoInfo,
+        possible_match,
+        replace_tag_alias,
     )
 
     DEP_LOADING_TIME = time.perf_counter() - _t_dep_0

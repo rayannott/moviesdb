@@ -1,12 +1,11 @@
+from bson import ObjectId
+from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from pymongo.collection import Collection
-from bson import ObjectId
 
 from src.obj.entry import Entry
 from src.obj.watch_list import WatchList
 from src.utils.env import MONGODB_PASSWORD
-
 
 uri = f"mongodb+srv://rayannott:{MONGODB_PASSWORD}@moviesseries.7g8z1if.mongodb.net/?retryWrites=true&w=majority&appName=MoviesSeries"
 CLIENT = MongoClient(uri, server_api=ServerApi("1"))

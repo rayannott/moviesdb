@@ -5,7 +5,6 @@ import logging.config
 import pathlib
 from typing import override
 
-
 LOG_RECORD_BUILTIN_ATTRS = {
     "args",
     "asctime",

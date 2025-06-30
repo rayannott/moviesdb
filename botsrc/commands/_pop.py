@@ -1,7 +1,7 @@
 import telebot
 
+from botsrc.utils import format_entry, select_entry_by_oid_part
 from src.mongo import Mongo
-from botsrc.utils import select_entry_by_oid_part, format_entry
 from src.parser import PositionalArgs
 
 

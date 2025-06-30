@@ -9,7 +9,6 @@ from rich.panel import Panel
 
 from src.utils.env import OMDB_API_KEY
 
-
 URL_BASE = "http://www.omdbapi.com"
 
 

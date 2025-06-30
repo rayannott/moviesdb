@@ -3,19 +3,18 @@ from functools import wraps
 
 from telebot import TeleBot, types
 
+from botsrc.compiled import BOT_COMMANDS
+from botsrc.helper import get_help
+from botsrc.utils import (
+    ALLOW_GUEST_COMMANDS,
+    HELP_GUEST_MESSAGE,
+    ME_CHAT_ID,
+    report_repository_info,
+)
+from setup_logging import setup_logging
 from src.parser import ParsingError, parse
 from src.utils.env import TELEGRAM_TOKEN
 from src.utils.utils import AccessRightsManager
-from botsrc.utils import (
-    ALLOW_GUEST_COMMANDS,
-    ME_CHAT_ID,
-    HELP_GUEST_MESSAGE,
-    report_repository_info,
-)
-from botsrc.compiled import BOT_COMMANDS
-from botsrc.helper import get_help
-from setup_logging import setup_logging
-
 
 logger = logging.getLogger(__name__)
 setup_logging()

@@ -2,16 +2,16 @@ import logging
 from datetime import datetime
 
 import telebot
-from src.obj.entry import Entry, MalformedEntryException, Type
-from src.mongo import Mongo
-from src.parser import Flags, KeywordArgs, PositionalArgs
+
 from botsrc.utils import (
     format_entry,
-    process_watch_list_on_add_entry,
     format_title,
     process_watch_again_tag_on_add_entry,
+    process_watch_list_on_add_entry,
 )
-
+from src.mongo import Mongo
+from src.obj.entry import Entry, MalformedEntryException, Type
+from src.parser import Flags, KeywordArgs, PositionalArgs
 
 logger = logging.getLogger(__name__)
 
