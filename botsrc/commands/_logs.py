@@ -1,3 +1,5 @@
+import re
+
 import logging
 import io
 import json
@@ -10,6 +12,10 @@ from src.paths import LOGS_DIR
 
 
 logger = logging.getLogger(__name__)
+
+
+def escape_md_v2(text: str) -> str:
+    return re.sub(r"([_*\[\]()~`>#+\-=|{}.!])", r"\\\1", text)
 
 
 def logs(
@@ -62,11 +68,10 @@ def logs(
         if not parsed_lines:
             bot.send_message(message.chat.id, "Log file is empty.")
         else:
-            output = "\n".join(parsed_lines)
+            # output = "\n".join(parsed_lines)
+            output = "\n".join(escape_md_v2(line) for line in parsed_lines)
             bot.send_message(
-                message.chat.id,
-                f"<pre>{output}</pre>",
-                parse_mode="HTML",
+                message.chat.id, f"```{output}```", parse_mode="MarkdownV2"
             )
         return
 
