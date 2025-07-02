@@ -153,7 +153,7 @@ def cmd_logs(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
-    """logs
+    """logs [--full]
     Take a peak into the logs.
     If the --full flag is specified, send the logs as a zip file. Otherwise, just show the last 10 lines of the log file.
         full(flag): if specified, send all logs as a single zip file
