@@ -15,16 +15,22 @@ from src.utils.utils import (
 
 
 class Verbosity:
-    verbose = False
+    _instance = None
+    _verbose = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def toggle(self):
-        self.verbose = not self.verbose
+        self._verbose = not self._verbose
 
     def __bool__(self):
-        return self.verbose
+        return self._verbose
 
 
-is_verbose = Verbosity()  # singleton to toggle verbosity
+is_verbose = Verbosity()  # (now a real) singleton to toggle verbosity
 
 
 class Type(Enum):
