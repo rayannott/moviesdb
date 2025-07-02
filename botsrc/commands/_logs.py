@@ -65,8 +65,8 @@ def logs(
             output = "\n".join(parsed_lines)
             bot.send_message(
                 message.chat.id,
-                f"*Last 10 log entries from `{latest_log.name}`:*\n\n{output}",
-                parse_mode="Markdown",
+                f"<pre>{output}</pre>",
+                parse_mode="HTML",
             )
         return
 
