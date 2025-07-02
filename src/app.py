@@ -109,7 +109,7 @@ class App:
             "find groups by title substring; can use the same arguments as in group command",
         ),
         ("watch", "show the watch list"),
-        ("watch <title>", "add title to the watch list"),
+        ("watch <title>", "add title to the watch list; if the title ends with a '+', it is considered a series"),
         ("watch <title> --delete", "remove title from the watch list"),
         ("watch --random", "show a random title from the watch list"),
         (

@@ -81,7 +81,7 @@ def cmd_watch(
     """watch [<title>] [--delete]
     Show the watch list or add/delete an entry.
     If no arguments are specified, show the watch list.
-        title: the title of the entry; if ends with "+", it is a series
+        title: the title of the entry; if ends with a '+', it is a series
         delete(flag): if specified, delete the entry from the watch list instead of adding it
     """
     watch(message, bot, pos, flags, kwargs)
