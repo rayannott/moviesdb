@@ -1,12 +1,20 @@
-import io
 import logging
-import zipfile
 
 import telebot
 
-from botsrc.commands import add, find, group, guest, list_, pop, suggest, tag, watch
+from botsrc.commands import (
+    add,
+    find,
+    group,
+    guest,
+    list_,
+    pop,
+    suggest,
+    tag,
+    watch,
+    logs,
+)
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.paths import LOGS_DIR, STDOUT_STREAM_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -138,20 +146,6 @@ def cmd_tag(
     tag(message, bot, pos, flags)
 
 
-def cmd_log(
-    pos: PositionalArgs,
-    kwargs: KeywordArgs,
-    flags: Flags,
-    bot: telebot.TeleBot,
-    message: telebot.types.Message,
-):
-    if not STDOUT_STREAM_FILE.exists():
-        bot.reply_to(message, "Log file does not exist.")
-        return
-    lines = STDOUT_STREAM_FILE.read_text().splitlines()
-    bot.send_message(message.chat.id, "\n".join(lines[-10:]))
-
-
 def cmd_logs(
     pos: PositionalArgs,
     kwargs: KeywordArgs,
@@ -159,25 +153,12 @@ def cmd_logs(
     bot: telebot.TeleBot,
     message: telebot.types.Message,
 ):
-    if not LOGS_DIR.exists():
-        bot.reply_to(message, "Logs folder does not exist.")
-        return
-
-    zip_buffer = io.BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for file_path in LOGS_DIR.rglob("*"):
-            if file_path.is_file():
-                zip_file.write(file_path, arcname=file_path.relative_to(LOGS_DIR))
-
-    zip_buffer.seek(0)
-
-    bot.send_document(
-        message.chat.id,
-        zip_buffer,
-        caption="Here are the log files",
-        visible_file_name="logs.zip",
-    )
+    """logs
+    Take a peak into the logs.
+    If the --full flag is specified, send the logs as a zip file. Otherwise, just show the last 10 lines of the log file.
+        full(flag): if specified, send all logs as a single zip file
+    """
+    logs(message, bot, flags)
 
 
 def cmd_group(
