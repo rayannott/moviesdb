@@ -71,7 +71,7 @@ def logs(
             # output = "\n".join(parsed_lines)
             output = "\n".join(escape_md_v2(line) for line in parsed_lines)
             bot.send_message(
-                message.chat.id, f"```{output}```", parse_mode="MarkdownV2"
+                message.chat.id, f"```logs\n{output}```", parse_mode="MarkdownV2"
             )
         return
 
