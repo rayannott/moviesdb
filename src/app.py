@@ -775,6 +775,11 @@ repo={self.repo_info_loading_time:.3f}s;
         self.add_entry(entry)
         self.cns.print(f"[green] Added [/]\n{format_entry(entry)}")
         if self.watch_list.remove(entry.title, entry.type == Type.SERIES):
+            if not Mongo.delete_watchlist_entry(entry.title, entry.type == Type.SERIES):
+                self.error(
+                    f"Failed to remove {format_title(entry.title, entry.type)} from the watch list."
+                )
+                return
             self.cns.print(
                 "[green]󰺝 Removed from watch list[/]: "
                 + format_title(entry.title, entry.type)
