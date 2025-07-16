@@ -3,26 +3,21 @@ from functools import wraps
 
 from telebot import TeleBot, types
 
-from src.parser import ParsingError, parse
-from src.paths import LOG_FILE
-from src.utils.env import TELEGRAM_TOKEN
-from src.utils.utils import AccessRightsManager
-from botsrc.utils import (
-    ALLOW_GUEST_COMMANDS,
-    ME_CHAT_ID,
-    HELP_GUEST_MESSAGE,
-    report_repository_info,
-)
 from botsrc.compiled import BOT_COMMANDS
 from botsrc.helper import get_help
-
-
-# TODO: set up file logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s]:%(asctime)s:%(module)s:%(message)s",
+from botsrc.utils import (
+    ALLOW_GUEST_COMMANDS,
+    HELP_GUEST_MESSAGE,
+    ME_CHAT_ID,
+    report_repository_info,
 )
+from setup_logging import setup_logging
+from src.parser import ParsingError, parse
+from src.utils.env import TELEGRAM_TOKEN
+from src.utils.utils import AccessRightsManager
+
 logger = logging.getLogger(__name__)
+setup_logging()
 
 bot = TeleBot(TELEGRAM_TOKEN)
 access_rights_manager = AccessRightsManager()
@@ -37,14 +32,15 @@ def pre_process_command(func):
             )
             return
         username = message.from_user.username
-        logger.info(f"{username}: {message.text}")
+        name = message.from_user.first_name
+        logger.info(f"{name}(@{username};id={message.chat.id}):{message.text}")
         if message.chat.id == ME_CHAT_ID:
             extra_flags = set()
         elif username in access_rights_manager:
             extra_flags = {"guest"}
         else:
             bot.reply_to(message, "You are not allowed to use this bot.")
-            logger.warning(f"User {username} is not allowed to use the bot")
+            logger.info(f"User {username} is not allowed to use the bot")
             return
         func(message, extra_flags)
 
@@ -79,6 +75,7 @@ def cmd_start(message: types.Message, extra_flags: set[str]):
         bot.send_message(
             message.chat.id, "Hello, dear guest! Type /help to see available commands."
         )
+        logger.info("guest message shown")
     else:
         bot.send_message(message.chat.id, "Hello, me!")
 
@@ -91,16 +88,6 @@ def on_stop(message: types.Message, extra_flags: set[str]):
     bot.stop_bot()
 
 
-@bot.message_handler(commands=["log"])
-@pre_process_command
-def on_log(message: types.Message, extra_flags: set[str]):
-    if not LOG_FILE.exists():
-        bot.reply_to(message, "Log file does not exist.")
-        return
-    lines = LOG_FILE.read_text().splitlines()
-    bot.send_message(message.chat.id, "\n".join(lines[-10:]))
-
-
 @bot.message_handler(func=lambda msg: True)
 @pre_process_command
 def other(message: types.Message, extra_flags: set[str]):
@@ -111,7 +98,7 @@ def other(message: types.Message, extra_flags: set[str]):
         root, pos, kwargs, flags = parse(message.text.lstrip("/"))
     except ParsingError as e:
         bot.reply_to(message, f"{e}: {message.text!r}")
-        logging.error(f"Parsing error: {e}")
+        logger.info("parsing error", exc_info=True)
         return
     flags.update(extra_flags)
     if managed_help(root, pos, flags, bot, message):
@@ -120,15 +107,16 @@ def other(message: types.Message, extra_flags: set[str]):
     if command_method is None:
         msg = f"Unknown command: {message.text}"
         bot.reply_to(message, msg)
-        logging.warning(msg)
+        logger.info(msg)
         return
     if "guest" in flags and root not in ALLOW_GUEST_COMMANDS:
         bot.reply_to(
             message,
             f"Sorry, you are not allowed to use {root}. Type /help to see available commands.",
         )
+        logger.info(f"guest: command {root} not allowed")
         return
-    logging.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")
+    logger.info(f"Called {root} with {pos=}, {kwargs=}, {flags=}")
     command_method(pos, kwargs, flags, bot, message)
 
 

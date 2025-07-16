@@ -1,7 +1,8 @@
 import datetime
 import difflib
-import re
 import json
+import re
+
 from git import Repo
 
 from src.paths import ALLOWED_USERS

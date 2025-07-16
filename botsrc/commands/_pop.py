@@ -1,8 +1,12 @@
+import logging
+
 import telebot
 
+from botsrc.utils import format_entry, select_entry_by_oid_part
 from src.mongo import Mongo
-from botsrc.utils import select_entry_by_oid_part, format_entry
 from src.parser import PositionalArgs
+
+logger = logging.getLogger(__name__)
 
 
 def pop(
@@ -12,9 +16,11 @@ def pop(
 ):
     if not pos:
         bot.reply_to(message, "You must specify an oid.")
+        logger.info("oid not specified")
         return
     entries = sorted(Mongo.load_entries())
     selected_entry = select_entry_by_oid_part(pos[0], entries)
+    logger.debug(f"selected entry: {selected_entry}")
     if selected_entry is None:
         bot.reply_to(message, "Could not find a unique entry.")
         return
@@ -23,5 +29,7 @@ def pop(
         bot.send_message(
             message.chat.id, f"Deleted successfully:\n{format_entry(selected_entry)}"
         )
+        logger.info(f"deleted entry: {selected_entry} with id={selected_entry._id}")
     else:
         bot.reply_to(message, "Something went wrong.")
+        logger.error(f"failed to delete entry: {selected_entry}")

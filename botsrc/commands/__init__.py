@@ -7,3 +7,4 @@ from botsrc.commands._find import find  # noqa
 from botsrc.commands._watch import watch  # noqa
 from botsrc.commands._pop import pop  # noqa
 from botsrc.commands._guest import guest  # noqa
+from botsrc.commands._logs import logs  # noqa

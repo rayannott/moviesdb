@@ -132,12 +132,10 @@ class EntryFormApp(App):
             return True
 
 
-class GameApp(App):
-    ...  # TODO implement
+class GameApp(App): ...  # TODO implement
 
 
-class SqlModeApp(App):
-    ...  # TODO implement
+class SqlModeApp(App): ...  # TODO implement
 
 
 class EntriesTableApp(App):

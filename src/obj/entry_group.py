@@ -1,7 +1,7 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from statistics import mean
-from collections import defaultdict
 
 from src.obj.entry import Entry, Type
 

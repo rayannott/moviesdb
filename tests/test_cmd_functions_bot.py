@@ -39,6 +39,6 @@ def test_cmd_functions_bot():
     bot_commands = load_bot_commands()
 
     for bot_command in bot_commands.values():
-        assert (
-            inspect.signature(bot_command) == SIGNATURE
-        ), f"{bot_command} has a wrong signature."
+        assert inspect.signature(bot_command) == SIGNATURE, (
+            f"{bot_command} has a wrong signature."
+        )

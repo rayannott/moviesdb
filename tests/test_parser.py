@@ -1,6 +1,6 @@
 import pytest
 
-from src.parser import parse, ParsingError
+from src.parser import ParsingError, parse
 
 TESTS = [
     ("tag add", ("tag", ["add"], {}, set())),

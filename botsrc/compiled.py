@@ -2,8 +2,8 @@ from collections.abc import Callable
 
 from telebot import TeleBot, types
 
-from src.parser import Flags, KeywordArgs, PositionalArgs
 import botsrc.cmds as botcmd
+from src.parser import Flags, KeywordArgs, PositionalArgs
 
 
 def load_bot_commands():

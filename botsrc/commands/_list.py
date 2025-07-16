@@ -1,8 +1,12 @@
+import logging
+
 import telebot
 
-from src.mongo import Mongo
 from botsrc.utils import list_many_entries
+from src.mongo import Mongo
 from src.parser import Flags
+
+logger = logging.getLogger(__name__)
 
 
 def list_(
@@ -12,6 +16,7 @@ def list_(
 ):
     if "guest" in flags:
         flags = set()
+        logger.debug("guest message; set flags to set()")
     entries = sorted(Mongo.load_entries())
     msg = list_many_entries(
         entries[-5:],
@@ -20,3 +25,4 @@ def list_(
         override_title="Last 5 entries:",
     )
     bot.send_message(message.chat.id, msg)
+    logger.info(msg)

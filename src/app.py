@@ -1,27 +1,31 @@
+import time
+
 from rich.console import Console
 
 with Console().status("Loading dependencies..."):
+    _t_dep_0 = time.perf_counter()
+    import json
     import os
     import random
-    import json
-    import time
+    import logging
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
     from typing import Any, Callable
 
+    from bson import ObjectId
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
-    from bson import ObjectId
 
+    from setup_logging import setup_logging
     from src.obj.ai import ChatBot
     from src.obj.entry import (
         Entry,
         MalformedEntryException,
         Type,
-        is_verbose,
         build_tags,
+        is_verbose,
     )
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
     from src.obj.game import GuessingGame
@@ -32,16 +36,6 @@ with Console().status("Loading dependencies..."):
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
-    from src.utils.utils import (
-        possible_match,
-        AccessRightsManager,
-        F_ALL,
-        F_MOVIES,
-        F_SERIES,
-        TAG_WATCH_AGAIN,
-        replace_tag_alias,
-        RepoInfo,
-    )
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -53,9 +47,24 @@ with Console().status("Loading dependencies..."):
         get_rich_table,
         rinput,
     )
+    from src.utils.utils import (
+        F_ALL,
+        F_MOVIES,
+        F_SERIES,
+        TAG_WATCH_AGAIN,
+        AccessRightsManager,
+        RepoInfo,
+        possible_match,
+        replace_tag_alias,
+    )
+
+    DEP_LOADING_TIME = time.perf_counter() - _t_dep_0
 
 with Console().status("Connecting to MongoDB..."):
-    from src.mongo import aimemory, Mongo
+    _t_mongo_0 = time.perf_counter()
+    from src.mongo import Mongo
+
+    MONGO_LOADING_TIME = time.perf_counter() - _t_mongo_0
 
 
 def identity(x: str):
@@ -69,6 +78,12 @@ VALUE_MAP: dict[str, Callable[[str], Any]] = {
     "notes": identity,
     "date": Entry.parse_date,
 }
+
+
+COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}
+
+logger = logging.getLogger(__name__)
+setup_logging()
 
 
 class App:
@@ -94,14 +109,17 @@ class App:
             "find groups by title substring; can use the same arguments as in group command",
         ),
         ("watch", "show the watch list"),
-        ("watch <title>", "add title to the watch list"),
+        ("watch <title>", "add title to the watch list; if the title ends with a '+', it is considered a series"),
         ("watch <title> --delete", "remove title from the watch list"),
         ("watch --random", "show a random title from the watch list"),
         (
             "get <idx> [--verbose]",
             "get entry by index; --verbose to override verbosity and show all details",
         ),
-        ("stats", "show some statistics about the entries"),
+        (
+            "stats [--dev]",
+            "show some statistics about the entries; --dev to show app stats",
+        ),
         (
             "add <title>",
             r'start adding a new entry; will ask for [bold blue]rating[/]: floating point number r, 0 <= r <= 10, \[[bold blue]type[/]: "series" or "movie" or nothing(default="movie"), '
@@ -132,7 +150,7 @@ class App:
         ),
         ("verbose", "toggle verbose mode"),
         ("reload", "bring the in-memory data up to date with the cloud database"),
-        ("cls", "clear the terminal"),
+        ("cls | clear", "clear the terminal"),
         (
             "ai <prompt> [--full]",
             "ask the chatGPT a question; --full to use chatGPT-4o instead of chatGPT-4o-mini",
@@ -197,7 +215,7 @@ class App:
         self.cns = Console()
         self.input = partial(rinput, self.cns)
 
-        self.chatbot = ChatBot(self.entries, aimemory)
+        self.chatbot = ChatBot(self.entries, Mongo)
 
         self.command_methods: dict[
             str, Callable[[PositionalArgs, KeywordArgs, Flags], None]
@@ -206,14 +224,26 @@ class App:
             for method_name in dir(self)
             if method_name.startswith("cmd_")
         }
+        for alias, command in COMMAND_ALIASES.items():
+            self.command_methods[alias] = self.command_methods[command]
 
+        _t_repo_0 = time.perf_counter()
         self.repo_info = RepoInfo()
+        self.repo_info_loading_time = time.perf_counter() - _t_repo_0
+
+        logger.info(
+            f"""init App; loading times:
+dependencies={DEP_LOADING_TIME:.3f}s,
+mongo={MONGO_LOADING_TIME:.3f}s,
+repo={self.repo_info_loading_time:.3f}s;
+{len(self.entries)} entries,
+{len(self.watch_list)} watch list items""".replace("\n", " ")
+        )
 
         self.recently_popped: list[Entry] = []
 
     def _load_all(self):
         self.entries = sorted(self.load_entries())
-        # TODO: make watch list a list of {"title": str, "is_series": bool} objects to allow for duplicate names
         self.watch_list = self.load_watch_list()
 
     def add_entry(self, entry: Entry):
@@ -470,7 +500,7 @@ class App:
             self.chatbot.reset()
             return
         if "memory" in flags:
-            mem_items = self.chatbot.get_memory_items()
+            mem_items = Mongo.load_aimemory_items()
             if not mem_items:
                 self.warning("No context about the user.")
                 return
@@ -478,16 +508,18 @@ class App:
                 self.cns.print(rf"[blue]\[{mi_id[-7:]}][/] [green]{mi_info}[/]")
             return
         if (mi_id_to_remove := kwargs.get("forget")) is not None:
-            for mi_id, mi_info in self.chatbot.get_memory_items():
+            for mi_id, mi_info in Mongo.load_aimemory_items():
                 if mi_id_to_remove in mi_id:
-                    aimemory().delete_one({"_id": ObjectId(mi_id)})
+                    if not Mongo.delete_aimemory_item(ObjectId(mi_id)):
+                        self.error(f"Failed to delete memory with {mi_id}.")
+                        return
                     self.cns.print(f"󰺝 Deleted [blue]{mi_id}.")
                     break
             else:
                 self.warning(f"No memory with {mi_id_to_remove}.")
             return
         if (to_remember := kwargs.get("remember")) is not None:
-            oid = self.chatbot.add_memory_item(to_remember)
+            oid = Mongo.add_aimemory_item(to_remember)
             self.cns.print(f"Inserted under [blue]{oid}.")
             return
 
@@ -578,7 +610,8 @@ class App:
         stdev_movies = stdev(movies)
         stdev_series = stdev(series)
         self.cns.print(
-            f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.2f} (n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
+            f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.3f} "
+            f"(n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
         )
         groups = self.get_groups()
         watched_more_than_once = [g for g in groups if len(g.ratings) > 1]
@@ -589,6 +622,26 @@ class App:
             f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been "
             f"watched more than once ({watched_times_mean:.2f} ± {watched_times_stdev:.2f} times on average).\n"
             f"There are {len(self.watch_list)} items in the watch list ({len(self.watch_list.movies)} movies, {len(self.watch_list.series)} series)."
+        )
+
+        if "dev" not in flags:
+            return
+
+        def format_commit(commit):
+            return (
+                f"[bold cyan]{commit.hexsha[:8]}[/] "
+                f"[dim]<{commit.author.name} <{commit.author.email}>[/] "
+                f"[green]{commit.committed_datetime.strftime('%Y-%m-%d %H:%M:%S')}[/]\n  "
+                f"{commit.message}"
+            )
+
+        self.cns.rule("Dev stats", style="bold magenta")
+        self.cns.print(
+            f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
+            f"[magenta]Last commit:[/]\n"
+            f"  {format_commit(self.repo_info.last_commit)}"
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -722,6 +775,11 @@ class App:
         self.add_entry(entry)
         self.cns.print(f"[green] Added [/]\n{format_entry(entry)}")
         if self.watch_list.remove(entry.title, entry.type == Type.SERIES):
+            if not Mongo.delete_watchlist_entry(entry.title, entry.type == Type.SERIES):
+                self.error(
+                    f"Failed to remove {format_title(entry.title, entry.type)} from the watch list."
+                )
+                return
             self.cns.print(
                 "[green]󰺝 Removed from watch list[/]: "
                 + format_title(entry.title, entry.type)
@@ -878,6 +936,7 @@ class App:
             root, pos, kwargs, flags = parse(command)
         except ParsingError as e:
             self.error(f"{e}: {command!r}")
+            logger.error(f"parsing error: {e} for command {command!r}")
             return
         command_method = self.command_methods.get(root)
         if command_method is None:
@@ -887,8 +946,10 @@ class App:
             self.cmd_help([root], {}, set())
             return
         command_method(pos, kwargs, flags)
+        logger.info(f"executed command: {root=!r}, {pos=!r}, {kwargs=!r}, {flags=!r}")
 
     def run(self):
+        logger.info("starting App")
         self.cmd_export([], {}, {"silent"})
         self.header()
         while self.running:
@@ -899,3 +960,5 @@ class App:
                 return
             except Exception as _:
                 self.cns.print_exception()
+                logger.error("unhandled exception", exc_info=True)
+        logger.info("stopping App")

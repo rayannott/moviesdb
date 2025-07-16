@@ -1,15 +1,19 @@
+import logging
 from datetime import datetime
 
 import telebot
-from src.obj.entry import Entry, MalformedEntryException, Type
-from src.mongo import Mongo
-from src.parser import Flags, KeywordArgs, PositionalArgs
+
 from botsrc.utils import (
     format_entry,
-    process_watch_list_on_add_entry,
     format_title,
     process_watch_again_tag_on_add_entry,
+    process_watch_list_on_add_entry,
 )
+from src.mongo import Mongo
+from src.obj.entry import Entry, MalformedEntryException, Type
+from src.parser import Flags, KeywordArgs, PositionalArgs
+
+logger = logging.getLogger(__name__)
 
 
 def text(message: telebot.types.Message) -> str:
@@ -50,6 +54,7 @@ def add(
     # Start the process by asking for the movie title
     if not (pos or flags or kwargs):
         sent = bot.send_message(message.chat.id, "Please enter the title:")
+        logger.info("multistep add entry initiated")
         bot.register_next_step_handler(sent, _get_title, bot=bot)
         return
     try:
@@ -60,15 +65,18 @@ def add(
         notes = kwargs.get("notes", "")
     except MalformedEntryException as e:
         bot.reply_to(message, str(e))
+        logger.info(f"malformed entry while adding entry {title}", exc_info=e)
         return
     except KeyError:
         bot.reply_to(message, "Need to specify title and rating")
+        logger.info("missing title or rating while adding entry", exc_info=True)
         return
     entry = Entry(None, title, rating, date, type_, notes)
     Mongo.add_entry(entry)
     bot.send_message(
         message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
     )
+    logger.info(f"added entry {entry}")
     if msg := process_watch_list_on_add_entry(entry):
         bot.send_message(message.chat.id, msg)
 
@@ -81,6 +89,7 @@ def _get_title(message: telebot.types.Message, bot: telebot.TeleBot):
             "You must specify a title.",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        logger.info("no title specified")
         return
     watch_list = Mongo.load_watch_list()
     is_series = watch_list.get(title)
@@ -90,6 +99,7 @@ def _get_title(message: telebot.types.Message, bot: telebot.TeleBot):
         else ""
     )
     bot.send_message(message.chat.id, f"{extra_note}Now, please rate it:")
+    logger.info("asking for rating")
     bot.register_next_step_handler_by_chat_id(
         message.chat.id, _get_rating, bot=bot, title=title
     )
@@ -104,6 +114,7 @@ def _get_rating(message: telebot.types.Message, bot: telebot.TeleBot, title: str
             f"{e}",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        logger.info("malformed rating", exc_info=e)
         return
 
     bot.send_message(
@@ -111,6 +122,7 @@ def _get_rating(message: telebot.types.Message, bot: telebot.TeleBot, title: str
         "What type of entry is it? (Movie or Series)",
         reply_markup=get_movie_type_kb(),
     )
+    logger.info("asking for type")
     bot.register_next_step_handler_by_chat_id(
         message.chat.id, _get_type, bot=bot, title=title, rating=rating
     )
@@ -127,12 +139,14 @@ def _get_type(
             f"{e}",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        logger.info("malformed type", exc_info=e)
         return
     bot.send_message(
         message.chat.id,
         "Please enter the date (dd.mm.yyyy or 'today' or nothing):",
         reply_markup=get_skip_kb(extra_buttons=["Today"]),
     )
+    logger.info("asking for date")
     bot.register_next_step_handler_by_chat_id(
         message.chat.id, _get_date, bot=bot, title=title, rating=rating, type_=type_
     )
@@ -155,6 +169,7 @@ def _get_date(
             f"Invalid date: {e}. Please use the format dd.mm.yyyy or 'today'.",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        logger.info("malformed date", exc_info=e)
         return
 
     bot.send_message(
@@ -162,6 +177,7 @@ def _get_date(
         "Do you want to add any notes? (Optional):",
         reply_markup=get_skip_kb(),
     )
+    logger.info("asking for notes")
     bot.register_next_step_handler_by_chat_id(
         message.chat.id,
         _get_notes,
@@ -189,6 +205,7 @@ def _get_notes(
         f"Thank you! Let's confirm the details:\n{format_entry(entry, True)}",
         reply_markup=get_confirmation_kb(),
     )
+    logger.info("asking for confirmation")
     bot.register_next_step_handler_by_chat_id(
         message.chat.id,
         _confirm_add,
@@ -204,6 +221,7 @@ def _confirm_add(message: telebot.types.Message, bot: telebot.TeleBot, entry: En
             "Entry creation canceled.",
             reply_markup=telebot.types.ReplyKeyboardRemove(),
         )
+        logger.info("entry creation canceled")
         return
     Mongo.add_entry(entry)
     bot.send_message(
@@ -211,6 +229,7 @@ def _confirm_add(message: telebot.types.Message, bot: telebot.TeleBot, entry: En
         f"Entry added:\n{format_entry(entry, True, True)}",
         reply_markup=telebot.types.ReplyKeyboardRemove(),
     )
+    logger.info(f"added entry {entry}")
     if msg := process_watch_list_on_add_entry(entry):
         bot.send_message(message.chat.id, msg)
     if msg := process_watch_again_tag_on_add_entry(entry):

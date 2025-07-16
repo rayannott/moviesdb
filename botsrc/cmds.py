@@ -1,10 +1,20 @@
-import telebot
 import logging
 
+import telebot
+
+from botsrc.commands import (
+    add,
+    find,
+    group,
+    guest,
+    list_,
+    pop,
+    suggest,
+    tag,
+    watch,
+    logs,
+)
 from src.parser import Flags, KeywordArgs, PositionalArgs
-
-from botsrc.commands import add, suggest, tag, group, find, list_, watch, pop, guest
-
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +81,7 @@ def cmd_watch(
     """watch [<title>] [--delete]
     Show the watch list or add/delete an entry.
     If no arguments are specified, show the watch list.
-        title: the title of the entry; if ends with "+", it is a series
+        title: the title of the entry; if ends with a '+', it is a series
         delete(flag): if specified, delete the entry from the watch list instead of adding it
     """
     watch(message, bot, pos, flags, kwargs)
@@ -134,6 +144,21 @@ def cmd_tag(
         oid(flag): show the mongoDB OIDs
     """
     tag(message, bot, pos, flags)
+
+
+def cmd_logs(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    """logs [--full]
+    Take a peak into the logs.
+    If the --full flag is specified, send the logs as a zip file. Otherwise, just show the last 10 lines of the log file.
+        full(flag): if specified, send all logs as a single zip file
+    """
+    logs(message, bot, flags)
 
 
 def cmd_group(

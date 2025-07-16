@@ -1,12 +1,11 @@
+from bson import ObjectId
+from pymongo.collection import Collection
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from pymongo.collection import Collection
-from bson import ObjectId
 
 from src.obj.entry import Entry
 from src.obj.watch_list import WatchList
 from src.utils.env import MONGODB_PASSWORD
-
 
 uri = f"mongodb+srv://rayannott:{MONGODB_PASSWORD}@moviesseries.7g8z1if.mongodb.net/?retryWrites=true&w=majority&appName=MoviesSeries"
 CLIENT = MongoClient(uri, server_api=ServerApi("1"))
@@ -63,3 +62,15 @@ class Mongo:
     def load_watch_list() -> WatchList:
         data = watchlist().find()
         return WatchList([(item["title"], item["is_series"]) for item in data])
+
+    @staticmethod
+    def load_aimemory_items() -> list[tuple[str, str]]:
+        return [(str(mem["_id"]), mem["item"]) for mem in aimemory().find()]
+
+    @staticmethod
+    def add_aimemory_item(mem: str) -> ObjectId:
+        return aimemory().insert_one({"item": mem}).inserted_id
+
+    @staticmethod
+    def delete_aimemory_item(oid: ObjectId) -> bool:
+        return aimemory().delete_one({"_id": oid}).deleted_count == 1
