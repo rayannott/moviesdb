@@ -956,6 +956,9 @@ repo={self.repo_info_loading_time:.3f}s;
             try:
                 command = self.input(">>> ")
                 self.process_command(command)
+            except EOFError:
+                print()
+                return
             except KeyboardInterrupt:
                 return
             except Exception as _:
