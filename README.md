@@ -16,4 +16,9 @@ It can
 Yes, you can try it out [here](https://t.me/mymoviesdbbot) in the read-only mode.
 
 ## Who is it for?
-For me.
+<s>For me.</s> For me and maybe for you, but you'd need to do some setting up.
+
+Here's the
+### Minimal setup
+
+First of all, in the `src/utils/env.py`, comment out the `assert` statements associated with the optional features (`TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `OPENAI_PROJECT_ID`, `OMDB_API_KEY`) and define `MONGODB_PASSWORD` in the `.env` file. Then, in your free tier MongoDB Atlas, create an app (`MoviesSeries`) and collections (`entries`, `watchlist`). Replace the `uri` variable in `src/mongo.py` with your own MongoDB URI.
