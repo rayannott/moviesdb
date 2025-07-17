@@ -1,4 +1,5 @@
 from statistics import mean
+from datetime import datetime, timedelta, date
 
 from rich import box
 from rich.align import Align
@@ -100,9 +101,16 @@ def format_tag(tag: str) -> str:
 
 
 def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
+    def _fmt_date(date: date) -> str:
+        now = datetime.now()
+        if date == now.date():
+            return "today"
+        if date == (now - timedelta(days=1)).date():
+            return "yesterday"
+        return date.strftime("%d.%m.%Y")
     _title = format_title(entry.title, entry.type)
     _rating = format_rating(entry.rating)
-    _date = entry.date.strftime("%d.%m.%Y") if entry.date else ""
+    _date = _fmt_date(entry.date.date()) if entry.date else ""
     _tags = f"{' '.join(format_tag(t) for t in entry.tags)}" if entry.tags else ""
     _notes = f"{entry.notes}" if entry.notes and is_verbose else ""
     return _title, _rating, _date, _tags, _notes
