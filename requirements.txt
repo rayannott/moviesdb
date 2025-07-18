@@ -8,3 +8,4 @@ requests
 textual
 pymongo
 pyTelegramBotAPI
+supabase
