@@ -23,3 +23,7 @@ if not OPENAI_PROJECT_ID:
 OMDB_API_KEY = os.environ.get("OMDB_API") or ""
 if not OMDB_API_KEY:
     warnings.warn("OMDB API key is not found in environment variables.")
+
+SUPABASE_API_KEY = os.environ.get("SUPABASE_API_KEY") or ""
+
+SUPABASE_PROJECT_ID = os.environ.get("SUPABASE_PROJECT_ID") or ""

@@ -31,6 +31,7 @@ with Console().status("Loading dependencies..."):
     from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
     from src.obj.sql_mode import SqlMode
+    from src.obj.books_mode import BooksMode
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
@@ -890,6 +891,10 @@ repo={self.repo_info_loading_time:.3f}s;
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         sql_mode = SqlMode(self.entries, self.cns, self.input)
         sql_mode.run()
+    
+    def cmd_books(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        books_mode = BooksMode(self.entries, self.cns, self.input)
+        books_mode.run()
 
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         game = GuessingGame(self.get_groups(), self.cns, self.input)
