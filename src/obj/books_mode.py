@@ -86,14 +86,37 @@ class BooksMode:
             existing_rows = self.client.table("books").select("*").execute().data
             t2 = pc()
             self.existing_books = [Book.from_sql_row(row) for row in existing_rows]
+        self.cns.rule("Books App", style="bold yellow")
         self.cns.print(
             f"[green]Connected to Supabase ({t1 - t0:.3f} sec).[/] "
             f"There are {len(self.existing_books)} books (loaded in {t2 - t1:.3f} sec)."
         )
+        self.verbose = False
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         # TODO: add the n argument
         sortby = kwargs.get("sortby", "dt")
+        _sort_fns = {
+            "dt": lambda x: x.dt_read,
+            "rating": lambda x: -x.rating,
+            "pages": lambda x: -x.n_pages,
+        }
+        sort_fn = _sort_fns.get(sortby)
+        if sort_fn is None:
+            self.cns.print(
+                f'"{sortby}" is an unknown sort parameter. '
+                f"Try one of {list(_sort_fns.keys())} instead.",
+                style="bold yellow",
+            )
+            return
+
+        _s = slice(-5, None, None) if sortby == "dt" else slice(0, 5, None)
+        _books = self.existing_books.copy()
+        _books.sort(key=sort_fn)
+        table = self.get_books_table(_books[_s], force_verbose=True)
+        self.cns.print(table)
+
+    def get_books_table(self, books: list[Book], title="Books", force_verbose=False):
         cols = [
             "Title",
             "Date and Time",
@@ -102,22 +125,10 @@ class BooksMode:
             "Num. pages",
             "Notes",
         ]
-        _sort_lambdas = {
-            "dt": lambda x: x[1],
-            "rating": lambda x: -x[2],
-            "pages": lambda x: -x[4],
-        }
-        sort_fn = _sort_lambdas.get(sortby)
-        if sort_fn is None:
-            self.cns.print(
-                f"{sortby} is an unknown sort parameter. "
-                f"Try one of {list(_sort_lambdas.keys())} instead."
-            )
-            return
-        rows = sorted(
-            [book.to_row_values_only() for book in self.existing_books],
-            key=sort_fn,
-        )
+        styles = ["bold", None, None, None, "dim", None]
+        justifiers = ["right"] * 5 + ["left"]
+        _s = slice(None) if force_verbose or self.verbose else slice(0, -1)
+        rows = [book.to_row_values_only() for book in books]
         rows = [
             [
                 title,
@@ -126,24 +137,34 @@ class BooksMode:
                 author,
                 str(n_pages),
                 body,
-            ]
+            ][_s]
             for title, dt_str, rating, author, n_pages, body in rows
         ]
-        styles = ["bold", None, None, None, "dim", None]
-        justifiers = ["right"] * 5 + ["left"]
-        _s = slice(-5, None, None) if sortby == "dt" else slice(0, 5, None)
-        table = get_rich_table(
-            rows[_s],
-            cols,
-            title="Books",
-            styles=styles,
-            justifiers=justifiers,
+        return get_rich_table(
+            rows,
+            cols[_s],
+            title=title,
+            styles=styles[_s],
+            justifiers=justifiers[_s],
         )
-        self.cns.print(table)
+
+    def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        if not pos:
+            self.cns.print("The title substring is missing.", style="bold red")
+            return
+        title = pos[0]
+        exact, close = [], []
+        for book in self.existing_books:
+            if book.title.lower() == title.lower():
+                exact.append(book)
+            elif title.lower() in book.title.lower():
+                close.append(book)
+        if exact:
+            self.cns.print(self.get_books_table(exact, title="Exact matches"))
+        if close:
+            self.cns.print(self.get_books_table(close, title="Close matches"))
 
     def run(self):
-        self.cns.rule("Books App", style="bold yellow")
-        # self.cns.print("""...""")
         while True:
             query = self.input("[bold yellow]BOOKS> ")
             root, pos, kwargs, flags = parse(query)
@@ -155,3 +176,11 @@ class BooksMode:
                 os.system("cls" if os.name == "nt" else "clear")
             elif root == "list":
                 self.cmd_list(pos, kwargs, flags)
+            elif root == "find":
+                self.cmd_find(pos, kwargs, flags)
+            elif root == "verbose":
+                self.verbose = not self.verbose
+                self.cns.print(
+                    f"Verbose mode {'on  ' if self.verbose else 'off  '}",
+                    style=f"bold {'green' if self.verbose else 'red'}",
+                )
