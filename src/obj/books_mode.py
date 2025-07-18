@@ -113,7 +113,7 @@ class BooksMode:
         _s = slice(-5, None, None) if sortby == "dt" else slice(0, 5, None)
         _books = self.existing_books.copy()
         _books.sort(key=sort_fn)
-        table = self.get_books_table(_books[_s], force_verbose=True)
+        table = self.get_books_table(_books[_s], force_verbose="verbose" in flags)
         self.cns.print(table)
 
     def get_books_table(self, books: list[Book], title="Books", force_verbose=False):
