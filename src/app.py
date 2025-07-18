@@ -109,7 +109,10 @@ class App:
             "find groups by title substring; can use the same arguments as in group command",
         ),
         ("watch", "show the watch list"),
-        ("watch <title>", "add title to the watch list; if the title ends with a '+', it is considered a series"),
+        (
+            "watch <title>",
+            "add title to the watch list; if the title ends with a '+', it is considered a series",
+        ),
         ("watch <title> --delete", "remove title from the watch list"),
         ("watch --random", "show a random title from the watch list"),
         (
@@ -131,7 +134,10 @@ class App:
             "modify entry by index using a text-based user interface! 󱁖",
         ),
         ("db <title>", "get movie data from the online database (OMDb)"),
-        ("tag", "show all tags"),
+        (
+            "tag [--verbose]",
+            "show all tags; if verbose, show more columns such as the average rating",
+        ),
         ("tag <tagname>", "show all entries with the tag"),
         ("tag <tagname> <index or title>", "add tag to entry by index or title"),
         (
@@ -413,18 +419,28 @@ repo={self.repo_info_loading_time:.3f}s;
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         tags = build_tags(self.entries)
         if not pos:
+            _s = slice(2) if "verbose" not in flags else slice(None)
+
+            def std(data: list[float]) -> float:
+                return stdev(data) if len(data) > 1 else 0.0
+
+            # TODO: more columns for verbose?
             self.cns.print(
                 get_rich_table(
                     [
-                        [format_tag(tag), str(len(entries))]
+                        [
+                            format_tag(tag),
+                            str(len(entries)),
+                            f"{format_rating(mean(entry.rating for entry in entries))} ± {std([entry.rating for entry in entries]):.2f}",
+                        ][_s]
                         for tag, entries in sorted(
                             tags.items(), key=lambda x: len(x[1]), reverse=True
                         )
                     ],
-                    ["Tag", "Count"],
+                    ["Tag", "Count", "Rating"][_s],
                     title="All tags",
-                    justifiers=["left", "right"],
-                    styles=["cyan", "white"],
+                    justifiers=["left", "right", "center"][_s],
+                    styles=["cyan", "white", None][_s],
                 )
             )
             return
