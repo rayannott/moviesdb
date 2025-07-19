@@ -42,7 +42,7 @@ def get_rich_help(
         res = f'Unknown command: "{query}". '
         if (pm := possible_match(query, set(help_messages))) is not None:
             res += f'Did you mean "{pm}"?'
-        return Text(res, style="bold red")
+        return Text(res)
     if this_help is None:
-        return Text("Help message is missing.", style="bold red")
+        return Text(f"Help message is missing for '{query}'.", style="bold red")
     return get_rich_table([list(this_help)], headers=headers, styles=styles)  # type: ignore
