@@ -1,4 +1,3 @@
-import os
 from time import perf_counter as pc
 from datetime import datetime
 from dataclasses import dataclass
@@ -9,8 +8,9 @@ from supabase import create_client, Client
 
 from src.obj.entry import Entry
 from src.utils.rich_utils import get_rich_table, format_rating
+from src.utils.help_utils import parse_docstring, get_rich_help
 from src.utils.env import SUPABASE_API_KEY, SUPABASE_PROJECT_ID
-from src.parser import parse, PositionalArgs, KeywordArgs, Flags
+from src.parser import parse, PositionalArgs, KeywordArgs, Flags, ParsingError
 
 
 class Book(NamedTuple):
@@ -86,14 +86,35 @@ class BooksMode:
             existing_rows = self.client.table("books").select("*").execute().data
             t2 = pc()
             self.existing_books = [Book.from_sql_row(row) for row in existing_rows]
-        self.cns.rule("Books App", style="bold yellow")
+        self.cns.rule(
+            f"Books App ({len(self.existing_books)} books)", style="bold yellow"
+        )
         self.cns.print(
-            f"[green]Connected to Supabase ({t1 - t0:.3f} sec).[/] "
-            f"There are {len(self.existing_books)} books (loaded in {t2 - t1:.3f} sec)."
+            f"[dim]Connected to Supabase in {t1 - t0:.3f} sec; loaded books in {t2 - t1:.3f} sec."
         )
         self.verbose = False
+        self.running = True
+
+        self.command_methods: dict[
+            str, Callable[[PositionalArgs, KeywordArgs, Flags], None]
+        ] = {
+            method_name[4:]: getattr(self, method_name)
+            for method_name in dir(self)
+            if method_name.startswith("cmd_")
+        }
+
+        self.help_messages = {
+            cmd_root: parse_docstring(cmd_fn.__doc__)
+            for cmd_root, cmd_fn in self.command_methods.items()
+        }
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """list [--n <n>] [--sortby <key>] [--verbose]
+        List the last n books, sorted by the given key.
+            n: number of entries to list (default: 5)
+            sortby: return entries sorted by date (key=dt), rating (key=rating), or number of pages (key=pages)
+            verbose(flag): if given, display the notes column (overrides subapp verbosity) 
+        """
         # TODO: add the n argument
         sortby = kwargs.get("sortby", "dt")
         _sort_fns = {
@@ -149,6 +170,8 @@ class BooksMode:
         )
 
     def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """find <title>
+        Find entries by the title substring."""
         if not pos:
             self.cns.print("The title substring is missing.", style="bold red")
             return
@@ -164,23 +187,42 @@ class BooksMode:
         if close:
             self.cns.print(self.get_books_table(close, title="Close matches"))
 
+    def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """exit
+        Exit the books subapp."""
+        self.running = False
+
+    def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """help [<command>]
+        Show help for the given command. 
+        If no argument is given, show for all.
+        Note: 'help <cmd>' is equivalent to '<cmd> --help'."""
+        query = pos[0] if pos else None
+        self.cns.print(get_rich_help(query, self.help_messages))
+
+    def cmd_verbose(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """verbose
+        Toggle subapp verbosity.
+        Verbosity determines whether to show the notes column."""
+        self.verbose = not self.verbose
+        self.cns.print(
+            f"Verbose mode {'on  ' if self.verbose else 'off  '}",
+            style=f"bold {'green' if self.verbose else 'red'}",
+        )
+
     def run(self):
-        while True:
-            query = self.input("[bold yellow]BOOKS> ")
-            root, pos, kwargs, flags = parse(query)
-            if root == "exit":
-                break
-            elif root == "help":
-                self.cns.print("Help message.")
-            elif root == "cls":
-                os.system("cls" if os.name == "nt" else "clear")
-            elif root == "list":
-                self.cmd_list(pos, kwargs, flags)
-            elif root == "find":
-                self.cmd_find(pos, kwargs, flags)
-            elif root == "verbose":
-                self.verbose = not self.verbose
-                self.cns.print(
-                    f"Verbose mode {'on  ' if self.verbose else 'off  '}",
-                    style=f"bold {'green' if self.verbose else 'red'}",
-                )
+        while self.running:
+            command = self.input("[bold yellow]BOOKS> ")
+            try:
+                root, pos, kwargs, flags = parse(command)
+            except ParsingError as e:
+                self.cns.print(f"{e}: {command!r}", style="bold red")
+                return
+            command_method = self.command_methods.get(root)
+            if command_method is None:
+                self.cns.print(f"Unknown command: {root}.", style="bold red")
+                return
+            if "help" in flags:
+                self.cmd_help([root], {}, set())
+                return
+            command_method(pos, kwargs, flags)

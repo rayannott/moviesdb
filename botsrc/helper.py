@@ -1,20 +1,6 @@
 from collections.abc import Callable
 
-
-def parse_docstring(docstring: str | None) -> tuple[str, str, str] | None:
-    """
-    Parses the docstring of a command and returns a tuple:
-    - signature
-    - short description
-    - rest of the docstring"""
-    if docstring is None:
-        return None
-    lines = docstring.splitlines()
-    assert len(lines) >= 2, "Docstring must have at least 2 lines"
-    signature = lines[0]
-    short_desc = lines[1]
-    rest = "\n".join(lines[2:])
-    return signature, short_desc, rest
+from src.utils.help_utils import parse_docstring
 
 
 def get_help(commands: dict[str, Callable], command: str | None = None) -> str:
