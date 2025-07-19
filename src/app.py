@@ -28,14 +28,13 @@ with Console().status("Loading dependencies..."):
         is_verbose,
     )
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
-    from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
-    from src.obj.sql_mode import SqlMode
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
+    from src.utils.help_utils import get_rich_help, parse_docstring
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -87,94 +86,6 @@ setup_logging()
 
 
 class App:
-    HELP_DATA: list[tuple[str, str]] = [
-        ("help", "show help for all commands"),
-        ("help <command>", "show help for a specific command"),
-        ("exit", "quit the app"),
-        ("find <word>", "find movie by title or substring of title (ignores case)"),
-        ("note <word>", "find movie by substing in note (ignores case)"),
-        ("pop <index>", "remove entry by index"),
-        ("pop --undo", "unpop the most recently popped entry"),
-        ("export", "export the entries and the watch list as json files"),
-        (
-            "list [--series|--movies, --all, --n=<number>]",
-            "list last n entries (default is 5, --n=<number> to specify); --all to list all; --series or --movies to filter by type",
-        ),
-        (
-            "group [--series|--movies, --all, --n=<number>]",
-            "a quick overview of the top n (default is 5) entries by average rating; --series or --movies to filter by type; --all to show all matched entry groups",
-        ),
-        (
-            r"group <title> \[arguments?]",
-            "find groups by title substring; can use the same arguments as in group command",
-        ),
-        ("watch", "show the watch list"),
-        (
-            "watch <title>",
-            "add title to the watch list; if the title ends with a '+', it is considered a series",
-        ),
-        ("watch <title> --delete", "remove title from the watch list"),
-        ("watch --random", "show a random title from the watch list"),
-        (
-            "get <idx> [--verbose]",
-            "get entry by index; --verbose to override verbosity and show all details",
-        ),
-        (
-            "stats [--dev]",
-            "show some statistics about the entries; --dev to show app stats",
-        ),
-        (
-            "add <title>",
-            r'start adding a new entry; will ask for [bold blue]rating[/]: floating point number r, 0 <= r <= 10, \[[bold blue]type[/]: "series" or "movie" or nothing(default="movie"), '
-            '[bold blue]date[/]: date of format dd.mm.yyyy or "now" or nothing(default=None), [bold blue]notes[/]: anything or nothing(default="")]',
-        ),
-        ("add [<title>] --tui", "add entry using a text-based user interface! 󱁖"),
-        (
-            "modify <index>",
-            "modify entry by index using a text-based user interface! 󱁖",
-        ),
-        ("db <title>", "get movie data from the online database (OMDb)"),
-        (
-            "tag [--verbose]",
-            "show all tags; if verbose, show more columns such as the average rating",
-        ),
-        ("tag <tagname>", "show all entries with the tag"),
-        ("tag <tagname> <index or title>", "add tag to entry by index or title"),
-        (
-            "tag <tagname> <index or title> --delete",
-            "remove tag from entry by index or title",
-        ),
-        ("plot", "show a bar plot of the ratings over time"),
-        (
-            "random [<n>] [--tag <tag>]",
-            "sample n random entries (default=1); if a tag is specified, show only those entries having the tag",
-        ),
-        ("game", "play a guessing game"),
-        (
-            "sql",
-            "enter SQL mode: write SQLite queries for the in-memory database of entries",
-        ),
-        ("verbose", "toggle verbose mode"),
-        ("reload", "bring the in-memory data up to date with the cloud database"),
-        ("cls | clear", "clear the terminal"),
-        (
-            "ai <prompt> [--full]",
-            "ask the chatGPT a question; --full to use chatGPT-4o instead of chatGPT-4o-mini",
-        ),
-        ("ai [--full]", "open the chatbot TUI interface"),
-        ("ai --reset", "forget the conversation history"),
-        ("ai --memory", "list the AI's saved memories about the user"),
-        (
-            "ai --forget <memory item id>",
-            "forget the memory item corresponding to an id",
-        ),
-        (
-            "ai --remember <memory item>",
-            "add some information about the user manually",
-        ),
-    ]
-    COMMANDS = {f[0].split()[0] for f in HELP_DATA}
-
     @staticmethod
     def load_entries() -> list[Entry]:
         return Mongo.load_entries()
@@ -230,8 +141,13 @@ class App:
             for method_name in dir(self)
             if method_name.startswith("cmd_")
         }
+        self.help_messages = {
+            cmd_root: parse_docstring(cmd_fn.__doc__)
+            for cmd_root, cmd_fn in self.command_methods.items()
+        }
         for alias, command in COMMAND_ALIASES.items():
             self.command_methods[alias] = self.command_methods[command]
+            self.help_messages[alias] = self.help_messages[command]
 
         _t_repo_0 = time.perf_counter()
         self.repo_info = RepoInfo()
@@ -360,6 +276,8 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """find <title>
+        Find entries by the title substring."""
         title = " ".join(pos)
         if not title:
             self.error("Empty title.")
@@ -417,6 +335,12 @@ repo={self.repo_info_loading_time:.3f}s;
             )
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """tag [<tagname>] [<index or title>] [--delete]
+        Show all tags, list entries with a given tag, or add/remove a tag to/from an entry.
+        If no arguments are specified, show all tags and their counts.
+        If <tagname> is specified, show all entries with that tag.
+        If <tagname> and <index or title> are specified, add the tag to the entry.
+        If --delete is specified, remove the tag from the entry."""
         tags = build_tags(self.entries)
         if not pos:
             _s = slice(2) if "verbose" not in flags else slice(None)
@@ -484,11 +408,15 @@ repo={self.repo_info_loading_time:.3f}s;
         Mongo.update_entry(entry)
 
     def cmd_plot(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """plot
+        Generate a bar plot of the ratings over time."""
         with self.cns.status("Generating..."):
             fig = get_plot(self.entries)
         fig.show()
 
     def cmd_note(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """note <text>
+        Find entries by substring in notes."""
         note = " ".join(pos)
         if not note:
             self.error("Empty note")
@@ -509,6 +437,14 @@ repo={self.repo_info_loading_time:.3f}s;
             self.error("No matches found")
 
     def cmd_ai(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """ai [<prompt>] [--full | --reset | --memory | --forget <id> | --remember <text>]
+        Ask the chatbot a question or open a TUI interface.
+        If <prompt> is not given, open the chatbot TUI interface.
+        If --full is specified, use the full chatGPT-4o model instead of the mini version.
+        If --reset is specified, clear the conversation history.
+        If --memory is specified, list the AI's saved memories about the user.
+        If --forget <id> is specified, forget the memory item corresponding to the id.
+        If --remember <text> is specified, add some information about the user manually."""
         if "reset" in flags:
             self.cns.print(
                 f"Cleared {len(self.chatbot._conversation_history)} prompt-response pairs."
@@ -565,6 +501,10 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """list [--series | --movies] [--n <n>] [--all]
+        List last n entries (default is 5).
+        If --all is specified, show all matched entries.
+        If --series or --movies is specified, filter the entries by type."""
         if F_SERIES in flags and F_MOVIES in flags:
             self.error(f"Cannot specify both --{F_SERIES} and --{F_MOVIES} ")
             return
@@ -580,6 +520,11 @@ repo={self.repo_info_loading_time:.3f}s;
         self.cns.print(get_entries_table(entries[_slice], title=f"Last {n} entries"))
 
     def cmd_group(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """group [<title>] [--series | --movies] [--n <n>] [--all]
+        Group entries by title (and type) and show the top n (default is 5).
+        If <title> is not given, show the top n groups sorted by average rating.
+        If --series or --movies is specified, filter the groups by type.
+        If --all is specified, show all matched groups."""
         if F_SERIES in flags and F_MOVIES in flags:
             self.error(f"Cannot specify both --{F_SERIES} and --{F_MOVIES} ")
             return
@@ -601,6 +546,12 @@ repo={self.repo_info_loading_time:.3f}s;
         self.cns.print(get_groups_table(groups[_slice], title=_title))
 
     def cmd_watch(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """watch [<title>] [--delete | --random]
+        Show the watch list.
+        If <title> is given, add it to the watch list.
+        If --delete is specified, remove the title from the watch list.
+        Without a title, if --random is specified, show a random title from the watch list.
+        If <title> ends with a '+', it is considered a series."""
         title = " ".join(pos)
         if not flags and not title:
             if not self.watch_list:
@@ -617,6 +568,9 @@ repo={self.repo_info_loading_time:.3f}s;
             self._watch(title.rstrip("+"), title.endswith("+"))
 
     def cmd_stats(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """stats [--dev]
+        Show some statistics about the entries.
+        If --dev is specified, show app stats (loading times, last commit info, etc.)."""
         # TODO: make pretty
         self.cns.print(f"Total entries:\n  {len(self.entries)}")
         movies = [e.rating for e in self.entries if not e.is_series]
@@ -661,30 +615,18 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        cmd = pos[0] if pos else ""
-        if cmd:
-            matches = [(c, d) for c, d in self.HELP_DATA if c.startswith(pos[0])]
-        else:
-            matches = self.HELP_DATA
-        if not matches:
-            self.error(f"No help found for {cmd!r}.")
-            maybe = possible_match(cmd, self.COMMANDS)
-            if maybe:
-                self.cns.print(f'Did you mean: "{maybe}"?')
-            return
-        else:
-            cmd = matches[0][0].split()[0]
-        self.cns.print(
-            get_rich_table(
-                list(map(list, matches)),
-                ["Command", "Description"],
-                title="Help" + (f' for "{cmd}"' if cmd else ""),
-                justifiers=["left", "left"],
-                styles=["cyan", "white"],
-            )
-        )
+        """help [<command>]
+        Show help for the given command.
+        If no argument is given, show for all.
+        Note: 'help <cmd>' is equivalent to '<cmd> --help'."""
+        query = pos[0] if pos else None
+        self.cns.print(get_rich_help(query, self.help_messages))
 
     def cmd_get(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """get <index> [--verbose]
+        Get entry by index.
+        If --verbose is specified, show all details.
+        E.g. 'get -1 --verbose' will show the last entry with all details."""
         if not pos:
             self.error("No index provided.")
             return
@@ -720,6 +662,15 @@ repo={self.repo_info_loading_time:.3f}s;
             for_entry.tags.add(TAG_WATCH_AGAIN)
 
     def cmd_add(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """add [<title>] [--tui]
+        Start adding a new entry.
+        If the title is not given or --tui is specified, will open a text-based user interface to add the entry.
+        Will ask for [bold blue]rating[/]: floating point number r, 0 <= r <= 10,
+        [bold blue]type[/]: "series" or "movie" or nothing (default="movie"),
+        [bold blue]date[/]: date of format dd.mm.yyyy or "now" or nothing (default=None),
+        [bold blue]notes[/]: anything or nothing (default="")].
+        If the title is given, will try to find an entry with the same title in the database and
+        will ask to override it if it exists."""
         title = " ".join(pos)
         if "tui" in flags or not title:
             entry_app = EntryFormApp(button_text="Add", title=title)
@@ -802,6 +753,9 @@ repo={self.repo_info_loading_time:.3f}s;
             )
 
     def cmd_random(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """random [<n>] [--tag <tag>]
+        Sample n random entries (default=1).
+        If a tag is specified, show only those entries having the tag."""
         to_choose_from = (
             [e for e in self.entries if replace_tag_alias(tag) in e.tags]
             if (tag := kwargs.get("tag"))
@@ -822,6 +776,8 @@ repo={self.repo_info_loading_time:.3f}s;
             self.cns.print(format_entry(entry))
 
     def cmd_db(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """db <title>
+        Get movie data from the online database (OMDb)."""
         title = " ".join(pos)
         if not title:
             self.error("Empty title.")
@@ -834,6 +790,9 @@ repo={self.repo_info_loading_time:.3f}s;
         self.cns.print(resp.rich())
 
     def cmd_pop(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """pop [<index>] [--undo]
+        Remove an entry by index from the database (this is reversible).
+        If --undo is specified (and no index is given), restore the last popped entry."""
         if "undo" in flags:
             if not self.recently_popped:
                 self.warning("No recently popped entries.")
@@ -861,6 +820,10 @@ repo={self.repo_info_loading_time:.3f}s;
         self.recently_popped.append(popped_entry)
 
     def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """export [--silent]
+        Export the database to a JSON file in the current directory.
+        If --silent is specified, do not print any messages."""
+
         def _print(what: str):
             if "silent" not in flags:
                 self.cns.print(what)
@@ -888,6 +851,11 @@ repo={self.repo_info_loading_time:.3f}s;
         kwargs: KeywordArgs,
         flags: Flags,
     ):
+        """guest [--add <name>] [--remove <name>]
+        Manage the guest list.
+        add: add a name to the guest list.
+        remove: remove a name from the guest list.
+        If no arguments are given, show the guest list."""
         am = AccessRightsManager()
         if (name := kwargs.get("add")) is not None:
             am.add(name)
@@ -904,14 +872,33 @@ repo={self.repo_info_loading_time:.3f}s;
             self.cns.print("Guests: " + ", ".join(am.guests))
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """sql
+        Start the SQL-like query mode."""
+        from src.obj.sql_mode import SqlMode
+
         sql_mode = SqlMode(self.entries, self.cns, self.input)
         sql_mode.run()
 
+    def cmd_books(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """books
+        Start the books subapp."""
+        from src.obj.books_mode import BooksMode
+
+        books_mode = BooksMode(self.entries, self.cns, self.input)
+        books_mode.run()
+
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """game
+        Start the guessing game subapp."""
+        from src.obj.game import GuessingGame
+
         game = GuessingGame(self.get_groups(), self.cns, self.input)
         game.run()
 
     def cmd_verbose(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """verbose
+        Toggle verbose mode.
+        In verbose mode, the entries' notes are shown as well."""
         is_verbose.toggle()
         self.cns.print(
             f"Verbose mode {'on  ' if is_verbose else 'off  '}",
@@ -919,13 +906,20 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """exit
+        Exit the application."""
         self.running = False
 
     def cmd_cls(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """cls | clear
+        Clear the console."""
         os.system("cls" if os.name == "nt" else "clear")
         self.header()
 
     def cmd_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """reload
+        Bring the data up to date.
+        This is done automatically on startup."""
         old_entries = self.entries.copy()
         old_watch_list = self.watch_list.copy()
         self._load_all()
@@ -940,7 +934,7 @@ repo={self.repo_info_loading_time:.3f}s;
         raise NotImplementedError("Debug command not implemented")
 
     def maybe_command(self, root):
-        maybe = possible_match(root, self.COMMANDS)
+        maybe = possible_match(root, set(self.command_methods))
         self.error(
             f'Invalid command: "{root}". '
             + (f'Did you mean: "{maybe}"? ' if maybe else "")

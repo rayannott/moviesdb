@@ -69,7 +69,7 @@ class Color:
         return Color(red, green, blue)
 
 
-def format_rating(rating):
+def format_rating(rating: float):
     min_color = Color(255, 0, 0)
     max_color = Color(0, 255, 0)
 
