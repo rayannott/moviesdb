@@ -28,10 +28,7 @@ with Console().status("Loading dependencies..."):
         is_verbose,
     )
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
-    from src.obj.game import GuessingGame
     from src.obj.omdb_response import get_by_title
-    from src.obj.sql_mode import SqlMode
-    from src.obj.books_mode import BooksMode
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
@@ -110,7 +107,10 @@ class App:
             "find groups by title substring; can use the same arguments as in group command",
         ),
         ("watch", "show the watch list"),
-        ("watch <title>", "add title to the watch list; if the title ends with a '+', it is considered a series"),
+        (
+            "watch <title>",
+            "add title to the watch list; if the title ends with a '+', it is considered a series",
+        ),
         ("watch <title> --delete", "remove title from the watch list"),
         ("watch --random", "show a random title from the watch list"),
         (
@@ -167,6 +167,7 @@ class App:
             "ai --remember <memory item>",
             "add some information about the user manually",
         ),
+        ("books", "start the subapp with my books history"),
     ]
     COMMANDS = {f[0].split()[0] for f in HELP_DATA}
 
@@ -646,6 +647,7 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        # TODO: rewrite this using help parser
         cmd = pos[0] if pos else ""
         if cmd:
             matches = [(c, d) for c, d in self.HELP_DATA if c.startswith(pos[0])]
@@ -889,14 +891,20 @@ repo={self.repo_info_loading_time:.3f}s;
             self.cns.print("Guests: " + ", ".join(am.guests))
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        from src.obj.sql_mode import SqlMode
+
         sql_mode = SqlMode(self.entries, self.cns, self.input)
         sql_mode.run()
-    
+
     def cmd_books(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        from src.obj.books_mode import BooksMode
+
         books_mode = BooksMode(self.entries, self.cns, self.input)
         books_mode.run()
 
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        from src.obj.game import GuessingGame
+
         game = GuessingGame(self.get_groups(), self.cns, self.input)
         game.run()
 
