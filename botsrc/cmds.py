@@ -13,6 +13,7 @@ from botsrc.commands import (
     tag,
     watch,
     logs,
+    books,
 )
 from src.parser import Flags, KeywordArgs, PositionalArgs
 
@@ -171,3 +172,17 @@ def cmd_group(
     """group [<title>]
     List entries grouped by title."""
     group(message, bot, pos)
+
+
+def cmd_books(
+    pos: PositionalArgs,
+    kwargs: KeywordArgs,
+    flags: Flags,
+    bot: telebot.TeleBot,
+    message: telebot.types.Message,
+):
+    """books [--verbose]
+    List the last 5 books read.
+        verbose(flag): show the body of the book
+    """
+    books(message, bot, flags)

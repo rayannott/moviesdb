@@ -71,21 +71,29 @@ class Book(NamedTuple):
 
 @dataclass
 class BooksMode:
-    entries: list[Entry]
     cns: Console
     input: Callable[[str], str]
+
+    @staticmethod
+    def get_client() -> Client:
+        """Creates and returns a Supabase client."""
+        return create_client(
+            f"https://{SUPABASE_PROJECT_ID}.supabase.co", SUPABASE_API_KEY
+        )
+
+    @staticmethod
+    def get_books(client: Client) -> list[Book]:
+        """Fetches all books from the Supabase database."""
+        existing_rows = client.table("books").select("*").execute().data
+        return [Book.from_sql_row(row) for row in existing_rows]
 
     def __post_init__(self):
         with self.cns.status("Connecting..."):
             t0 = pc()
-            self.client = create_client(
-                f"https://{SUPABASE_PROJECT_ID}.supabase.co",
-                SUPABASE_API_KEY,
-            )
+            self.client = self.get_client()
             t1 = pc()
-            existing_rows = self.client.table("books").select("*").execute().data
+            self.existing_books = self.get_books(self.client)
             t2 = pc()
-            self.existing_books = [Book.from_sql_row(row) for row in existing_rows]
         self.cns.rule(
             f"Books App ({len(self.existing_books)} books)", style="bold yellow"
         )

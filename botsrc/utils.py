@@ -7,6 +7,7 @@ from git import Commit
 from src.mongo import Mongo
 from src.obj.entry import Entry
 from src.obj.entry_group import EntryGroup
+from src.obj.books_mode import Book
 from src.paths import ALLOWED_USERS
 from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
 
@@ -29,6 +30,15 @@ def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) ->
     tags_str = f" [{' '.join(entry.tags)}]" if entry.tags else ""
     oid_part = "{" + str(entry._id)[-4:] + "} " if with_oid else ""
     return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{note_str}{tags_str}"
+
+
+def format_book(book: Book, verbose: bool = False) -> str:
+    """Format a book for display."""
+    rating_str = f" [{book.rating:.2f}]" if book.rating is not None else ""
+    author_str = f" by {book.author}" if book.author else ""
+    pages_str = f" ({book.n_pages} pages)" if book.n_pages else ""
+    body_str = f"\n{book.body}" if verbose and book.body else ""
+    return f"{book.title}{rating_str}{author_str}{pages_str}{body_str}"
 
 
 def format_title(title: str, is_series: bool) -> str:

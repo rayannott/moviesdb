@@ -884,7 +884,7 @@ repo={self.repo_info_loading_time:.3f}s;
         Start the books subapp."""
         from src.obj.books_mode import BooksMode
 
-        books_mode = BooksMode(self.entries, self.cns, self.input)
+        books_mode = BooksMode(self.cns, self.input)
         books_mode.run()
 
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
