@@ -6,7 +6,6 @@ from typing import Callable, NamedTuple
 from rich.console import Console
 from supabase import create_client, Client
 
-from src.obj.entry import Entry
 from src.utils.rich_utils import get_rich_table, format_rating
 from src.utils.help_utils import parse_docstring, get_rich_help
 from src.utils.env import SUPABASE_API_KEY, SUPABASE_PROJECT_ID
@@ -121,7 +120,7 @@ class BooksMode:
         List the last n books, sorted by the given key.
             n: number of entries to list (default: 5)
             sortby: return entries sorted by date (key=dt), rating (key=rating), or number of pages (key=pages)
-            verbose(flag): if given, display the notes column (overrides subapp verbosity) 
+            verbose(flag): if given, display the notes column (overrides subapp verbosity)
         """
         # TODO: add the n argument
         sortby = kwargs.get("sortby", "dt")
@@ -178,7 +177,7 @@ class BooksMode:
         )
 
     def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """find <title>
+        """find <title> [--verbose]
         Find entries by the title substring."""
         if not pos:
             self.cns.print("The title substring is missing.", style="bold red")
@@ -191,9 +190,17 @@ class BooksMode:
             elif title.lower() in book.title.lower():
                 close.append(book)
         if exact:
-            self.cns.print(self.get_books_table(exact, title="Exact matches"))
+            self.cns.print(
+                self.get_books_table(
+                    exact, title="Exact matches", force_verbose="verbose" in flags
+                )
+            )
         if close:
-            self.cns.print(self.get_books_table(close, title="Close matches"))
+            self.cns.print(
+                self.get_books_table(
+                    close, title="Close matches", force_verbose="verbose" in flags
+                )
+            )
 
     def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """exit
@@ -202,7 +209,7 @@ class BooksMode:
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """help [<command>]
-        Show help for the given command. 
+        Show help for the given command.
         If no argument is given, show for all.
         Note: 'help <cmd>' is equivalent to '<cmd> --help'."""
         query = pos[0] if pos else None
