@@ -96,7 +96,7 @@ def format_movie_series(title: str, is_series: bool) -> str:
 
 
 def format_tag(tag: str) -> str:
-    style = "bold blue" if tag != TAG_WATCH_AGAIN else "dodger_blue2"
+    style = "dodger_blue2" if tag == TAG_WATCH_AGAIN else ("bold cornflower_blue" if tag[0].isupper() else "bold blue")
     return f"[{style}]󰓹 {tag}[/]"
 
 
