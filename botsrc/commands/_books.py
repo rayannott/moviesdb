@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 def books(
     message: telebot.types.Message,
     bot: telebot.TeleBot,
+    pos: PositionalArgs,
     flags: Flags,
 ):
     # TODO: implement other logic (n books, find, ...)
@@ -20,12 +21,15 @@ def books(
     if not books:
         bot.reply_to(message, "No books found.")
         return
+    if pos:
+        books = [book for book in books if pos[0].lower() in book.title.lower()]
     books.sort(key=lambda b: b.dt_read)
-    formatted_books = "Last 5 books:\n" + "\n".join(
+    last_5 = books[-5:]
+    formatted_books = f"Last {len(last_5)} books:\n" + "\n".join(
         format_book(
             book,
             "verbose" in flags,
         )
-        for book in books[-5:]
+        for book in last_5
     )
     bot.send_message(message.chat.id, formatted_books)
