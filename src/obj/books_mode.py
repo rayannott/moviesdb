@@ -232,12 +232,12 @@ class BooksMode:
                 root, pos, kwargs, flags = parse(command)
             except ParsingError as e:
                 self.cns.print(f"{e}: {command!r}", style="bold red")
-                return
+                continue
             command_method = self.command_methods.get(root)
             if command_method is None:
                 self.cns.print(f"Unknown command: {root}.", style="bold red")
-                return
+                continue
             if "help" in flags:
                 self.cmd_help([root], {}, set())
-                return
+                continue
             command_method(pos, kwargs, flags)
