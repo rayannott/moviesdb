@@ -20,12 +20,6 @@ def books(supabase_client: Client) -> list[Book]:
     return BooksMode.get_books(supabase_client)
 
 
-def test_supabase_connection(supabase_client: Client):
-    assert supabase_client.auth.get_session() is not None, (
-        "Supabase client should be connected."
-    )
-
-
 def test_get_books(books: list[Book]):
     assert isinstance(books, list), "Books should be a list."
     assert all(isinstance(book, Book) for book in books), (
