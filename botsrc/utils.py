@@ -38,7 +38,7 @@ def format_book(book: Book, verbose: bool = False) -> str:
     author_str = f" by {book.author}" if book.author else ""
     pages_str = f" ({book.n_pages} pages)" if book.n_pages else ""
     body_str = f"\n{book.body}" if verbose and book.body else ""
-    return f"{rating_str}{book.title}{author_str}{pages_str} (from {book.dt_read:%d.%m.%Y}){body_str}"
+    return f"{rating_str}{book.title}{author_str}{pages_str} ({book.dt_read:%d.%m.%Y}){body_str}"
 
 
 def format_title(title: str, is_series: bool) -> str:
