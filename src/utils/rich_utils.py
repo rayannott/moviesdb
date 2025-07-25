@@ -96,7 +96,11 @@ def format_movie_series(title: str, is_series: bool) -> str:
 
 
 def format_tag(tag: str) -> str:
-    style = "dodger_blue2" if tag == TAG_WATCH_AGAIN else ("bold cornflower_blue" if tag[0].isupper() else "bold blue")
+    style = (
+        "dodger_blue2"
+        if tag == TAG_WATCH_AGAIN
+        else ("bold cornflower_blue" if tag[0].isupper() else "bold blue")
+    )
     return f"[{style}]󰓹 {tag}[/]"
 
 
@@ -108,6 +112,7 @@ def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
         if date == (now - timedelta(days=1)).date():
             return "yesterday"
         return date.strftime("%d.%m.%Y")
+
     _title = format_title(entry.title, entry.type)
     _rating = format_rating(entry.rating)
     _date = _fmt_date(entry.date.date()) if entry.date else ""
