@@ -1,4 +1,5 @@
 # moviesdb
+![workflow](https://github.com/rayannott/moviesdb/actions/workflows/tests.yml/badge.svg)
 
 ## What is this?
 This is my personal movies and series database, with CLI and TUI (using `textual` interfaces). It used to be a private repository that stored the entries and the watch list in a json file, but now they are kept safe in a MongoDB document database. So... I can finally share the code with you!
