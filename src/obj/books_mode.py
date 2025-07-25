@@ -10,6 +10,7 @@ from src.utils.rich_utils import get_rich_table, format_rating
 from src.utils.help_utils import parse_docstring, get_rich_help
 from src.utils.env import SUPABASE_API_KEY, SUPABASE_PROJECT_ID
 from src.parser import parse, PositionalArgs, KeywordArgs, Flags, ParsingError
+from src.obj.textual_apps import ToReadListApp
 
 
 class Book(NamedTuple):
@@ -239,6 +240,10 @@ class BooksMode:
         Manage the to-read list. 
         Maybe using the TUI?
         """
+        app = ToReadListApp()
+        app.run()
+
+        # process modifications
 
 
     def run(self):
