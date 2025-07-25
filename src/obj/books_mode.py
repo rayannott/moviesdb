@@ -68,6 +68,15 @@ class Book(NamedTuple):
         )
 
 
+class ToReadEntry(NamedTuple):
+    title: str
+    author: str | None
+    other: str  # e.g. genre, num of pages, etc.
+    added_on: datetime
+
+    # TODO: ...
+
+
 @dataclass
 class BooksMode:
     cns: Console
@@ -224,6 +233,13 @@ class BooksMode:
             f"Verbose mode {'on  ' if self.verbose else 'off  '}",
             style=f"bold {'green' if self.verbose else 'red'}",
         )
+    
+    def cmd_toread(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """toread
+        Manage the to-read list. 
+        Maybe using the TUI?
+        """
+
 
     def run(self):
         while self.running:

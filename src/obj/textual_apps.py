@@ -190,3 +190,9 @@ class ChatBotApp(App):
 
     def generate_markdown_response(self, message: str) -> str:
         return self.chatbot.prompt(message, is_mini=self.is_mini)
+
+
+class ToReadListApp(App):
+    """An app to manage a to-read list of books."""
+    
+    # TODO implement
