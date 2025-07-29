@@ -70,9 +70,6 @@ class Book(NamedTuple):
 
 @dataclass
 class BooksMode:
-    cns: Console
-    input: Callable[[str], str]
-
     @staticmethod
     def get_client() -> Client:
         """Creates and returns a Supabase client."""
@@ -86,7 +83,10 @@ class BooksMode:
         existing_rows = client.table("books").select("*").execute().data
         return [Book.from_sql_row(row) for row in existing_rows]
 
-    def __post_init__(self):
+    def __init__(self, cns: Console, input_fn: Callable[[str], str]):
+        self.cns = cns
+        self.input = input_fn
+
         with self.cns.status("Connecting..."):
             t0 = pc()
             self.client = self.get_client()

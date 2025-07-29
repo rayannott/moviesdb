@@ -1,23 +1,8 @@
-import pytest
-from supabase import create_client, Client
+import re
 
-from src.utils.env import SUPABASE_API_KEY, SUPABASE_PROJECT_ID
-from src.obj.books_mode import BooksMode, Book
+from supabase import Client
 
-
-@pytest.fixture(scope="session")
-def supabase_client() -> Client:
-    """Fixture to create a Supabase client."""
-    return create_client(
-        f"https://{SUPABASE_PROJECT_ID}.supabase.co",
-        SUPABASE_API_KEY,
-    )
-
-
-@pytest.fixture
-def books(supabase_client: Client) -> list[Book]:
-    """Fixture to get books from the Supabase client."""
-    return BooksMode.get_books(supabase_client)
+from src.obj.books_mode import Book
 
 
 def test_get_books(books: list[Book]):
@@ -26,3 +11,16 @@ def test_get_books(books: list[Book]):
         "All items should be Book instances."
     )
     assert len(books) > 0, "There should be at least one book in the list."
+
+
+def test_db_rows(supabase_client: Client):
+    DT_READ_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+
+    book_rows = supabase_client.table("books").select("*").execute().data
+    for book_dict in book_rows:
+        assert book_dict["title"], f"Title should not be empty in {book_dict!r}"
+        dt_read = book_dict["dt_read"]
+        assert DT_READ_RE.match(dt_read), (
+            f"Invalid dt_read format: {dt_read} in {book_dict!r}"
+        )
+        assert book_dict["author"], f"Author should not be empty in {book_dict!r}"
