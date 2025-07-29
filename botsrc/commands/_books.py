@@ -32,4 +32,5 @@ def books(
         )
         for book in last_5
     )
+    formatted_books = "No books found." if len(last_5) == 0 else formatted_books
     bot.send_message(message.chat.id, formatted_books)
