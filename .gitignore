@@ -11,4 +11,6 @@ venv/
 
 *.out
 
+*_cache
+
 logs/
