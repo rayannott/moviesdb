@@ -68,8 +68,8 @@ def logs(
         if not parsed_lines:
             bot.send_message(message.chat.id, "Log file is empty.")
         else:
-            # output = "\n".join(parsed_lines)
             output = "\n".join(escape_md_v2(line) for line in parsed_lines)
+            output = output[:4000]  # limit to 4000 characters for Telegram
             bot.send_message(
                 message.chat.id, f"```logs\n{output}```", parse_mode="MarkdownV2"
             )
