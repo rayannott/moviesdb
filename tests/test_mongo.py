@@ -1,12 +1,18 @@
 import re
 
+import pytest
 from bson import ObjectId
 from pymongo import MongoClient
 
 from src.mongo import Mongo
 
-
 _missing = object()
+
+
+@pytest.fixture(scope="session")
+def mongo_client() -> MongoClient:
+    """Fixture to create a MongoDB client."""
+    return Mongo.client()
 
 
 def test_mongo_client(mongo_client: MongoClient):
