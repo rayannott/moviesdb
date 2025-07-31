@@ -72,8 +72,8 @@ class Book(NamedTuple):
 class ToReadEntry(NamedTuple):
     title: str
     author: str | None
-    other: str  # e.g. genre, num of pages, etc.
-    added_on: datetime
+    other: str | None # e.g. genre, num of pages, etc.
+    created_at: datetime | None
 
     # TODO: ...
 
