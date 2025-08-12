@@ -946,7 +946,7 @@ repo={self.repo_info_loading_time:.3f}s;
             root, pos, kwargs, flags = parse(command)
         except ParsingError as e:
             self.error(f"{e}: {command!r}")
-            logger.error(f"parsing error: {e} for command {command!r}")
+            logger.info(f"parsing error: {e} for command {command!r}")
             return
         command_method = self.command_methods.get(root)
         if command_method is None:
