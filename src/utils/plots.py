@@ -4,8 +4,11 @@ from math import sqrt
 from statistics import mean, stdev
 
 import plotly.graph_objects as go
+import plotly.io as pio
 
 from src.obj.entry import Entry
+
+pio.renderers.default = "browser"
 
 
 def get_plot(entries: list[Entry]) -> go.Figure:
