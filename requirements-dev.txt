@@ -1,7 +1,0 @@
-# base dependencies
--r requirements.txt
-
-# dev dependencies
-pytest
-ruff
-ipykernel
