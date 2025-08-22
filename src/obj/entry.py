@@ -58,7 +58,7 @@ class Entry:
     type: Type = Type.MOVIE
     notes: str = ""
     tags: set[str] = field(default_factory=set[str])
-    images: list[str] = field(default_factory=list)
+    images: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         self.title = self.title.strip()
@@ -97,6 +97,7 @@ class Entry:
             | ({"notes": self.notes} if self.notes else {})
             | ({"date": self.date.strftime("%d.%m.%Y")} if self.date else {})
             | ({"tags": sorted(self.tags)} if self.tags else {})
+            | ({"images": sorted(self.images)} if self.images else {})
         )
 
     def __lt__(self, other: "Entry") -> bool:
@@ -125,6 +126,7 @@ class Entry:
             else None,
             notes=data.get("notes", ""),
             tags=set(data.get("tags", [])),
+            images=set(data.get("images", [])),
         )
 
     def get_per_season(self) -> list[float | None]:
@@ -163,6 +165,28 @@ class Entry:
             return Type[type.upper()]
         except KeyError:
             raise MalformedEntryException(f"Unknown type: {type}")
+
+    def attach_image(self, s3_id: str) -> bool:
+        """
+        Attach an image to the entry.
+        :param s3_id: S3 ID of the image.
+        :return: True if the image was attached, False if it was already attached.
+        """
+        if s3_id in self.images:
+            return False
+        self.images.add(s3_id)
+        return True
+    
+    def detach_image(self, s3_id: str) -> bool:
+        """
+        Detach an image from the entry.
+        :param s3_id: S3 ID of the image.
+        :return: True if the image was detached, False if it was not attached.
+        """
+        if s3_id not in self.images:
+            return False
+        self.images.remove(s3_id)
+        return True
 
 
 def build_tags(entries: list[Entry]):

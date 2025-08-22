@@ -12,6 +12,14 @@ from src.obj.entry_group import EntryGroup
 from src.utils.utils import TAG_WATCH_AGAIN
 
 
+def format_image_prefix(num_images: int) -> str:
+    if num_images == 0:
+        return ""
+    if num_images == 1:
+        return "[green][/] "
+    return f"[green] {num_images}[/] "
+    
+
 def get_rich_table(
     rows: list[list[str]],
     headers: list[str],
@@ -113,7 +121,13 @@ def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
             return "yesterday"
         return date.strftime("%d.%m.%Y")
 
-    _title = format_title(entry.title, entry.type)
+    title_with_img_icon = (
+        format_image_prefix(len(entry.images))
+        + entry.title
+        if entry.images
+        else entry.title
+    )
+    _title = format_title(title_with_img_icon, entry.type)
     _rating = format_rating(entry.rating)
     _date = _fmt_date(entry.date.date()) if entry.date else ""
     _tags = f"{' '.join(format_tag(t) for t in entry.tags)}" if entry.tags else ""
@@ -183,8 +197,8 @@ def format_entry(entry: Entry) -> str:
     # return f"[{self.rating:.2f}] {self.title}{type_str}{watched_date_str}{note_str}{tags_str}"
     _date_str = f" ({_date})" if _date else ""
     _tags_str = rf" \[{_tags}]" if _tags else ""
-    _notes_str = f': "{_notes}"' if is_verbose and _notes else ""
-    return f"{_rating} {_title}{_date_str}{_tags_str}{_notes_str}"
+    _notes_str = f': "{_notes}" ' if is_verbose and _notes else ""
+    return f"{_rating} {_title}{_date_str}{_tags_str}{_notes_str}{format_image_prefix(len(entry.images))}"
 
 
 def comparison(renderable1: RenderableType, renderable2: RenderableType) -> Table:

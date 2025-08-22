@@ -31,7 +31,7 @@ with Console().status("Loading dependencies..."):
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
-    from src.obj.bucket import Bucket
+    from src.obj.images_manager import ImagesStore, S3Image
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
@@ -128,8 +128,8 @@ class App:
 
     @property
     @cache
-    def image_manager(self) -> Bucket:
-        return Bucket()
+    def image_manager(self) -> ImagesStore:
+        return ImagesStore(self.entries)
 
     def __init__(self):
         self.running = True
@@ -747,19 +747,34 @@ repo={self.repo_info_loading_time:.3f}s;
         """image ...
         list: show all images in the database
         show: show the image from the clipboard
-        upload cb [--show]: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
-        upload disk [--show]: upload the image from disk; if --show is specified, show the image after uploading
+        show <image_id>: show the image by id filter
+        upload: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
+        upload disk: upload the image from disk; if --show is specified, show the image after uploading
         attach <image_id> <entry_id>: attach the specified image to an entry
         delete <image_id>: move the image to the trash bin
         """
         match pos:
             case ["list"]:
-                images = self.image_manager.get_images()
-                if not images:
+                images_to_entries = (
+                    self.image_manager.get_image_to_entries()
+                )
+                if not images_to_entries:
                     self.warning("No images found.")
                     return
-                for img in images:
-                    self.cns.print(img)
+                if "all" not in flags:
+                    # show all (even attached) images
+                    for img, entries in images_to_entries.items():
+                        if entries:
+                            continue
+                        self.cns.print(str(img))
+                else:
+                    for img, entries in images_to_entries.items():
+                        _entries_str = (
+                            format_entry(entries[0])
+                            if len(entries) == 1
+                            else f"{len(entries)} entries"
+                        )
+                        self.cns.print(f"{img} -> {_entries_str}")
             case ["show"]:
                 img = self.image_manager.grab_clipboard_image()
                 if img:
@@ -767,27 +782,52 @@ repo={self.repo_info_loading_time:.3f}s;
                     img.show()
                 else:
                     self.warning("No image found in clipboard.")
-            case ["upload", "cb"]:
+            case ["show", image_id_str]:
+                imgs = self.image_manager.get_images_by_filter(image_id_str)
+                if not imgs:
+                    self.warning(f"No image found with ID: {image_id_str}")
+                    return
+                self.image_manager.show_images(imgs)
+            case ["upload"]:
                 img = self.image_manager.upload_from_clipboard()
                 if img:
-                    self.cns.print("Uploaded image from clipboard.")
-                    if "show" in flags:
-                        img.show()
+                    self.cns.print(f"Uploaded {img}")
                 else:
                     self.warning("Failed to upload image from clipboard.")
             case ["upload", "disk"]:
                 self.warning("Not implemented yet.")
                 pass
-            case ["attach", image_id_str, entry_id_str]:
+            case ["attach" | "detach" as cmd, image_id_str, entry_id_str]:
                 entry = self.entry_by_idx(entry_id_str)
                 if not entry:
                     self.error("Entry not found.")
                     return
-                self.warning("Not implemented yet.")
-                pass
+                image = self.image_manager.get_images_by_filter(image_id_str)
+                if not image:
+                    self.warning(f"No image found with ID: {image_id_str}")
+                    return
+                if cmd == "attach":
+                    entry.attach_image(image[0].s3_id)
+                else:
+                    entry.detach_image(image[0].s3_id)
+                Mongo.update_entry(entry)
+                self.cns.print(f"Updated {format_entry(entry)}")
             case ["delete", image_id_str]:
-                self.warning("Not implemented yet.")
-                pass
+                imgs = self.image_manager.get_images_by_filter(image_id_str)
+                if not imgs:
+                    self.warning(f"No image found with ID: {image_id_str}")
+                    return
+                images_to_entries = self.image_manager.get_image_to_entries()
+                entries_of_image = images_to_entries.get(imgs[0], [])
+                if not entries_of_image:
+                    self.warning(f"No image found with ID: {image_id_str}")
+                    return
+                self.image_manager.delete_image(imgs[0].s3_id)
+                self.cns.print(f"Deleted {imgs[0]}")
+                for entry in entries_of_image:
+                    entry.detach_image(imgs[0].s3_id)
+                    Mongo.update_entry(entry)
+                    self.cns.print(f"Detached from {format_entry(entry)}")
             case _:
                 self.error("Invalid image command.")
 
