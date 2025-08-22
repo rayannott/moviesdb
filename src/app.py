@@ -615,6 +615,7 @@ repo={self.repo_info_loading_time:.3f}s;
         self.cns.print(
             f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
             f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
+            f"[magenta]Connected to ImageStore in [/] {self.image_manager.loaded_in:.3f} sec\n"
             f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
             f"[magenta]Last commit:[/]\n"
             f"  {format_commit(self.repo_info.get_last_commit())}"
@@ -748,6 +749,7 @@ repo={self.repo_info_loading_time:.3f}s;
         list: show all images in the database
         show: show the image from the clipboard
         show <image_id>: show the image by id filter
+        entry <entry_id>: show all images for the entry
         upload: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
         upload disk: upload the image from disk; if --show is specified, show the image after uploading
         attach <image_id> <entry_id>: attach the specified image to an entry
@@ -755,9 +757,7 @@ repo={self.repo_info_loading_time:.3f}s;
         """
         match pos:
             case ["list"]:
-                images_to_entries = (
-                    self.image_manager.get_image_to_entries()
-                )
+                images_to_entries = self.image_manager.get_image_to_entries()
                 if not images_to_entries:
                     self.warning("No images found.")
                     return
@@ -790,8 +790,19 @@ repo={self.repo_info_loading_time:.3f}s;
                 self.image_manager.show_images(imgs)
             case ["upload"]:
                 img = self.image_manager.upload_from_clipboard()
+                attach_to_entry_id = kwargs.get("attach")
+                entry_ = None
+                if attach_to_entry_id:
+                    entry_ = self.entry_by_idx(attach_to_entry_id)
+                    if not entry_:
+                        self.warning(f"No entry found with ID: {attach_to_entry_id}")
+                        return
                 if img:
                     self.cns.print(f"Uploaded {img}")
+                    if entry_:
+                        entry_.attach_image(img.s3_id)
+                        Mongo.update_entry(entry_)
+                        self.cns.print(f"{format_entry(entry_)}: attached {img}")
                 else:
                     self.warning("Failed to upload image from clipboard.")
             case ["upload", "disk"]:
@@ -811,23 +822,31 @@ repo={self.repo_info_loading_time:.3f}s;
                 else:
                     entry.detach_image(image[0].s3_id)
                 Mongo.update_entry(entry)
-                self.cns.print(f"Updated {format_entry(entry)}")
+                self.cns.print(f"{format_entry(entry)}: {cmd}ed {image[0]}")
             case ["delete", image_id_str]:
                 imgs = self.image_manager.get_images_by_filter(image_id_str)
                 if not imgs:
                     self.warning(f"No image found with ID: {image_id_str}")
                     return
                 images_to_entries = self.image_manager.get_image_to_entries()
-                entries_of_image = images_to_entries.get(imgs[0], [])
-                if not entries_of_image:
-                    self.warning(f"No image found with ID: {image_id_str}")
-                    return
                 self.image_manager.delete_image(imgs[0].s3_id)
                 self.cns.print(f"Deleted {imgs[0]}")
+                entries_of_image = images_to_entries.get(imgs[0], [])
+                if not entries_of_image:
+                    return
                 for entry in entries_of_image:
                     entry.detach_image(imgs[0].s3_id)
                     Mongo.update_entry(entry)
                     self.cns.print(f"Detached from {format_entry(entry)}")
+            case ["entry", entry_id_str]:
+                entry = self.entry_by_idx(entry_id_str)
+                if not entry:
+                    self.error("Entry not found.")
+                    return
+                if not entry.images:
+                    self.warning("No images found for this entry.")
+                    return
+                self.image_manager.show_images(list(map(S3Image, entry.images)))
             case _:
                 self.error("Invalid image command.")
 

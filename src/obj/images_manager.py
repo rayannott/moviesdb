@@ -1,3 +1,4 @@
+from time import perf_counter as pc
 from collections import defaultdict
 from io import BytesIO
 import logging
@@ -43,6 +44,11 @@ class S3Image:
         return sha1(self.id.encode()).hexdigest()
 
     @property
+    def tag(self) -> str:
+        # TODO: implement
+        raise NotImplementedError("Tagging is not implemented yet.")
+
+    @property
     def sha1_short(self) -> str:
         return self.sha1[:8]
 
@@ -59,25 +65,30 @@ class S3Image:
 
 class ImagesStore:
     def __init__(self, entries: list[Entry]):
+        self.entries = entries
+        _t0 = pc()
         self._s3 = boto3.client("s3")
         self._check_access()
-        self.entries = entries
+        self._check_consistency()
+        self.loaded_in = pc() - _t0
 
     def _check_access(self):
         try:
             self._s3.head_bucket(Bucket=IMAGES_SERIES_BUCKET_NAME)
         except Exception as e:
+            logger.error("Error checking S3 bucket", exc_info=e)
             raise RuntimeError("Error accessing bucket.") from e
-        
+
     def _check_consistency(self):
         """Ensure that all images attached to entries
         have corresponding S3 objects."""
         existing_images = {img.s3_id for img in self.get_images()}
-        images_to_entries = self.get_image_to_entries()
-        for img, entries in images_to_entries.items():
-            for ent_ in entries:
-                if ent_ not in existing_images:
-                    logger.error(f"Image {img} is attached to a non-existent entry: {ent_}")
+        for entry in self.entries:
+            for img in entry.images:
+                if img not in existing_images:
+                    logger.error(
+                        f"Image {img} is attached to an entry but does not exist in S3."
+                    )
 
     def get_images(self) -> list[S3Image]:
         response = self._s3.list_objects_v2(
@@ -118,26 +129,34 @@ class ImagesStore:
         return img
 
     def _download_image_to(self, file_key: str, to: Path):
-        self._s3.download_file(IMAGES_SERIES_BUCKET_NAME, file_key, str(to))
+        try:
+            self._s3.download_file(IMAGES_SERIES_BUCKET_NAME, file_key, str(to))
+        except Exception as e:
+            logger.error(f"Error downloading image {file_key}", exc_info=e)
 
     def show_images(self, s3_images: list[S3Image]):
         with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            s3_image_paths: list[tuple[S3Image, Path]] = []
+
             for s3_img in s3_images:
-                self._download_image_to(s3_img.s3_id, Path(tmpdir) / f"{s3_img.id}.png")
-            # Show all images in the temporary directory
-            for img_path in Path(tmpdir).glob("*.png"):
+                img_path = tmpdir_path / f"{s3_img.id}.png"
+                self._download_image_to(s3_img.s3_id, img_path)
+                s3_image_paths.append((s3_img, img_path))
+
+            for s3_img, img_path in s3_image_paths:
                 with Image.open(img_path) as img:
-                    img.show()
+                    img.show(title=s3_img.sha1_short)
 
     def _upload_image(self, img: Image.Image, file_key: str):
         buffer = BytesIO()
         # TODO: implement image formats
         img.save(buffer, format="PNG")
         buffer.seek(0)
-
         self._s3.upload_fileobj(buffer, IMAGES_SERIES_BUCKET_NAME, file_key)
 
     def upload_from_clipboard(self) -> S3Image | None:
+        # TODO: add tagging
         img = self.grab_clipboard_image()
         if img is None:
             print("No image found in clipboard.")

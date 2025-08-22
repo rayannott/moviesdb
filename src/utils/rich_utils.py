@@ -18,7 +18,7 @@ def format_image_prefix(num_images: int) -> str:
     if num_images == 1:
         return "[green][/] "
     return f"[green] {num_images}[/] "
-    
+
 
 def get_rich_table(
     rows: list[list[str]],
@@ -121,13 +121,9 @@ def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
             return "yesterday"
         return date.strftime("%d.%m.%Y")
 
-    title_with_img_icon = (
-        format_image_prefix(len(entry.images))
-        + entry.title
-        if entry.images
-        else entry.title
+    _title = format_image_prefix(len(entry.images)) + format_title(
+        entry.title, entry.type
     )
-    _title = format_title(title_with_img_icon, entry.type)
     _rating = format_rating(entry.rating)
     _date = _fmt_date(entry.date.date()) if entry.date else ""
     _tags = f"{' '.join(format_tag(t) for t in entry.tags)}" if entry.tags else ""
@@ -198,7 +194,7 @@ def format_entry(entry: Entry) -> str:
     _date_str = f" ({_date})" if _date else ""
     _tags_str = rf" \[{_tags}]" if _tags else ""
     _notes_str = f': "{_notes}" ' if is_verbose and _notes else ""
-    return f"{_rating} {_title}{_date_str}{_tags_str}{_notes_str}{format_image_prefix(len(entry.images))}"
+    return f"{_rating} {_title}{_date_str}{_tags_str}{_notes_str}"
 
 
 def comparison(renderable1: RenderableType, renderable2: RenderableType) -> Table:

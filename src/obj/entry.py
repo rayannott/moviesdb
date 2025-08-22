@@ -102,7 +102,8 @@ class Entry:
 
     def __lt__(self, other: "Entry") -> bool:
         if self.date is None and other.date is None:
-            return (len(self.tags), len(self.notes), self.title) < (
+            return (len(self.images), len(self.tags), len(self.notes), self.title) < (
+                len(other.images),
                 len(other.tags),
                 len(other.notes),
                 other.title,
@@ -176,7 +177,7 @@ class Entry:
             return False
         self.images.add(s3_id)
         return True
-    
+
     def detach_image(self, s3_id: str) -> bool:
         """
         Detach an image from the entry.
