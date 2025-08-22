@@ -90,17 +90,19 @@ ME_CHAT_ID = 409474295
 
 
 def report_repository_info() -> str:
-    def _commit_to_str(commit: Commit) -> str:
+    def _commit_to_str(commit: Commit | None) -> str:
         """Convert commit to string."""
+        if commit is None:
+            return "No commit information available."
         return f"""commit {commit.hexsha}
 Author: {commit.author.name} <{commit.author.email}>
 Date:   {commit.authored_datetime}
 {commit.message}"""
 
     repo_info = RepoInfo()
-    return f"""Bot started at {BOT_STARTED} on branch: {repo_info.on_branch}.
+    return f"""Bot started at {BOT_STARTED} on branch: {repo_info.get_branch()}.
     - Last commit:
-{_commit_to_str(repo_info.last_commit)}"""
+{_commit_to_str(repo_info.get_last_commit())}"""
 
 
 ObjectT = TypeVar("ObjectT")

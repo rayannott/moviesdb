@@ -267,9 +267,9 @@ repo={self.repo_info_loading_time:.3f}s;
             return None
 
     def header(self):
-        branch = f"[violet] {self.repo_info.on_branch}[/]"
+        branch = f"[violet] {self.repo_info.get_branch()}[/]"
         last_commit_from = (
-            f"[gold3]󰚰 {self.repo_info.recent_commits[0].authored_datetime:%d %b %Y}[/]"
+            f"[gold3]󰚰 {self.repo_info.get_last_commit_timestamp()}[/]"
         )
         self.cns.rule(
             rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
@@ -598,6 +598,8 @@ repo={self.repo_info_loading_time:.3f}s;
             return
 
         def format_commit(commit):
+            if commit is None:
+                return "[red]No info[/]"
             return (
                 f"[bold cyan]{commit.hexsha[:8]}[/] "
                 f"[dim]<{commit.author.name} <{commit.author.email}>[/] "
@@ -611,7 +613,7 @@ repo={self.repo_info_loading_time:.3f}s;
             f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
             f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
             f"[magenta]Last commit:[/]\n"
-            f"  {format_commit(self.repo_info.last_commit)}"
+            f"  {format_commit(self.repo_info.get_last_commit())}"
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):

@@ -2,10 +2,13 @@ import datetime
 import difflib
 import json
 import re
+import logging
 
-from git import Repo
+from git import Repo, Commit
 
 from src.paths import ALLOWED_USERS
+
+logger = logging.getLogger(__name__)
 
 DATE_PATTERNS = ["%d.%m.%Y", "%d.%m.%y"]
 
@@ -118,7 +121,27 @@ class AccessRightsManager:
 
 class RepoInfo:
     def __init__(self):
-        self.repo = Repo(".")
-        self.recent_commits = list(self.repo.iter_commits(max_count=5))
-        self.on_branch = self.repo.active_branch.name
-        self.last_commit = self.recent_commits[0]
+        try:
+            self.repo = Repo(".")
+            self.recent_commits = list(self.repo.iter_commits(max_count=5))
+            self.on_branch = self.repo.active_branch.name
+            self.last_commit = self.recent_commits[0]
+        except Exception as e:
+            logger.error(f"Error initializing RepoInfo: {e}")
+            self.repo = None
+            self.recent_commits = []
+            self.on_branch = None
+            self.last_commit = None
+
+    def get_last_commit_timestamp(self) -> str:
+        return (
+            self.last_commit.authored_datetime.strftime("%d %b %Y")
+            if self.last_commit
+            else "Unknown"
+        )
+
+    def get_branch(self) -> str:
+        return self.on_branch if self.on_branch else "Unknown"
+
+    def get_last_commit(self) -> Commit | None:
+        return self.last_commit if self.last_commit else None

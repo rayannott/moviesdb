@@ -1,15 +1,22 @@
-FROM python:3.13
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+  && curl -LsSf https://astral.sh/uv/install.sh | sh \
+  && apt-get purge -y --auto-remove curl \
+  && rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
 
-COPY requirements.txt ./
+COPY pyproject.toml uv.lock* ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+CMD ["uv", "sync"]
 
 COPY . .
 
-CMD ["python", "main.py"]
-# or CMD ["python", "bot.py"]  # for the tg bot
+# Option A: run via uv (no PATH juggling)
+# CMD ["uv", "run", "python", "main.py"]
+# or CMD ["uv", "run", "python", "bot.py"]  # for the tg bot
 
 
 # build new image with:
