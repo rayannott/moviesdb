@@ -8,7 +8,7 @@ with Console().status("Loading dependencies..."):
     import os
     import random
     import logging
-    from functools import partial
+    from functools import partial, cache
     from itertools import batched, starmap
     from statistics import mean, stdev
     from typing import Any, Callable
@@ -31,6 +31,7 @@ with Console().status("Loading dependencies..."):
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
+    from src.obj.bucket import Bucket
     from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
     from src.paths import LOCAL_DIR
     from src.utils.plots import get_plot
@@ -124,6 +125,11 @@ class App:
             return int(s)
         except ValueError:
             self.cns.print(f" Not an integer: {s!r}", style="bold red")
+
+    @property
+    @cache
+    def image_manager(self) -> Bucket:
+        return Bucket()
 
     def __init__(self):
         self.running = True
@@ -268,9 +274,7 @@ repo={self.repo_info_loading_time:.3f}s;
 
     def header(self):
         branch = f"[violet] {self.repo_info.get_branch()}[/]"
-        last_commit_from = (
-            f"[gold3]󰚰 {self.repo_info.get_last_commit_timestamp()}[/]"
-        )
+        last_commit_from = f"[gold3]󰚰 {self.repo_info.get_last_commit_timestamp()}[/]"
         self.cns.rule(
             rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
         )
@@ -738,6 +742,54 @@ repo={self.repo_info_loading_time:.3f}s;
             return
         entry = Entry(None, title, rating, when, type, notes)
         self._try_add_entry(entry)
+
+    def cmd_image(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """image ...
+        list: show all images in the database
+        show: show the image from the clipboard
+        upload cb [--show]: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
+        upload disk [--show]: upload the image from disk; if --show is specified, show the image after uploading
+        attach <image_id> <entry_id>: attach the specified image to an entry
+        delete <image_id>: move the image to the trash bin
+        """
+        match pos:
+            case ["list"]:
+                images = self.image_manager.get_images()
+                if not images:
+                    self.warning("No images found.")
+                    return
+                for img in images:
+                    self.cns.print(img)
+            case ["show"]:
+                img = self.image_manager.grab_clipboard_image()
+                if img:
+                    self.cns.print(f"Showing image: {img}")
+                    img.show()
+                else:
+                    self.warning("No image found in clipboard.")
+            case ["upload", "cb"]:
+                img = self.image_manager.upload_from_clipboard()
+                if img:
+                    self.cns.print("Uploaded image from clipboard.")
+                    if "show" in flags:
+                        img.show()
+                else:
+                    self.warning("Failed to upload image from clipboard.")
+            case ["upload", "disk"]:
+                self.warning("Not implemented yet.")
+                pass
+            case ["attach", image_id_str, entry_id_str]:
+                entry = self.entry_by_idx(entry_id_str)
+                if not entry:
+                    self.error("Entry not found.")
+                    return
+                self.warning("Not implemented yet.")
+                pass
+            case ["delete", image_id_str]:
+                self.warning("Not implemented yet.")
+                pass
+            case _:
+                self.error("Invalid image command.")
 
     def _try_add_entry(self, entry: Entry):
         self._process_watch_again_tag_on_add(entry)
