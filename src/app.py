@@ -324,6 +324,7 @@ repo={self.repo_info_loading_time:.3f}s;
             date=entry.date.strftime("%d.%m.%Y") if entry.date else "",
             notes=entry.notes + " " + " ".join(f"#{t}" for t in entry.tags),
             button_text="Modify",
+            images=entry.images,
         )
         entry_app.run()
         if entry_app.entry is not None:
@@ -505,9 +506,10 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """list [--series | --movies] [--n <n>] [--all]
+        """list [--series | --movies] [--gallery] [--n <n>] [--all]
         List last n entries (default is 5).
         If --all is specified, show all matched entries.
+        If --gallery is specified, filter the entries that have attached images.
         If --series or --movies is specified, filter the entries by type."""
         if F_SERIES in flags and F_MOVIES in flags:
             self.error(f"Cannot specify both --{F_SERIES} and --{F_MOVIES} ")
@@ -520,6 +522,8 @@ repo={self.repo_info_loading_time:.3f}s;
             entries = [ent for ent in entries if ent.is_series]
         elif F_MOVIES in flags:
             entries = [ent for ent in entries if not ent.is_series]
+        if "gallery" in flags:
+            entries = [ent for ent in entries if ent.images]
         _slice = slice(0, None, None) if F_ALL in flags else slice(-n, None, None)
         self.cns.print(get_entries_table(entries[_slice], title=f"Last {n} entries"))
 
@@ -758,6 +762,7 @@ repo={self.repo_info_loading_time:.3f}s;
         match pos:
             case ["list"]:
                 images_to_entries = self.image_manager.get_image_to_entries()
+                print(images_to_entries)
                 if not images_to_entries:
                     self.warning("No images found.")
                     return
@@ -769,10 +774,8 @@ repo={self.repo_info_loading_time:.3f}s;
                         self.cns.print(str(img))
                 else:
                     for img, entries in images_to_entries.items():
-                        _entries_str = (
-                            format_entry(entries[0])
-                            if len(entries) == 1
-                            else f"{len(entries)} entries"
+                        _entries_str = ", ".join(
+                            format_entry(entry) for entry in entries
                         )
                         self.cns.print(f"{img} -> {_entries_str}")
             case ["show"]:

@@ -4,7 +4,7 @@ from io import BytesIO
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha1
 import tempfile
 
@@ -30,6 +30,7 @@ def get_new_image_id() -> str:
 @dataclass(frozen=True, slots=True)
 class S3Image:
     s3_id: str
+    size_bytes: int | None = field(default=None, hash=False, compare=False)
 
     @property
     def id(self) -> str:
@@ -53,7 +54,8 @@ class S3Image:
         return self.sha1[:8]
 
     def __str__(self):
-        return f"Image(#{self.sha1_short}; {self.dt:%d.%m.%Y @ %H:%M})"
+        _size_info = f" ({self.size_bytes / 1024:.0f} KB)" if self.size_bytes else ""
+        return f"Image(#{self.sha1_short}; {self.dt:%d.%m.%Y @ %H:%M}){_size_info}"
 
     def match(self, filter: str) -> bool:
         """Check if the image id matches the filter."""
@@ -95,7 +97,7 @@ class ImagesStore:
             Bucket=IMAGES_SERIES_BUCKET_NAME, Prefix=FOLDER_NAME + "/"
         )
         return [
-            S3Image(key)
+            S3Image(s3_id=key, size_bytes=obj.get("Size"))
             for obj in response.get("Contents", [])
             if (key := obj.get("Key"))
         ]
@@ -159,7 +161,6 @@ class ImagesStore:
         # TODO: add tagging
         img = self.grab_clipboard_image()
         if img is None:
-            print("No image found in clipboard.")
             return
         key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
         self._upload_image(img, key)

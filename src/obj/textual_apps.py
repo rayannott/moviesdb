@@ -31,6 +31,7 @@ class EntryFormApp(App):
         date: str | str = "",
         notes: str | str = "",
         button_text: str = "Save",
+        **kwargs,
     ):
         self._title = title
         self._rating = rating
@@ -38,6 +39,7 @@ class EntryFormApp(App):
         self._date = date
         self._notes = notes
         self._button_text = button_text
+        self._other_entry_kwargs = kwargs
         super().__init__()
         self._themes = list(
             self.app.available_themes.keys()
@@ -127,7 +129,15 @@ class EntryFormApp(App):
             self.notify(f" {e}", severity="error")
             return False
         else:
-            self.entry = Entry(None, title, rating, date, type, notes)
+            self.entry = Entry(
+                None,
+                title,
+                rating,
+                date,
+                type,
+                notes,
+                **self._other_entry_kwargs,
+            )
             self.notify(f"Ok:\n{format_entry(self.entry)}.\n Ctrl+Q to exit.")
             return True
 
