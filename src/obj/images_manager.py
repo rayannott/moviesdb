@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 import subprocess
 from time import perf_counter as pc
 from collections import defaultdict
@@ -6,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import dataclass, field
 from hashlib import sha1
+import webbrowser
 
 import boto3
 from PIL import Image, ImageGrab, UnidentifiedImageError
@@ -182,21 +184,36 @@ class ImagesStore:
         except Exception as e:
             logger.error(f"Error downloading image {file_key}", exc_info=e)
 
-    def show_images(self, s3_images: list[S3Image]):
+    def show_images(
+        self, s3_images: list[S3Image], in_browser: bool = True
+    ) -> Iterator[str]:
+        if in_browser:
+            controller = webbrowser.get("firefox")
+            for img in s3_images:
+                url = self.generate_presigned_url(img)  
+                controller.open_new_tab(url)
+                yield f"Opened {img} in the browser"
+            return
         s3_image_paths: list[tuple[S3Image, Path]] = []
-
         for s3_img in s3_images:
             local_path = s3_img.local_path()
             if not local_path.exists():
-                print(
+                yield (
                     f"Does not exist locally; downloading {s3_img.id} to {local_path}..."
                 )
-                self._download_image_to(s3_img.s3_id, local_path)
+            self._download_image_to(s3_img.s3_id, local_path)
             s3_image_paths.append((s3_img, local_path))
-
         for s3_img, img_path in s3_image_paths:
             with Image.open(img_path) as img:
                 img.show(title=s3_img.id)
+                yield f"Opened {s3_img} locally"
+
+    def clear_cache(self) -> int:
+        n = 0
+        for img in self._get_local_images():
+            img.local_path().unlink()
+            n += 1
+        return n
 
     def _upload_image(self, img: Image.Image, s3_img: S3Image):
         """Caches the image locally and uploads it to S3."""
@@ -216,6 +233,12 @@ class ImagesStore:
         s3_img = S3Image(key)
         self._upload_image(img, s3_img)
         return s3_img
+
+    def get_image_stats(self) -> tuple[int, int]:
+        num_total_images = len(self._get_s3_images())
+        _img_to_entries = self.get_image_to_entries()
+        num_attached_images = sum(1 for entries in _img_to_entries.values() if entries)
+        return num_total_images, num_attached_images
 
     def delete_image(self, s3_img: S3Image):
         self._s3.delete_object(Bucket=IMAGES_SERIES_BUCKET_NAME, Key=s3_img.s3_id)

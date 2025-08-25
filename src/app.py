@@ -768,13 +768,13 @@ repo={self.repo_info_loading_time:.3f}s;
         Manages images in the database.
         list: show all images in the database
         show: show the image from the clipboard
-        show <image_id>: show the image by id filter
-        entry <entry_id | title>: show all images for the entry
+        show <image_id> [--no-browser]: show the image by id filter; if --no-browser is specified, download (if missing) and open locally
+        entry <entry_id | title> [--no-browser]: show all images for the entry
         upload: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
-        upload disk: upload the image from disk; if --show is specified, show the image after uploading
         attach <image_id> <entry_id | title>: attach the specified image to an entry
-        delete <image_id>: move the image to the trash bin
-        autoremove: remove local images that are not present in the S3 bucket
+        delete <image_id>: delete the image
+        sync: synchronize local images cache with S3
+        clear: clear the local images cache
         """
         match pos:
             case ["list"]:
@@ -806,7 +806,10 @@ repo={self.repo_info_loading_time:.3f}s;
                 if not imgs:
                     self.warning(f"No image found with ID: {image_id_str}")
                     return
-                self.image_manager.show_images(imgs)
+                for msg in self.image_manager.show_images(
+                    imgs, in_browser="no-browser" not in flags
+                ):
+                    self.cns.print(msg)
             case ["upload"]:
                 img = self.image_manager.upload_from_clipboard()
                 attach_to_entry_id = kwargs.get("attach")
@@ -824,9 +827,6 @@ repo={self.repo_info_loading_time:.3f}s;
                         self.cns.print(f"{format_entry(entry_)}: attached {img}")
                 else:
                     self.warning("Failed to upload image from clipboard.")
-            case ["upload", "disk"]:
-                self.warning("Not implemented yet.")
-                pass
             case ["attach" | "detach" as cmd, image_id_str, entry_id_str]:
                 entry = self.entry_by_idx_or_title(entry_id_str)
                 if not entry:
@@ -865,7 +865,17 @@ repo={self.repo_info_loading_time:.3f}s;
                 if not entry.images:
                     self.warning("No images found for this entry.")
                     return
-                self.image_manager.show_images(list(map(S3Image, entry.images)))
+                for msg in self.image_manager.show_images(
+                    list(map(S3Image, entry.images)),
+                    in_browser="no-browser" not in flags,
+                ):
+                    self.cns.print(msg)
+            case ["stats"]:
+                num_total_images, num_attached_images = self.image_manager.get_image_stats()
+                self.cns.print(f"Total images: {num_total_images},\nAttached images: {num_attached_images}")
+            case ["clear"]:
+                n_removed = self.image_manager.clear_cache()
+                self.cns.print(f"Removed {n_removed} cached images.")
             case ["sync"]:
                 self.image_manager.sync()
             case _:
