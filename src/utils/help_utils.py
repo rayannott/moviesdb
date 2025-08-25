@@ -30,11 +30,13 @@ def get_rich_help(
 ) -> Text | Table | Align:
     headers = ["Command", "Description", "Details"]
     styles = ["cyan", "white", "white"]
+    justifiers = ["right", "right", "left"]
     if query is None:
         return get_rich_table(
             [list(v) for v in help_messages.values() if v is not None],
             headers,
             styles=styles,  # type: ignore
+            justifiers=justifiers,
             title="Help",
         )
     this_help = help_messages.get(query, _missing)
@@ -42,7 +44,12 @@ def get_rich_help(
         res = f'Unknown command: "{query}". '
         if (pm := possible_match(query, set(help_messages))) is not None:
             res += f'Did you mean "{pm}"?'
-        return Text(res)
+        return Text(res, style="bold yellow")
     if this_help is None:
         return Text(f"Help message is missing for '{query}'.", style="bold red")
-    return get_rich_table([list(this_help)], headers=headers, styles=styles)  # type: ignore
+    return get_rich_table(
+        [list(this_help)],  # type: ignore
+        headers=headers,
+        styles=styles,  # type: ignore
+        justifiers=justifiers,
+    )

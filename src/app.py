@@ -752,6 +752,7 @@ repo={self.repo_info_loading_time:.3f}s;
 
     def cmd_image(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """image ...
+        Manages images in the database.
         list: show all images in the database
         show: show the image from the clipboard
         show <image_id>: show the image by id filter
@@ -760,6 +761,7 @@ repo={self.repo_info_loading_time:.3f}s;
         upload disk: upload the image from disk; if --show is specified, show the image after uploading
         attach <image_id> <entry_id>: attach the specified image to an entry
         delete <image_id>: move the image to the trash bin
+        autoremove: remove local images that are not present in the S3 bucket
         """
         match pos:
             case ["list"]:
@@ -833,7 +835,7 @@ repo={self.repo_info_loading_time:.3f}s;
                     self.warning(f"No image found with ID: {image_id_str}")
                     return
                 images_to_entries = self.image_manager.get_image_to_entries()
-                self.image_manager.delete_image(imgs[0].s3_id)
+                self.image_manager.delete_image(imgs[0])
                 self.cns.print(f"Deleted {imgs[0]}")
                 entries_of_image = images_to_entries.get(imgs[0], [])
                 if not entries_of_image:
@@ -851,6 +853,8 @@ repo={self.repo_info_loading_time:.3f}s;
                     self.warning("No images found for this entry.")
                     return
                 self.image_manager.show_images(list(map(S3Image, entry.images)))
+            case ["sync"]:
+                self.image_manager.sync()
             case _:
                 self.error("Invalid image command.")
 

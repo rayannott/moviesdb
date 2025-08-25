@@ -1,12 +1,11 @@
+import subprocess
 from time import perf_counter as pc
 from collections import defaultdict
-from io import BytesIO
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import dataclass, field
 from hashlib import sha1
-import tempfile
 
 import boto3
 from PIL import Image, ImageGrab
@@ -16,6 +15,10 @@ from src.obj.entry import Entry
 
 
 logger = logging.getLogger(__name__)
+
+
+IMAGES_TMP_DIR = Path(".images-tmp-local")
+IMAGES_TMP_DIR.mkdir(exist_ok=True)
 
 
 FOLDER_NAME = "movies-series-images"
@@ -64,6 +67,15 @@ class S3Image:
         # TODO implement the rest of the logic
         return False
 
+    def local_path(self) -> Path:
+        return IMAGES_TMP_DIR / self.s3_id
+
+    def clear_cache(self) -> bool:
+        if self.local_path().exists():
+            self.local_path().unlink()
+            return True
+        return False
+
 
 class ImagesStore:
     def __init__(self, entries: list[Entry]):
@@ -71,8 +83,37 @@ class ImagesStore:
         _t0 = pc()
         self._s3 = boto3.client("s3")
         self._check_access()
-        self._check_consistency()
+        self._check_s3_consistency()
         self.loaded_in = pc() - _t0
+
+    def _get_local_images(self) -> list[S3Image]:
+        return [
+            S3Image(
+                s3_id=str(img_path.relative_to(IMAGES_TMP_DIR)),
+                size_bytes=img_path.stat().st_size,
+            )
+            for img_path in IMAGES_TMP_DIR.glob("**/*.png")
+        ]
+
+    def sync(self):
+        """Runs
+        aws s3 sync s3://<BUCKET_NAME> .images-tmp-local/ --delete
+        """
+        # TODO: use boto3 ?
+        result = subprocess.run(
+            [
+                "aws",
+                "s3",
+                "sync",
+                f"s3://{IMAGES_SERIES_BUCKET_NAME}",
+                str(IMAGES_TMP_DIR),
+                "--delete",
+            ],
+            check=True,
+        )
+        if result.returncode != 0:
+            logger.error("Error syncing images")
+            raise RuntimeError("Error syncing images.")
 
     def _check_access(self):
         try:
@@ -81,10 +122,10 @@ class ImagesStore:
             logger.error("Error checking S3 bucket", exc_info=e)
             raise RuntimeError("Error accessing bucket.") from e
 
-    def _check_consistency(self):
+    def _check_s3_consistency(self):
         """Ensure that all images attached to entries
         have corresponding S3 objects."""
-        existing_images = {img.s3_id for img in self.get_images()}
+        existing_images = {img.s3_id for img in self._get_s3_images()}
         for entry in self.entries:
             for img in entry.images:
                 if img not in existing_images:
@@ -92,7 +133,7 @@ class ImagesStore:
                         f"Image {img} is attached to an entry but does not exist in S3."
                     )
 
-    def get_images(self) -> list[S3Image]:
+    def _get_s3_images(self) -> list[S3Image]:
         response = self._s3.list_objects_v2(
             Bucket=IMAGES_SERIES_BUCKET_NAME, Prefix=FOLDER_NAME + "/"
         )
@@ -111,10 +152,10 @@ class ImagesStore:
         Note that the filter supports the '*' wildcard for the date.
             E.g. "15.05.2025*" or "2025-05-15*" would match all images from that date.
         """
-        imgs = self.get_images()
+        imgs = self._get_local_images()
         matched = [img for img in imgs if img.match(filter)]
         if len(matched) > 1:
-            logger.warning(
+            logger.error(
                 f"Multiple images matched the hash filter '{filter}': {matched}"
             )
             return []
@@ -137,25 +178,29 @@ class ImagesStore:
             logger.error(f"Error downloading image {file_key}", exc_info=e)
 
     def show_images(self, s3_images: list[S3Image]):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir_path = Path(tmpdir)
-            s3_image_paths: list[tuple[S3Image, Path]] = []
+        s3_image_paths: list[tuple[S3Image, Path]] = []
 
-            for s3_img in s3_images:
-                img_path = tmpdir_path / f"{s3_img.id}.png"
-                self._download_image_to(s3_img.s3_id, img_path)
-                s3_image_paths.append((s3_img, img_path))
+        for s3_img in s3_images:
+            local_path = s3_img.local_path()
+            if not local_path.exists():
+                print(
+                    f"Does not exist locally; downloading {s3_img.id} to {local_path}..."
+                )
+                self._download_image_to(s3_img.s3_id, local_path)
+            s3_image_paths.append((s3_img, local_path))
 
-            for s3_img, img_path in s3_image_paths:
-                with Image.open(img_path) as img:
-                    img.show(title=s3_img.sha1_short)
+        for s3_img, img_path in s3_image_paths:
+            with Image.open(img_path) as img:
+                img.show(title=s3_img.id)
 
-    def _upload_image(self, img: Image.Image, file_key: str):
-        buffer = BytesIO()
-        # TODO: implement image formats
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-        self._s3.upload_fileobj(buffer, IMAGES_SERIES_BUCKET_NAME, file_key)
+    def _upload_image(self, img: Image.Image, s3_img: S3Image):
+        """Caches the image locally and uploads it to S3."""
+        img.save(s3_img.local_path(), format="PNG")
+        self._s3.upload_file(
+            str(s3_img.local_path()),
+            IMAGES_SERIES_BUCKET_NAME,
+            s3_img.s3_id,
+        )
 
     def upload_from_clipboard(self) -> S3Image | None:
         # TODO: add tagging
@@ -163,19 +208,13 @@ class ImagesStore:
         if img is None:
             return
         key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
-        self._upload_image(img, key)
-        return S3Image(key)
+        s3_img = S3Image(key)
+        self._upload_image(img, s3_img)
+        return s3_img
 
-    def move_image(self, from_: Path, to_: Path):
-        self._s3.copy_object(
-            Bucket=IMAGES_SERIES_BUCKET_NAME,
-            CopySource={"Bucket": IMAGES_SERIES_BUCKET_NAME, "Key": str(from_)},
-            Key=str(to_),
-        )
-        self._s3.delete_object(Bucket=IMAGES_SERIES_BUCKET_NAME, Key=str(from_))
-
-    def delete_image(self, file_key: str):
-        self._s3.delete_object(Bucket=IMAGES_SERIES_BUCKET_NAME, Key=file_key)
+    def delete_image(self, s3_img: S3Image):
+        self._s3.delete_object(Bucket=IMAGES_SERIES_BUCKET_NAME, Key=s3_img.s3_id)
+        s3_img.clear_cache()
 
     def get_image_to_entries(self) -> defaultdict[S3Image, list[Entry]]:
         """Map S3Image objects to their associated entries."""
@@ -183,6 +222,6 @@ class ImagesStore:
         for entry in self.entries:
             for image_id in entry.images:
                 image_to_entries[S3Image(image_id)].append(entry)
-        for image in self.get_images():
+        for image in self._get_s3_images():
             image_to_entries[image]
         return image_to_entries
