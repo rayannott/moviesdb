@@ -19,12 +19,11 @@ from src.obj.entry import Entry
 logger = logging.getLogger(__name__)
 
 
-IMAGES_TMP_DIR = Path(".images-tmp-local")
-IMAGES_TMP_DIR.mkdir(exist_ok=True)
-
-
 FOLDER_NAME = "movies-series-images"
 FOLDER_PATH = Path(FOLDER_NAME)
+
+IMAGES_TMP_DIR = Path(".images-tmp-local")
+(IMAGES_TMP_DIR / FOLDER_NAME).mkdir(exist_ok=True, parents=True)
 
 
 def get_new_image_id() -> str:
@@ -234,8 +233,8 @@ class ImagesStore:
         return s3_img
 
     def get_image_stats(self) -> tuple[int, int]:
-        num_total_images = len(self._get_s3_images())
         _img_to_entries = self.get_image_to_entries()
+        num_total_images = len(_img_to_entries)
         num_attached_images = sum(1 for entries in _img_to_entries.values() if entries)
         return num_total_images, num_attached_images
 

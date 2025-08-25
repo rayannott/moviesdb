@@ -769,10 +769,12 @@ repo={self.repo_info_loading_time:.3f}s;
         Manages images in the database.
         list: show all images in the database
         show: show the image from the clipboard
+        show detached: show all images that are not attached to any entry
         show <image_id> [--no-browser]: show the image by id filter; if --no-browser is specified, download (if missing) and open locally
         entry <entry_id | title> [--no-browser]: show all images for the entry
         upload: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
         attach <image_id> <entry_id | title>: attach the specified image to an entry
+        detach <image_id> <entry_id | title>: detach the specified image from an entry
         delete <image_id>: delete the image
         sync: synchronize local images cache with S3
         clear: clear the local images cache
@@ -783,18 +785,17 @@ repo={self.repo_info_loading_time:.3f}s;
                 if not images_to_entries:
                     self.warning("No images found.")
                     return
-                if "all" not in flags:
-                    # show all (even attached) images
-                    for img, entries in images_to_entries.items():
-                        if entries:
-                            continue
-                        self.cns.print(str(img))
-                else:
+                if "all" in flags:
                     for img, entries in images_to_entries.items():
                         _entries_str = ", ".join(
                             format_entry(entry) for entry in entries
                         )
                         self.cns.print(f"{img} -> {_entries_str}")
+                    return
+                for img, entries in images_to_entries.items():
+                    if entries:
+                        continue
+                    self.cns.print(str(img))
             case ["show"]:
                 img = self.image_manager.grab_clipboard_image()
                 if img:
@@ -802,6 +803,23 @@ repo={self.repo_info_loading_time:.3f}s;
                     img.show()
                 else:
                     self.warning("No image found in clipboard.")
+            case ["show", "detached"]:
+                _img_to_entries = self.image_manager.get_image_to_entries()
+                detached = [img for img, ents in _img_to_entries.items() if not ents]
+                if not detached:
+                    self.warning("No detached images found.")
+                    return
+                if (
+                    Prompt.ask(
+                        f"Show {len(detached)} detached images?",
+                        choices=["y", "n"],
+                        default="y",
+                    )
+                    == "y"
+                ):
+                    for msg in self.image_manager.show_images(detached):
+                        self.cns.print(msg)
+
             case ["show", image_id_str]:
                 imgs = self.image_manager.get_images_by_filter(image_id_str)
                 if not imgs:
