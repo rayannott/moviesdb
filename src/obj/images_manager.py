@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from hashlib import sha1
 
 import boto3
-from PIL import Image, ImageGrab
+from PIL import Image, ImageGrab, UnidentifiedImageError
 
 from src.utils.env import IMAGES_SERIES_BUCKET_NAME
 from src.obj.entry import Entry
@@ -164,7 +164,11 @@ class ImagesStore:
 
     @staticmethod
     def grab_clipboard_image() -> Image.Image | None:
-        img = ImageGrab.grabclipboard()
+        try:
+            img = ImageGrab.grabclipboard()
+        except UnidentifiedImageError as e:
+            logger.warning(f"Could not identify clipboard image: {e}")
+            return None
         if img is None:
             return None
         if not isinstance(img, Image.Image):
