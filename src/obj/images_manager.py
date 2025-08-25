@@ -103,20 +103,19 @@ class ImagesStore:
         """
         # TODO: use boto3 ?
         # TODO: handle manually?
-        result = subprocess.run(
-            [
-                "aws",
-                "s3",
-                "sync",
-                f"s3://{IMAGES_SERIES_BUCKET_NAME}",
-                str(IMAGES_TMP_DIR),
-                "--delete",
-            ],
-            check=True,
-        )
-        if result.returncode != 0:
-            logger.error("Error syncing images")
-            raise RuntimeError("Error syncing images.")
+        try:
+            subprocess.run(
+                [
+                    "aws",
+                    "s3",
+                    "sync",
+                    f"s3://{IMAGES_SERIES_BUCKET_NAME}",
+                    str(IMAGES_TMP_DIR),
+                    "--delete",
+                ]
+            )
+        except Exception as e:
+            logger.error("Error syncing images", exc_info=e)
 
     def _check_access(self):
         try:
@@ -190,7 +189,7 @@ class ImagesStore:
         if in_browser:
             controller = webbrowser.get("firefox")
             for img in s3_images:
-                url = self.generate_presigned_url(img)  
+                url = self.generate_presigned_url(img)
                 controller.open_new_tab(url)
                 yield f"Opened {img} in the browser"
             return

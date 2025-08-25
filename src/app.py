@@ -71,6 +71,10 @@ def identity(x: str):
     return x
 
 
+def std(data: list[float] | list[int]) -> float:
+    return stdev(data) if len(data) > 1 else 0.0
+
+
 VALUE_MAP: dict[str, Callable[[str], Any]] = {
     "title": identity,
     "rating": Entry.parse_rating,
@@ -364,9 +368,6 @@ repo={self.repo_info_loading_time:.3f}s;
         if not pos:
             _s = slice(2) if "verbose" not in flags else slice(None)
 
-            def std(data: list[float]) -> float:
-                return stdev(data) if len(data) > 1 else 0.0
-
             # TODO: more columns for verbose?
             self.cns.print(
                 get_rich_table(
@@ -600,8 +601,8 @@ repo={self.repo_info_loading_time:.3f}s;
         series = [e.rating for e in self.entries if e.is_series]
         avg_movies = mean(movies)
         avg_series = mean(series)
-        stdev_movies = stdev(movies)
-        stdev_series = stdev(series)
+        stdev_movies = std(movies)
+        stdev_series = std(series)
         self.cns.print(
             f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.3f} "
             f"(n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
@@ -610,7 +611,7 @@ repo={self.repo_info_loading_time:.3f}s;
         watched_more_than_once = [g for g in groups if len(g.ratings) > 1]
         watched_times = [len(g.ratings) for g in groups]
         watched_times_mean = mean(watched_times)
-        watched_times_stdev = stdev(watched_times) if len(watched_times) > 1 else 0
+        watched_times_stdev = std(watched_times)
         self.cns.print(
             f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been "
             f"watched more than once ({watched_times_mean:.2f} ± {watched_times_stdev:.2f} times on average).\n"
@@ -871,8 +872,12 @@ repo={self.repo_info_loading_time:.3f}s;
                 ):
                     self.cns.print(msg)
             case ["stats"]:
-                num_total_images, num_attached_images = self.image_manager.get_image_stats()
-                self.cns.print(f"Total images: {num_total_images},\nAttached images: {num_attached_images}")
+                num_total_images, num_attached_images = (
+                    self.image_manager.get_image_stats()
+                )
+                self.cns.print(
+                    f"Total images: {num_total_images},\nAttached images: {num_attached_images}"
+                )
             case ["clear"]:
                 n_removed = self.image_manager.clear_cache()
                 self.cns.print(f"Removed {n_removed} cached images.")
