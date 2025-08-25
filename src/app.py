@@ -264,13 +264,27 @@ repo={self.repo_info_loading_time:.3f}s;
             title_fmtd + "[bold green] has been removed from the watch list."
         )
 
-    def entry_by_idx(self, idx: int | str) -> Entry | None:
+    def entry_by_idx(
+        self, idx: int | str, *, suppress_errors: bool = False
+    ) -> Entry | None:
         try:
             idx_ = int(idx)
             return self.entries[idx_]
         except (ValueError, IndexError):
-            self.error(f"Invalid index: {idx}.")
+            if not suppress_errors:
+                self.error(f"Invalid index: {idx}.")
             return None
+
+    def entry_by_idx_or_title(self, idx_title: str | int) -> Entry | None:
+        """Get an entry by index or title.
+        If a title matches multiple entries, return the most recent one."""
+        by_id = self.entry_by_idx(idx_title, suppress_errors=True)
+        if by_id:
+            return by_id
+        by_title = self._find_exact_matches(str(idx_title))
+        if by_title:
+            return by_title[-1][1]
+        return None
 
     def header(self):
         branch = f"[violet] {self.repo_info.get_branch()}[/]"
@@ -385,10 +399,9 @@ repo={self.repo_info_loading_time:.3f}s;
             return
         # movie specification by title (or index)
         title_or_idx = pos[1]
-        exact_matches = self._find_exact_matches(title_or_idx)
-        if exact_matches:
-            entry = exact_matches[-1][1]
-        elif not (entry := self.entry_by_idx(title_or_idx)):
+        entry = self.entry_by_idx_or_title(title_or_idx)
+        if not entry:
+            self.warning(f"No entry found matching idx or title: {title_or_idx!r}")
             return
         if {"d", "delete"} & flags:
             try:
@@ -756,10 +769,10 @@ repo={self.repo_info_loading_time:.3f}s;
         list: show all images in the database
         show: show the image from the clipboard
         show <image_id>: show the image by id filter
-        entry <entry_id>: show all images for the entry
+        entry <entry_id | title>: show all images for the entry
         upload: upload the image from the clipboard to the database; if --show is specified, show the image after uploading
         upload disk: upload the image from disk; if --show is specified, show the image after uploading
-        attach <image_id> <entry_id>: attach the specified image to an entry
+        attach <image_id> <entry_id | title>: attach the specified image to an entry
         delete <image_id>: move the image to the trash bin
         autoremove: remove local images that are not present in the S3 bucket
         """
@@ -799,7 +812,7 @@ repo={self.repo_info_loading_time:.3f}s;
                 attach_to_entry_id = kwargs.get("attach")
                 entry_ = None
                 if attach_to_entry_id:
-                    entry_ = self.entry_by_idx(attach_to_entry_id)
+                    entry_ = self.entry_by_idx_or_title(attach_to_entry_id)
                     if not entry_:
                         self.warning(f"No entry found with ID: {attach_to_entry_id}")
                         return
@@ -815,7 +828,7 @@ repo={self.repo_info_loading_time:.3f}s;
                 self.warning("Not implemented yet.")
                 pass
             case ["attach" | "detach" as cmd, image_id_str, entry_id_str]:
-                entry = self.entry_by_idx(entry_id_str)
+                entry = self.entry_by_idx_or_title(entry_id_str)
                 if not entry:
                     self.error("Entry not found.")
                     return
@@ -845,7 +858,7 @@ repo={self.repo_info_loading_time:.3f}s;
                     Mongo.update_entry(entry)
                     self.cns.print(f"Detached from {format_entry(entry)}")
             case ["entry", entry_id_str]:
-                entry = self.entry_by_idx(entry_id_str)
+                entry = self.entry_by_idx_or_title(entry_id_str)
                 if not entry:
                     self.error("Entry not found.")
                     return
