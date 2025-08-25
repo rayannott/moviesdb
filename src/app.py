@@ -525,7 +525,9 @@ repo={self.repo_info_loading_time:.3f}s;
         if "gallery" in flags:
             entries = [ent for ent in entries if ent.images]
         _slice = slice(0, None, None) if F_ALL in flags else slice(-n, None, None)
-        self.cns.print(get_entries_table(entries[_slice], title=f"Last {n} entries"))
+        entries = entries[_slice]
+        n = len(entries)
+        self.cns.print(get_entries_table(entries, title=f"Last {n} entries"))
 
     def cmd_group(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """group [<title>] [--series | --movies] [--n <n>] [--all]
@@ -762,7 +764,6 @@ repo={self.repo_info_loading_time:.3f}s;
         match pos:
             case ["list"]:
                 images_to_entries = self.image_manager.get_image_to_entries()
-                print(images_to_entries)
                 if not images_to_entries:
                     self.warning("No images found.")
                     return
