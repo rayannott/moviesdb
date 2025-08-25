@@ -81,7 +81,7 @@ class ImagesStore:
     def __init__(self, entries: list[Entry]):
         self.entries = entries
         _t0 = pc()
-        self._s3 = boto3.client("s3")
+        self._s3 = boto3.client("s3", region_name="eu-north-1")
         self._check_access()
         self._check_s3_consistency()
         self.loaded_in = pc() - _t0
@@ -100,6 +100,7 @@ class ImagesStore:
         aws s3 sync s3://<BUCKET_NAME> .images-tmp-local/ --delete
         """
         # TODO: use boto3 ?
+        # TODO: handle manually?
         result = subprocess.run(
             [
                 "aws",
@@ -152,7 +153,7 @@ class ImagesStore:
         Note that the filter supports the '*' wildcard for the date.
             E.g. "15.05.2025*" or "2025-05-15*" would match all images from that date.
         """
-        imgs = self._get_local_images()
+        imgs = self._get_s3_images()
         matched = [img for img in imgs if img.match(filter)]
         if len(matched) > 1:
             logger.error(
@@ -225,3 +226,19 @@ class ImagesStore:
         for image in self._get_s3_images():
             image_to_entries[image]
         return image_to_entries
+
+    def generate_presigned_url(self, s3_img: S3Image, expires_in=120):
+        """
+        Generate a presigned URL for an S3 object.
+        """
+        url = self._s3.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": IMAGES_SERIES_BUCKET_NAME,
+                "Key": s3_img.s3_id,
+                "ResponseContentType": "image/png",
+                "ResponseContentDisposition": "inline",
+            },
+            ExpiresIn=expires_in,
+        )
+        return url
