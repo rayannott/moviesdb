@@ -1014,7 +1014,7 @@ repo={self.repo_info_loading_time:.3f}s;
         self.header()
         while self.running:
             try:
-                command = self.input(">>> ")
+                command = input(">>> ")
                 self.process_command(command)
             except EOFError:
                 print()
