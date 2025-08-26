@@ -1,6 +1,7 @@
 import logging
 
 import telebot
+from telebot import types
 
 from botsrc.utils import format_book
 from src.obj.books_mode import BooksMode
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def books(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     pos: PositionalArgs,
     flags: Flags,

@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 import telebot
+from telebot import types
 
 from botsrc.utils import (
     format_entry,
@@ -16,31 +17,31 @@ from src.parser import Flags, KeywordArgs, PositionalArgs
 logger = logging.getLogger(__name__)
 
 
-def text(message: telebot.types.Message) -> str:
+def text(message: types.Message) -> str:
     return message.text if message.text is not None else ""
 
 
-def get_movie_type_kb() -> telebot.types.ReplyKeyboardMarkup:
-    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+def get_movie_type_kb() -> types.ReplyKeyboardMarkup:
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     kb.add(
-        telebot.types.KeyboardButton("Movie"), telebot.types.KeyboardButton("Series")
+        types.KeyboardButton("Movie"), types.KeyboardButton("Series")
     )
     return kb
 
 
-def get_confirmation_kb() -> telebot.types.ReplyKeyboardMarkup:
-    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+def get_confirmation_kb() -> types.ReplyKeyboardMarkup:
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     kb.add(
-        telebot.types.KeyboardButton("Confirm"), telebot.types.KeyboardButton("Cancel")
+        types.KeyboardButton("Confirm"), types.KeyboardButton("Cancel")
     )
     return kb
 
 
-def get_skip_kb(extra_buttons: list[str] = []) -> telebot.types.ReplyKeyboardMarkup:
-    kb = telebot.types.ReplyKeyboardMarkup(
+def get_skip_kb(extra_buttons: list[str] = []) -> types.ReplyKeyboardMarkup:
+    kb = types.ReplyKeyboardMarkup(
         resize_keyboard=True, row_width=1 + len(extra_buttons)
     )
-    kb.add(*(telebot.types.KeyboardButton(btn) for btn in ["Skip"] + extra_buttons))
+    kb.add(*(types.KeyboardButton(btn) for btn in ["Skip"] + extra_buttons))
     return kb
 
 
@@ -49,7 +50,7 @@ def add(
     kwargs: KeywordArgs,
     flags: Flags,
     bot: telebot.TeleBot,
-    message: telebot.types.Message,
+    message: types.Message,
 ):
     # Start the process by asking for the movie title
     if not (pos or flags or kwargs):
@@ -81,13 +82,13 @@ def add(
         bot.send_message(message.chat.id, msg)
 
 
-def _get_title(message: telebot.types.Message, bot: telebot.TeleBot):
+def _get_title(message: types.Message, bot: telebot.TeleBot):
     title = text(message)
     if not title:
         bot.reply_to(
             message,
             "You must specify a title.",
-            reply_markup=telebot.types.ReplyKeyboardRemove(),
+            reply_markup=types.ReplyKeyboardRemove(),
         )
         logger.info("no title specified")
         return
@@ -105,14 +106,14 @@ def _get_title(message: telebot.types.Message, bot: telebot.TeleBot):
     )
 
 
-def _get_rating(message: telebot.types.Message, bot: telebot.TeleBot, title: str):
+def _get_rating(message: types.Message, bot: telebot.TeleBot, title: str):
     try:
         rating = Entry.parse_rating(text(message))
     except MalformedEntryException as e:
         bot.reply_to(
             message,
             f"{e}",
-            reply_markup=telebot.types.ReplyKeyboardRemove(),
+            reply_markup=types.ReplyKeyboardRemove(),
         )
         logger.info("malformed rating", exc_info=e)
         return
@@ -129,7 +130,7 @@ def _get_rating(message: telebot.types.Message, bot: telebot.TeleBot, title: str
 
 
 def _get_type(
-    message: telebot.types.Message, bot: telebot.TeleBot, title: str, rating: int
+    message: types.Message, bot: telebot.TeleBot, title: str, rating: int
 ):
     try:
         type_ = Entry.parse_type(text(message))
@@ -137,7 +138,7 @@ def _get_type(
         bot.send_message(
             message.chat.id,
             f"{e}",
-            reply_markup=telebot.types.ReplyKeyboardRemove(),
+            reply_markup=types.ReplyKeyboardRemove(),
         )
         logger.info("malformed type", exc_info=e)
         return
@@ -153,7 +154,7 @@ def _get_type(
 
 
 def _get_date(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     title: str,
     rating: int,
@@ -167,7 +168,7 @@ def _get_date(
         bot.reply_to(
             message,
             f"Invalid date: {e}. Please use the format dd.mm.yyyy or 'today'.",
-            reply_markup=telebot.types.ReplyKeyboardRemove(),
+            reply_markup=types.ReplyKeyboardRemove(),
         )
         logger.info("malformed date", exc_info=e)
         return
@@ -190,7 +191,7 @@ def _get_date(
 
 
 def _get_notes(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     title: str,
     rating: int,
@@ -214,12 +215,12 @@ def _get_notes(
     )
 
 
-def _confirm_add(message: telebot.types.Message, bot: telebot.TeleBot, entry: Entry):
+def _confirm_add(message: types.Message, bot: telebot.TeleBot, entry: Entry):
     if text(message).lower() != "confirm":
         bot.send_message(
             message.chat.id,
             "Entry creation canceled.",
-            reply_markup=telebot.types.ReplyKeyboardRemove(),
+            reply_markup=types.ReplyKeyboardRemove(),
         )
         logger.info("entry creation canceled")
         return
@@ -227,7 +228,7 @@ def _confirm_add(message: telebot.types.Message, bot: telebot.TeleBot, entry: En
     bot.send_message(
         message.chat.id,
         f"Entry added:\n{format_entry(entry, True, True)}",
-        reply_markup=telebot.types.ReplyKeyboardRemove(),
+        reply_markup=types.ReplyKeyboardRemove(),
     )
     logger.info(f"added entry {entry}")
     if msg := process_watch_list_on_add_entry(entry):

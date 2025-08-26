@@ -1,6 +1,7 @@
 import logging
 
 import telebot
+from telebot import types
 
 from botsrc.utils import list_many_groups
 from src.mongo import Mongo
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def group(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     pos: PositionalArgs,
 ):

@@ -1,6 +1,7 @@
 import logging
 
 import telebot
+from telebot import types
 
 from botsrc.utils import format_entry, list_many_entries
 from src.mongo import Mongo
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def tag(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     pos: PositionalArgs,
     flags: Flags,
