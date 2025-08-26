@@ -152,6 +152,12 @@ class ImagesStore:
             logger.error("Error checking S3 bucket", exc_info=e)
             raise RuntimeError("Error accessing bucket.") from e
 
+    def _get_s3_response(self):
+        return self._s3.list_objects_v2(
+            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Prefix=FOLDER_NAME + "/",
+        )
+
     def _check_s3_consistency(self):
         """Ensure that all images attached to entries
         have corresponding S3 objects."""
@@ -163,10 +169,11 @@ class ImagesStore:
                         f"Image {img} is attached to an entry but does not exist in S3."
                     )
 
+    def _detect_duplicates(self):
+        pass  # TODO: implement using ETag (hash)
+
     def _get_s3_images(self) -> list[S3Image]:
-        response = self._s3.list_objects_v2(
-            Bucket=IMAGES_SERIES_BUCKET_NAME, Prefix=FOLDER_NAME + "/"
-        )
+        response = self._get_s3_response()
         return [
             S3Image(s3_id=key, size_bytes=obj.get("Size"))
             for obj in response.get("Contents", [])
@@ -174,10 +181,7 @@ class ImagesStore:
         ]
 
     def get_images(self) -> list[S3Image]:
-        response = self._s3.list_objects_v2(
-            Bucket=IMAGES_SERIES_BUCKET_NAME,
-            Prefix=FOLDER_NAME + "/",
-        )
+        response = self._get_s3_response()
         _id_to_entries_size: dict[str, tuple[list[Entry], int | None]] = {
             key: ([], obj.get("Size"))
             for obj in response.get("Contents", [])
