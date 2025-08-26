@@ -769,7 +769,7 @@ repo={self.repo_info_loading_time:.3f}s;
         """image ...
         Manage images in the database.
         Commands:
-        - list [<filter>]: Show images; apply <filter> if specified.
+        - list [<image>]: Show images; apply image filter if specified.
         - show: Show image from clipboard.
         - show <image> [--no-browser]: Show image by filter; --no-browser opens locally.
         - entry <entry_id|title> [--no-browser]: Show all images for an entry.
