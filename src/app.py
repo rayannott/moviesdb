@@ -342,7 +342,7 @@ repo={self.repo_info_loading_time:.3f}s;
             date=entry.date.strftime("%d.%m.%Y") if entry.date else "",
             notes=entry.notes + " " + " ".join(f"#{t}" for t in entry.tags),
             button_text="Modify",
-            images=entry.image_ids,
+            image_ids=entry.image_ids,
         )
         entry_app.run()
         if entry_app.entry is not None:

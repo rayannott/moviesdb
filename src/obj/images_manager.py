@@ -369,7 +369,8 @@ def cmd_image(self: "App", pos: PositionalArgs, kwargs: KeywordArgs, flags: Flag
             ):
                 self.cns.print(msg)
         case ["upload"]:
-            img = self.image_manager.upload_from_clipboard()
+            with self.cns.status("Uploading image from clipboard..."):
+                img = self.image_manager.upload_from_clipboard()
             attach_to_entry_id = kwargs.get("attach")
             entry_ = None
             if attach_to_entry_id:
