@@ -131,8 +131,8 @@ Type "exit" to quit SQL mode."""
         )
         self.cns.print(schema_table)
         while True:
-            query = self.input("[bold blue]SQL> ")
-            if query == "exit":
+            query: str | None = self.input("[bold blue]SQL> ")
+            if query is None or query == "exit":
                 break
             if query.startswith("example"):
                 query = self.process_example_command(query.split())
