@@ -85,7 +85,7 @@ The user has already watched the following movies:
     def __init__(self, entries: list[Entry], mongo: type["Mongo"]):
         self.entries = entries
         self.mongo = mongo
-        self._client = None
+        self._client: OpenAI | None = None
         self._conversation_history: list[tuple[str, str]] = []
 
     def get_context(self) -> str:

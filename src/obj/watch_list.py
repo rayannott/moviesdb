@@ -20,7 +20,7 @@ class WatchList:
     def __contains__(self, title_is_series: tuple[str, bool]) -> bool:
         return title_is_series in self.watch_list
 
-    def __eq__(self, other: "WatchList") -> bool:
+    def __eq__(self, other: "WatchList") -> bool:  # type: ignore[override]
         return self.watch_list == other.watch_list
 
     def remove(self, title: str, is_series: bool):

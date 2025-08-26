@@ -97,7 +97,7 @@ def report_repository_info() -> str:
         return f"""commit {commit.hexsha}
 Author: {commit.author.name} <{commit.author.email}>
 Date:   {commit.authored_datetime}
-{commit.message}"""
+{commit.message}"""  # type: ignore[str-bytes-safe]
 
     repo_info = RepoInfo()
     return f"""Bot started at {BOT_STARTED} on branch: {repo_info.get_branch()}.

@@ -23,6 +23,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel>=6.30.1",
+    "mypy>=1.17.1",
+    "plotly-stubs>=0.0.6",
     "pytest>=8.4.1",
     "ruff>=0.12.9",
+    "types-requests>=2.32.4.20250809",
 ]
+
+[tool.mypy]
+explicit_package_bases = true

@@ -274,7 +274,7 @@ class ImagesStore:
         # TODO: add tagging
         img = self.grab_clipboard_image()
         if img is None:
-            return
+            return None
         key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
         s3_img = S3Image(key)
         self._upload_image(img, s3_img)
@@ -351,10 +351,10 @@ def cmd_image(self: "App", pos: PositionalArgs, kwargs: KeywordArgs, flags: Flag
             for img in images:
                 self.cns.print(str(img))
         case ["show"]:
-            img = self.image_manager.grab_clipboard_image()
-            if img:
-                self.cns.print(f"Showing image: {img}")
-                img.show()
+            image = self.image_manager.grab_clipboard_image()
+            if image:
+                self.cns.print(f"Showing image: {image}")
+                image.show()
             else:
                 self.warning("No image found in clipboard.")
         case ["show", image_filter]:
@@ -370,7 +370,7 @@ def cmd_image(self: "App", pos: PositionalArgs, kwargs: KeywordArgs, flags: Flag
                 self.cns.print(msg)
         case ["upload"]:
             with self.cns.status("Uploading image from clipboard..."):
-                img = self.image_manager.upload_from_clipboard()
+                img_cb = self.image_manager.upload_from_clipboard()
             attach_to_entry_id = kwargs.get("attach")
             entry_ = None
             if attach_to_entry_id:
@@ -379,14 +379,14 @@ def cmd_image(self: "App", pos: PositionalArgs, kwargs: KeywordArgs, flags: Flag
                     self.warning(
                         f"No entry found with ID: {attach_to_entry_id}; not attaching."
                     )
-            if img:
-                self.cns.print(f"Uploaded {img}")
+            if img_cb:
+                self.cns.print(f"Uploaded {img_cb}")
                 if entry_:
-                    entry_.attach_image(img.s3_id)
+                    entry_.attach_image(img_cb.s3_id)
                     Mongo.update_entry(entry_)
                     self.cns.print(f"Attached to {format_entry(entry_)}")
             else:
-                self.error(f"Failed to upload {img} from clipboard.")
+                self.error(f"Failed to upload {img_cb} from clipboard.")
         case ["attach" | "detach" as cmd, image_filter, entry_id_str]:
             entry = self.entry_by_idx_or_title(entry_id_str)
             if not entry:
@@ -398,14 +398,14 @@ def cmd_image(self: "App", pos: PositionalArgs, kwargs: KeywordArgs, flags: Flag
                 return
             if not _confirm(images, cmd.title(), ask_if_len_ge=1):
                 return
-            for image in images:
+            for img in images:
                 if cmd == "attach":
-                    entry.attach_image(image.s3_id)
+                    entry.attach_image(img.s3_id)
                 else:
-                    entry.detach_image(image.s3_id)
+                    entry.detach_image(img.s3_id)
                 Mongo.update_entry(entry)
                 self.cns.print(
-                    f"{cmd.title()}ed {image} {'to' if cmd == 'attach' else 'from'} {format_entry(entry)}"
+                    f"{cmd.title()}ed {img} {'to' if cmd == 'attach' else 'from'} {format_entry(entry)}"
                 )
         case ["delete", image_filter]:
             imgs = self.image_manager.get_images_by_filter(image_filter)

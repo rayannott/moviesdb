@@ -116,14 +116,14 @@ class EntryFormApp(App):
         title = self.query_one("#title", Input).value.strip()
         rating_str = self.query_one("#rating", Input).value.strip()
         media_type = "SERIES" if self._is_series else "MOVIE"
-        date = self.query_one("#date", Input).value
+        date_str = self.query_one("#date", Input).value
         notes = self.query_one("#notes", TextArea).text
 
         try:
             if not title:
                 raise MalformedEntryException("Empty title")
             rating = Entry.parse_rating(rating_str)
-            date = Entry.parse_date(date)
+            date = Entry.parse_date(date_str)
             type = Entry.parse_type(media_type)
         except MalformedEntryException as e:
             self.notify(f" {e}", severity="error")

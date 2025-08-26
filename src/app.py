@@ -129,6 +129,7 @@ class App:
             return int(s)
         except ValueError:
             self.cns.print(f" Not an integer: {s!r}", style="bold red")
+        return None
 
     @property
     @cache
@@ -446,10 +447,10 @@ repo={self.repo_info_loading_time:.3f}s;
             if note.lower() in e.notes.lower()
         ]
         if matches:
-            ids, matches = zip(*matches)
+            ids, entries = zip(*matches)
             self.cns.print(
                 get_entries_table(
-                    matches, ids, title=f"[bold yellow]{len(matches)}[/] matches"
+                    entries, ids, title=f"[bold yellow]{len(matches)}[/] matches"
                 )
             )
         else:

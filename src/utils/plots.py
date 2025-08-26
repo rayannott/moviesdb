@@ -12,7 +12,7 @@ pio.renderers.default = "browser"
 
 
 def get_plot(entries: list[Entry]) -> go.Figure:
-    def factory():
+    def factory() -> tuple[list[float], list[float], list[str], list[str]]:
         return ([], [], [], [])
 
     def mean_f(sequence: list[float]) -> float:
@@ -24,7 +24,9 @@ def get_plot(entries: list[Entry]) -> go.Figure:
     def month_start(year: int, month: int) -> datetime.date:
         return datetime.date(year, month, 1)
 
-    data = defaultdict(factory)
+    data: defaultdict[
+        tuple[int, int], tuple[list[float], list[float], list[str], list[str]]
+    ] = defaultdict(factory)
     for entry in entries:
         if entry.date is None:
             continue

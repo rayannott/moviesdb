@@ -77,12 +77,12 @@ class SqlMode:
                 )
                 self.cns.print(f"{example_name}: {comments_part}")
                 self.cns.print(content_highlighted)
-            return
+            return None
         example_name = args[1]
         example_query_and_comment = query_example_mapping.get(example_name)
         if not example_query_and_comment:
             self.cns.print(f"Example '{example_name}' not found", style="bold red")
-            return
+            return None
         return example_query_and_comment[0]
 
     def try_execute_get_rows_headers(
@@ -93,12 +93,12 @@ class SqlMode:
             rows = [list(map(str, row)) for row in cursor.fetchall()]
             if not rows:
                 self.cns.print("No entries match your query", style="bold red")
-                return
+                return None
             headers = [desc[0] for desc in cursor.description]
             return rows, headers
         except sqlite3.Error as e:
             self.cns.print(f"Error:\n{e}", style="bold red")
-            return
+            return None
 
     def run(self):
         conn = self.build_in_memory_db()
