@@ -2,6 +2,7 @@
 __pycache__/
 movies.bat
 venv/
+.venv/
 .env
 
 *local/
