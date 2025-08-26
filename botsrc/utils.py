@@ -27,9 +27,12 @@ def select_entry_by_oid_part(oid_part: str, entries: list[Entry]) -> Entry | Non
 def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) -> str:
     note_str = f": {entry.notes}" if entry.notes and verbose else ""
     watched_date_str = f" ({entry.date.strftime('%d.%m.%Y')})" if entry.date else ""
+    _num_images_str = (
+        " {" + f"{len(entry.image_ids)} img" + "}" if entry.image_ids else ""
+    )
     tags_str = f" [{' '.join(entry.tags)}]" if entry.tags else ""
     oid_part = "{" + str(entry._id)[-4:] + "} " if with_oid else ""
-    return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{note_str}{tags_str}"
+    return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{_num_images_str}{note_str}{tags_str}"
 
 
 def format_book(book: Book, verbose: bool = False) -> str:
