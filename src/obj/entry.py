@@ -58,7 +58,7 @@ class Entry:
     type: Type = Type.MOVIE
     notes: str = ""
     tags: set[str] = field(default_factory=set[str])
-    images: set[str] = field(default_factory=set)
+    image_ids: set[str] = field(default_factory=set)
 
     def __post_init__(self):
         self.title = self.title.strip()
@@ -97,13 +97,13 @@ class Entry:
             | ({"notes": self.notes} if self.notes else {})
             | ({"date": self.date.strftime("%d.%m.%Y")} if self.date else {})
             | ({"tags": sorted(self.tags)} if self.tags else {})
-            | ({"images": sorted(self.images)} if self.images else {})
+            | ({"images": sorted(self.image_ids)} if self.image_ids else {})
         )
 
     def __lt__(self, other: "Entry") -> bool:
         if self.date is None and other.date is None:
-            return (len(self.images), len(self.tags), len(self.notes), self.title) < (
-                len(other.images),
+            return (len(self.image_ids), len(self.tags), len(self.notes), self.title) < (
+                len(other.image_ids),
                 len(other.tags),
                 len(other.notes),
                 other.title,
@@ -127,7 +127,7 @@ class Entry:
             else None,
             notes=data.get("notes", ""),
             tags=set(data.get("tags", [])),
-            images=set(data.get("images", [])),
+            image_ids=set(data.get("images", [])),
         )
 
     def get_per_season(self) -> list[float | None]:
@@ -173,9 +173,9 @@ class Entry:
         :param s3_id: S3 ID of the image.
         :return: True if the image was attached, False if it was already attached.
         """
-        if s3_id in self.images:
+        if s3_id in self.image_ids:
             return False
-        self.images.add(s3_id)
+        self.image_ids.add(s3_id)
         return True
 
     def detach_image(self, s3_id: str) -> bool:
@@ -184,9 +184,9 @@ class Entry:
         :param s3_id: S3 ID of the image.
         :return: True if the image was detached, False if it was not attached.
         """
-        if s3_id not in self.images:
+        if s3_id not in self.image_ids:
             return False
-        self.images.remove(s3_id)
+        self.image_ids.remove(s3_id)
         return True
 
 

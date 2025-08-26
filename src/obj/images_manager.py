@@ -8,6 +8,8 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from hashlib import sha1
 import webbrowser
+from warnings import deprecated
+import re
 
 import boto3
 from PIL import Image, ImageGrab, UnidentifiedImageError
@@ -18,6 +20,7 @@ from src.obj.entry import Entry
 
 logger = logging.getLogger(__name__)
 
+DATE_RE = re.compile(r"\d{2}\.\d{2}\.\d{4}")
 
 FOLDER_NAME = "movies-series-images"
 FOLDER_PATH = Path(FOLDER_NAME)
@@ -35,6 +38,7 @@ def get_new_image_id() -> str:
 class S3Image:
     s3_id: str
     size_bytes: int | None = field(default=None, hash=False, compare=False)
+    entries: list[Entry] = field(default_factory=list, hash=False, compare=False)
 
     @property
     def id(self) -> str:
@@ -58,14 +62,33 @@ class S3Image:
         return self.sha1[:8]
 
     def __str__(self):
-        _size_info = f" ({self.size_bytes / 1024:.0f} KB)" if self.size_bytes else ""
-        return f"Image(#{self.sha1_short}; {self.dt:%d.%m.%Y @ %H:%M}){_size_info}"
+        _size_info = (
+            f"; {round(self.size_bytes / 1024):>4} KB" if self.size_bytes else ""
+        )
+        _attached = (
+            f" -> {len(self.entries)} entries"
+            if len(self.entries) > 1
+            else f" -> {self.entries[0]}"
+            if self.entries
+            else ""
+        )
+        return f"Image(#{self.sha1_short}; {self.dt:%d.%m.%Y @ %H:%M}{_size_info}){_attached}"
 
     def match(self, filter: str) -> bool:
         """Check if the image id matches the filter."""
-        if filter in self.sha1:
+        if filter == "*":
             return True
-        # TODO implement the rest of the logic
+        if filter == "detached":
+            return not self.entries
+        if filter == "attached":
+            return bool(self.entries)
+        if filter[0] == "#" and len(filter) >= 4 and filter[1:] in self.sha1:
+            return True
+        if (
+            DATE_RE.match(filter)
+            and self.dt.date() == datetime.strptime(filter, "%d.%m.%Y").date()
+        ):
+            return True
         return False
 
     def local_path(self) -> Path:
@@ -96,12 +119,11 @@ class ImagesStore:
             for img_path in IMAGES_TMP_DIR.glob("**/*.png")
         ]
 
+    @deprecated("Do not use local storage.", category=DeprecationWarning)
     def sync(self):
         """Runs
         aws s3 sync s3://<BUCKET_NAME> .images-tmp-local/ --delete
         """
-        # TODO: use boto3 ?
-        # TODO: handle manually?
         try:
             subprocess.run(
                 [
@@ -128,7 +150,7 @@ class ImagesStore:
         have corresponding S3 objects."""
         existing_images = {img.s3_id for img in self._get_s3_images()}
         for entry in self.entries:
-            for img in entry.images:
+            for img in entry.image_ids:
                 if img not in existing_images:
                     logger.error(
                         f"Image {img} is attached to an entry but does not exist in S3."
@@ -144,23 +166,36 @@ class ImagesStore:
             if (key := obj.get("Key"))
         ]
 
+    def get_images(self) -> list[S3Image]:
+        response = self._s3.list_objects_v2(
+            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Prefix=FOLDER_NAME + "/",
+        )
+        _id_to_entries_size: dict[str, tuple[list[Entry], int | None]] = {
+            key: ([], obj.get("Size"))
+            for obj in response.get("Contents", [])
+            if (key := obj.get("Key"))
+        }
+        for entry in self.entries:
+            for image_id in entry.image_ids:
+                _id_to_entries_size[image_id][0].append(entry)
+        images = [
+            S3Image(s3_id=image_id, size_bytes=size, entries=entries)
+            for image_id, (entries, size) in _id_to_entries_size.items()
+        ]
+        return images
+
     def get_images_by_filter(self, filter: str) -> list[S3Image]:
         """
         Get images by a filter string.
         Matches:
-            - part of image hash (e.g., "ad7c1") but only if unique
-            - date string (e.g. "15.05.2025" or "2025-05-15")
-        Note that the filter supports the '*' wildcard for the date.
-            E.g. "15.05.2025*" or "2025-05-15*" would match all images from that date.
+            - at least 4 characters of image sha1 hash (e.g., "#ad7c");
+            - 'detached': all images that are not attached to any entry
+            - 'attached': all images that are attached to an entry
+            - '*': all images
+            - exact date (e.g. "15.05.2025")
         """
-        imgs = self._get_s3_images()
-        matched = [img for img in imgs if img.match(filter)]
-        if len(matched) > 1:
-            logger.error(
-                f"Multiple images matched the hash filter '{filter}': {matched}"
-            )
-            return []
-        return matched
+        return [img for img in self.get_images() if img.match(filter)]
 
     @staticmethod
     def grab_clipboard_image() -> Image.Image | None:
@@ -185,13 +220,18 @@ class ImagesStore:
     def show_images(
         self, s3_images: list[S3Image], in_browser: bool = True
     ) -> Iterator[str]:
-        if in_browser:
-            controller = webbrowser.get("firefox")
-            for img in s3_images:
-                url = self.generate_presigned_url(img)
-                controller.open_new_tab(url)
-                yield f"Opened {img} in the browser"
+        if not in_browser:
+            self._show_locally(s3_images)
             return
+        controller = webbrowser.get("firefox")
+        for img in s3_images:
+            url = self.generate_presigned_url(img)
+            controller.open_new_tab(url)
+            yield f"Opened {img} in the browser"
+        return
+
+    @deprecated("Use show_images() instead.", category=DeprecationWarning)
+    def _show_locally(self, s3_images: list[S3Image]) -> Iterator[str]:
         s3_image_paths: list[tuple[S3Image, Path]] = []
         for s3_img in s3_images:
             local_path = s3_img.local_path()
@@ -207,6 +247,7 @@ class ImagesStore:
                 yield f"Opened {s3_img} locally"
 
     def clear_cache(self) -> int:
+        # only use to clear the local directory populated by uploading images
         n = 0
         for img in self._get_local_images():
             img.local_path().unlink()
@@ -233,20 +274,21 @@ class ImagesStore:
         return s3_img
 
     def get_image_stats(self) -> tuple[int, int]:
-        _img_to_entries = self.get_image_to_entries()
-        num_total_images = len(_img_to_entries)
-        num_attached_images = sum(1 for entries in _img_to_entries.values() if entries)
+        images = self.get_images()
+        num_total_images = len(images)
+        num_attached_images = sum(1 for img in images if img.entries)
         return num_total_images, num_attached_images
 
     def delete_image(self, s3_img: S3Image):
         self._s3.delete_object(Bucket=IMAGES_SERIES_BUCKET_NAME, Key=s3_img.s3_id)
         s3_img.clear_cache()
 
+    @deprecated("Use get_images() instead.", category=DeprecationWarning)
     def get_image_to_entries(self) -> defaultdict[S3Image, list[Entry]]:
         """Map S3Image objects to their associated entries."""
         image_to_entries: defaultdict[S3Image, list[Entry]] = defaultdict(list)
         for entry in self.entries:
-            for image_id in entry.images:
+            for image_id in entry.image_ids:
                 image_to_entries[S3Image(image_id)].append(entry)
         for image in self._get_s3_images():
             image_to_entries[image]

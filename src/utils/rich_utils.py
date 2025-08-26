@@ -121,7 +121,7 @@ def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
             return "yesterday"
         return date.strftime("%d.%m.%Y")
 
-    _title = format_image_prefix(len(entry.images)) + format_title(
+    _title = format_image_prefix(len(entry.image_ids)) + format_title(
         entry.title, entry.type
     )
     _rating = format_rating(entry.rating)
