@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from time import perf_counter as pc
 from typing import TYPE_CHECKING
+import threading
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -29,21 +30,36 @@ class ImagesApp(BaseApp):
             t0 = pc()
             self.image_manager = ImagesStore(app.entries)
             t1 = pc()
-            self.images = self.image_manager.get_images()
+            self._num_images = len(self.image_manager._get_s3_images())
             t2 = pc()
         self._connected_in = t1 - t0
         self._images_loaded_in = t2 - t1
 
+        self.register_aliases({"tags": "tag"})
+        self._load_tags()
+
+    # TODO: store images in a variable and reload using get_images() with _reload()
+
+    def _load_tags(self):
+        # this starts a thread that loads image tags
+        def _load_tags():
+            self.image_manager._get_tags()
+
+        self.image_manager._get_tags.cache_clear()
+        load_tags_thread = threading.Thread(target=_load_tags)
+        load_tags_thread.start()
+
     def header(self):
         self.cns.rule(
-            f"Images App ({len(self.images)} images)",
+            f"Images App ({self._num_images} images)",
             style="bold yellow",
         )
 
     def pre_run(self):
         super().pre_run()
         self.cns.print(
-            f"[dim]Connected to S3 in {self._connected_in:.3f} sec; {len(self.images)} images loaded in {self._images_loaded_in:.3f} sec."
+            f"[dim]Connected to S3 in {self._connected_in:.3f} sec; "
+            f"{self._num_images} images loaded in {self._images_loaded_in:.3f} sec."
         )
 
     def _confirm(
@@ -64,27 +80,27 @@ class ImagesApp(BaseApp):
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """list [<filter>] [--n <n>]
         Show images. Apply filter if specified.
-            filter: sha1 prefix (#...), 'detached', 'attached', '*'
+            filter: sha1 prefix (#...), 'detached', 'attached', '*', tag ('tag=avatar')
             n: number of images to list (default: 5, only applies without filter)
         """
         if pos:
             # list with filter
             filter = pos[0]
-            images = self.image_manager.get_images_by_filter(filter)
-            if not images:
+            some_images = self.image_manager.get_images(filter)
+            if not some_images:
                 self.warning(f"No images found matching {filter!r}.")
                 return
             self.cns.print(f"Images matching {filter!r}:")
-            for img in images:
+            for img in some_images:
                 self.cns.print(str(img))
             return
         if (n := self.app.try_int(kwargs.get("n", "5"))) is None:
             return
-        images = self.image_manager.get_images()
-        if not images:
+        self._images = self.image_manager.get_images()
+        if not self._images:
             return
         self.cns.print(f"Last {n} images:")
-        for img in images[-n:]:
+        for img in self._images[-n:]:
             self.cns.print(str(img))
 
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -103,7 +119,7 @@ class ImagesApp(BaseApp):
                 self.warning("No image found in clipboard.")
             return
         image_filter = pos[0]
-        imgs = self.image_manager.get_images_by_filter(image_filter)
+        imgs = self.image_manager.get_images(image_filter)
         if not imgs:
             self.warning(f"No image found with ID: {image_filter}")
             return
@@ -114,13 +130,30 @@ class ImagesApp(BaseApp):
         ):
             self.cns.print(msg)
 
-    def cmd_upload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """upload [--attach <entry_id|title>]
-        Upload image from clipboard and optionally attach it to an entry.
+    def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """tag|tags [--reload]
+        Manage image tags.
+        If --reload is specified, recompute the tags (runs in background).
         """
+        ...
+        if "reload" in flags:
+            self._load_tags()
+
+    def cmd_upload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """upload [--attach <entry_id|title>] [**tags]
+        Upload image from clipboard and optionally attach it to an entry.
+        Any additional kwargs are passed as tags to the image's metadata.
+        E.g., an image uploaded with
+            upload --attach -1 --what avatar --who me|john --misc something
+        would match all of the following tag-filters:
+            '=', 'what=', '=me', '=john'
+        """
+        attach_to_entry_id = kwargs.pop("attach", None)
         with self.cns.status("Uploading image from clipboard..."):
-            img_cb = self.image_manager.upload_from_clipboard()
-        attach_to_entry_id = kwargs.get("attach")
+            img_cb = self.image_manager.upload_from_clipboard(kwargs)
+        if not img_cb:
+            self.warning("No image found in clipboard.")
+            return
         entry_ = None
         if attach_to_entry_id:
             entry_ = self.app.entry_by_idx_or_title(attach_to_entry_id)
@@ -149,7 +182,7 @@ class ImagesApp(BaseApp):
         if not entry:
             self.error("Entry not found.")
             return
-        images = self.image_manager.get_images_by_filter(image_filter)
+        images = self.image_manager.get_images(image_filter)
         if not images:
             self.warning(f"No image found with ID: {image_filter}")
             return
@@ -172,7 +205,7 @@ class ImagesApp(BaseApp):
         if not entry:
             self.error("Entry not found.")
             return
-        images = self.image_manager.get_images_by_filter(image_filter)
+        images = self.image_manager.get_images(image_filter)
         if not images:
             self.warning(f"No image found with ID: {image_filter}")
             return
@@ -191,7 +224,7 @@ class ImagesApp(BaseApp):
             self.error("Usage: delete <image>")
             return
         image_filter = pos[0]
-        imgs = self.image_manager.get_images_by_filter(image_filter)
+        imgs = self.image_manager.get_images(image_filter)
         if not imgs:
             self.warning(f"No image found with ID: {image_filter}")
             return
