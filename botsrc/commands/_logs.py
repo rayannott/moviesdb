@@ -1,8 +1,7 @@
-import re
-
-import logging
 import io
 import json
+import logging
+import re
 import zipfile
 
 import telebot
@@ -10,7 +9,6 @@ from telebot import types
 
 from src.parser import Flags
 from src.paths import LOGS_DIR
-
 
 logger = logging.getLogger(__name__)
 

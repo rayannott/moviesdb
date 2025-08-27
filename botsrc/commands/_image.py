@@ -3,10 +3,10 @@ import logging
 import telebot
 from telebot import types
 
+from botsrc.utils import select_entry_by_oid_part
 from src.mongo import Mongo
 from src.obj.images_manager import ImagesStore, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from botsrc.utils import select_entry_by_oid_part
 
 logger = logging.getLogger(__name__)
 

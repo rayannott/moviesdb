@@ -1,5 +1,5 @@
+from datetime import date, datetime, timedelta
 from statistics import mean
-from datetime import datetime, timedelta, date
 
 from rich import box
 from rich.align import Align

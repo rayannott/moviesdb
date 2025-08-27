@@ -1,10 +1,9 @@
-from rich.text import Text
-from rich.table import Table
 from rich.align import Align
+from rich.table import Table
+from rich.text import Text
 
 from src.utils.rich_utils import get_rich_table
 from src.utils.utils import possible_match
-
 
 _missing = object()
 

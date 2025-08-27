@@ -5,17 +5,17 @@ from telebot import types
 
 from botsrc.commands import (
     add,
+    books,
     find,
     group,
     guest,
+    image,
     list_,
+    logs,
     pop,
     suggest,
     tag,
     watch,
-    logs,
-    books,
-    image,
 )
 from src.parser import Flags, KeywordArgs, PositionalArgs
 

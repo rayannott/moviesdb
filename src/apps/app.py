@@ -18,6 +18,8 @@ with Console().status("Loading dependencies..."):
     from rich.prompt import Prompt
 
     from setup_logging import setup_logging
+    from src.apps import BooksApp, ImagesApp, SqlApp
+    from src.apps.base import BaseApp
     from src.obj.ai import ChatBot
     from src.obj.entry import (
         Entry,
@@ -26,12 +28,10 @@ with Console().status("Loading dependencies..."):
         build_tags,
         is_verbose,
     )
-    from src.apps import ImagesApp, SqlApp, BooksApp
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
-    from src.apps.base import BaseApp
     from src.parser import Flags, KeywordArgs, PositionalArgs
     from src.paths import LOCAL_DIR
     from src.utils.help_utils import get_rich_help

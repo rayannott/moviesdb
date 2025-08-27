@@ -4,11 +4,11 @@ from typing import Callable
 from rich.console import Console
 from rich.syntax import Syntax
 
-from src.obj.entry import Entry
 from src.apps.base import BaseApp
+from src.obj.entry import Entry
+from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.paths import SQL_QUERY_EXAMPLES_DIR
 from src.utils.rich_utils import get_rich_table
-from src.parser import Flags, KeywordArgs, PositionalArgs
 
 
 class SqlApp(BaseApp):

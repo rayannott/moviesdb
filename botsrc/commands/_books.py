@@ -5,7 +5,7 @@ from telebot import types
 
 from botsrc.utils import format_book
 from src.apps import BooksApp
-from src.parser import PositionalArgs, Flags
+from src.parser import Flags, PositionalArgs
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
-from .sqlapp import SqlApp
+from .app import App
 from .book import BooksApp
 from .image import ImagesApp
-from .app import App
+from .sqlapp import SqlApp
 
 __all__ = ["SqlApp", "BooksApp", "ImagesApp", "App"]

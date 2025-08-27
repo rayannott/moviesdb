@@ -1,10 +1,10 @@
 import datetime
 import difflib
 import json
-import re
 import logging
+import re
 
-from git import Repo, Commit
+from git import Commit, Repo
 
 from src.paths import ALLOWED_USERS
 

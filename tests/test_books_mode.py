@@ -1,10 +1,10 @@
 import re
-import pytest
 
+import pytest
 from supabase import Client
 
-from src.obj.book import Book
 from src.apps import BooksApp
+from src.obj.book import Book
 
 
 @pytest.fixture(scope="session")
