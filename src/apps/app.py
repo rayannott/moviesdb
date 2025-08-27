@@ -18,8 +18,10 @@ with Console().status("Loading dependencies..."):
     from rich.prompt import Prompt
 
     from setup_logging import setup_logging
-    from src.apps import BooksApp, ImagesApp, SqlApp
     from src.apps.base import BaseApp
+    from src.apps.book import BooksApp
+    from src.apps.image import ImagesApp
+    from src.apps.sqlapp import SqlApp
     from src.obj.ai import ChatBot
     from src.obj.entry import (
         Entry,
