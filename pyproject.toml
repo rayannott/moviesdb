@@ -30,6 +30,11 @@ dev = [
     "types-requests>=2.32.4.20250809",
 ]
 
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning:supabase\\._sync\\.client"]
+
 [tool.mypy]
 explicit_package_bases = true
 check_untyped_defs = true
