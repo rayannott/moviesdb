@@ -27,8 +27,9 @@ with Console().status("Loading dependencies..."):
         build_tags,
         is_verbose,
     )
+    from src.apps.images import ImagesApp
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
-    from src.obj.images_manager import ImagesStore, cmd_image
+    from src.obj.images_manager import ImagesStore
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
@@ -765,28 +766,12 @@ repo={self.repo_info_loading_time:.3f}s;
         entry = Entry(None, title, rating, when, type, notes)
         self._try_add_entry(entry)
 
-    def cmd_image(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """image ...
+    def cmd_images(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """images ...
         Manage images in the database.
-        Commands:
-        - list [<image>]: Show images; apply image filter if specified.
-        - show: Show image from clipboard.
-        - show <image> [--no-browser]: Show image by filter; --no-browser opens locally.
-        - entry <entry_id|title> [--no-browser]: Show all images for an entry.
-        - upload [--attach <entry_id|title>]: Upload clipboard image; attach to entry if specified.
-        - attach <image> <entry_id|title>: Attach image to entry.
-        - detach <image> <entry_id|title>: Detach image from entry.
-        - delete <image>: Delete image.
-        - _sync: Sync local image cache with S3 (deprecated)
-        - clear: Clear local image cache.
-        Filters for <image>:
-        - Starts with '#' for sha1 prefix.
-        - 'detached': images not attached to any entry.
-        - 'attached': images attached to entries.
-        - '*': all images.
-        You may be prompted to confirm actions on multiple images.
         """
-        cmd_image(self, pos, kwargs, flags)
+        images_app = ImagesApp(self, self.cns, self.input)
+        images_app.run()
 
     def _try_add_entry(self, entry: Entry):
         self._process_watch_again_tag_on_add(entry)

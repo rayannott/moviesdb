@@ -9,21 +9,13 @@ from datetime import datetime, timezone
 from hashlib import sha1
 from pathlib import Path
 from time import perf_counter as pc
-from typing import TYPE_CHECKING
 from warnings import deprecated
 
 import boto3
 from PIL import Image, ImageGrab, UnidentifiedImageError
-from rich.prompt import Prompt
 
-from src.mongo import Mongo
 from src.obj.entry import Entry
-from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.env import IMAGES_SERIES_BUCKET_NAME
-from src.utils.rich_utils import format_entry
-
-if TYPE_CHECKING:
-    from src.app import App
 
 logger = logging.getLogger(__name__)
 
@@ -320,137 +312,3 @@ class ImagesStore:
             ExpiresIn=expires_in,
         )
         return url
-
-
-def cmd_image(self: "App", pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-    def _confirm(imgs: list[S3Image], prompt: str, *, ask_if_len_ge: int = 5) -> bool:
-        if len(imgs) >= ask_if_len_ge and "y" != (
-            Prompt.ask(
-                f"[underline bold]{prompt}[/] [green]{len(imgs)}[/] selected images"
-                + (f"\n({'\n'.join(map(str, imgs))})?" if len(imgs) <= 5 else " (...)"),
-                choices=["y", "n"],
-                default="n",
-                console=self.cns,
-            )
-        ):
-            return False
-        return True
-
-    match pos:
-        case ["list"]:
-            if (n := self.try_int(kwargs.get("n", "5"))) is None:
-                return
-            images = self.image_manager.get_images()
-            if not images:
-                return
-            self.cns.print(f"Last {n} images:")
-            for img in images[-n:]:
-                self.cns.print(str(img))
-        case ["list", filter]:
-            images = self.image_manager.get_images_by_filter(filter)
-            if not images:
-                self.warning(f"No images found matching {filter!r}.")
-                return
-            self.cns.print(f"Images matching {filter!r}:")
-            for img in images:
-                self.cns.print(str(img))
-        case ["show"]:
-            image = self.image_manager.grab_clipboard_image()
-            if image:
-                self.cns.print(f"Showing image: {image}")
-                image.show()
-            else:
-                self.warning("No image found in clipboard.")
-        case ["show", image_filter]:
-            imgs = self.image_manager.get_images_by_filter(image_filter)
-            if not imgs:
-                self.warning(f"No image found with ID: {image_filter}")
-                return
-            if not _confirm(imgs, "Show", ask_if_len_ge=3):
-                return
-            for msg in self.image_manager.show_images(
-                imgs, in_browser="no-browser" not in flags
-            ):
-                self.cns.print(msg)
-        case ["upload"]:
-            with self.cns.status("Uploading image from clipboard..."):
-                img_cb = self.image_manager.upload_from_clipboard()
-            attach_to_entry_id = kwargs.get("attach")
-            entry_ = None
-            if attach_to_entry_id:
-                entry_ = self.entry_by_idx_or_title(attach_to_entry_id)
-                if not entry_:
-                    self.warning(
-                        f"No entry found with ID: {attach_to_entry_id}; not attaching."
-                    )
-            if img_cb:
-                self.cns.print(f"Uploaded {img_cb}")
-                if entry_:
-                    entry_.attach_image(img_cb.s3_id)
-                    Mongo.update_entry(entry_)
-                    self.cns.print(f"Attached to {format_entry(entry_)}")
-            else:
-                self.error(f"Failed to upload {img_cb} from clipboard.")
-        case ["attach" | "detach" as cmd, image_filter, entry_id_str]:
-            entry = self.entry_by_idx_or_title(entry_id_str)
-            if not entry:
-                self.error("Entry not found.")
-                return
-            images = self.image_manager.get_images_by_filter(image_filter)
-            if not images:
-                self.warning(f"No image found with ID: {image_filter}")
-                return
-            if not _confirm(images, cmd.title(), ask_if_len_ge=1):
-                return
-            for img in images:
-                if cmd == "attach":
-                    entry.attach_image(img.s3_id)
-                else:
-                    entry.detach_image(img.s3_id)
-                Mongo.update_entry(entry)
-                self.cns.print(
-                    f"{cmd.title()}ed {img} {'to' if cmd == 'attach' else 'from'} {format_entry(entry)}"
-                )
-        case ["delete", image_filter]:
-            imgs = self.image_manager.get_images_by_filter(image_filter)
-            if not imgs:
-                self.warning(f"No image found with ID: {image_filter}")
-                return
-            if not _confirm(imgs, "Delete", ask_if_len_ge=2):
-                return
-            for img_to_delete in imgs:
-                self.image_manager.delete_image(img_to_delete)
-                self.cns.print(f"Deleted {img_to_delete}")
-                if not img_to_delete.entries:
-                    continue
-                for entry in img_to_delete.entries:
-                    ok = entry.detach_image(img_to_delete.s3_id)
-                    if not ok:
-                        self.error(f"Failed to detach {img_to_delete} from {entry}")
-                    Mongo.update_entry(entry)
-                    self.cns.print(f"  detached from {format_entry(entry)}")
-        case ["entry", entry_id_str]:
-            entry = self.entry_by_idx_or_title(entry_id_str)
-            if not entry:
-                self.error("Entry not found.")
-                return
-            if not entry.image_ids:
-                self.warning("No images found for this entry.")
-                return
-            for msg in self.image_manager.show_images(
-                list(map(S3Image, entry.image_ids)),
-                in_browser="no-browser" not in flags,
-            ):
-                self.cns.print(msg)
-        case ["stats"]:
-            num_total_images, num_attached_images = self.image_manager.get_image_stats()
-            self.cns.print(
-                f"Total images: {num_total_images}\nAttached images: {num_attached_images}"
-            )
-        case ["clear"]:
-            n_removed = self.image_manager.clear_cache()
-            self.cns.print(f"Removed {n_removed} cached images.")
-        case ["_sync"]:
-            self.image_manager.sync()
-        case _:
-            self.error("Invalid image command.")
