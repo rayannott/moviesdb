@@ -31,6 +31,7 @@ class EntryFormApp(App):
         date: str | str = "",
         notes: str | str = "",
         button_text: str = "Save",
+        **kwargs,
     ):
         self._title = title
         self._rating = rating
@@ -38,6 +39,7 @@ class EntryFormApp(App):
         self._date = date
         self._notes = notes
         self._button_text = button_text
+        self._other_entry_kwargs = kwargs
         super().__init__()
         self._themes = list(
             self.app.available_themes.keys()
@@ -114,20 +116,28 @@ class EntryFormApp(App):
         title = self.query_one("#title", Input).value.strip()
         rating_str = self.query_one("#rating", Input).value.strip()
         media_type = "SERIES" if self._is_series else "MOVIE"
-        date = self.query_one("#date", Input).value
+        date_str = self.query_one("#date", Input).value
         notes = self.query_one("#notes", TextArea).text
 
         try:
             if not title:
                 raise MalformedEntryException("Empty title")
             rating = Entry.parse_rating(rating_str)
-            date = Entry.parse_date(date)
+            date = Entry.parse_date(date_str)
             type = Entry.parse_type(media_type)
         except MalformedEntryException as e:
             self.notify(f" {e}", severity="error")
             return False
         else:
-            self.entry = Entry(None, title, rating, date, type, notes)
+            self.entry = Entry(
+                None,
+                title,
+                rating,
+                date,
+                type,
+                notes,
+                **self._other_entry_kwargs,
+            )
             self.notify(f"Ok:\n{format_entry(self.entry)}.\n Ctrl+Q to exit.")
             return True
 

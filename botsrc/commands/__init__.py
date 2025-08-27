@@ -1,11 +1,27 @@
-from botsrc.commands._add import add  # noqa
-from botsrc.commands._suggest import suggest  # noqa
-from botsrc.commands._tag import tag  # noqa
-from botsrc.commands._group import group  # noqa
-from botsrc.commands._list import list_  # noqa
-from botsrc.commands._find import find  # noqa
-from botsrc.commands._watch import watch  # noqa
-from botsrc.commands._pop import pop  # noqa
-from botsrc.commands._guest import guest  # noqa
-from botsrc.commands._logs import logs  # noqa
-from botsrc.commands._books import books  # noqa
+from botsrc.commands._add import add
+from botsrc.commands._books import books
+from botsrc.commands._find import find
+from botsrc.commands._group import group
+from botsrc.commands._guest import guest
+from botsrc.commands._image import image
+from botsrc.commands._list import list_
+from botsrc.commands._logs import logs
+from botsrc.commands._pop import pop
+from botsrc.commands._suggest import suggest
+from botsrc.commands._tag import tag
+from botsrc.commands._watch import watch
+
+__all__ = [
+    "add",
+    "suggest",
+    "tag",
+    "group",
+    "list_",
+    "find",
+    "watch",
+    "pop",
+    "guest",
+    "logs",
+    "books",
+    "image",
+]

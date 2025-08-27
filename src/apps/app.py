@@ -1,13 +1,12 @@
-import time
+from time import perf_counter as pc
 
 from rich.console import Console
 
 with Console().status("Loading dependencies..."):
-    _t_dep_0 = time.perf_counter()
+    _t_dep_0 = pc()
     import json
-    import os
-    import random
     import logging
+    import random
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
@@ -19,6 +18,10 @@ with Console().status("Loading dependencies..."):
     from rich.prompt import Prompt
 
     from setup_logging import setup_logging
+    from src.apps.base import BaseApp
+    from src.apps.book import BooksApp
+    from src.apps.image import ImagesApp
+    from src.apps.sqlapp import SqlApp
     from src.obj.ai import ChatBot
     from src.obj.entry import (
         Entry,
@@ -31,10 +34,10 @@ with Console().status("Loading dependencies..."):
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
-    from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
+    from src.parser import Flags, KeywordArgs, PositionalArgs
     from src.paths import LOCAL_DIR
+    from src.utils.help_utils import get_rich_help
     from src.utils.plots import get_plot
-    from src.utils.help_utils import get_rich_help, parse_docstring
     from src.utils.rich_utils import (
         format_entry,
         format_movie_series,
@@ -57,17 +60,21 @@ with Console().status("Loading dependencies..."):
         replace_tag_alias,
     )
 
-    DEP_LOADING_TIME = time.perf_counter() - _t_dep_0
+    DEP_LOADING_TIME = pc() - _t_dep_0
 
 with Console().status("Connecting to MongoDB..."):
-    _t_mongo_0 = time.perf_counter()
+    _t_mongo_0 = pc()
     from src.mongo import Mongo
 
-    MONGO_LOADING_TIME = time.perf_counter() - _t_mongo_0
+    MONGO_LOADING_TIME = pc() - _t_mongo_0
 
 
 def identity(x: str):
     return x
+
+
+def std(data: list[float] | list[int]) -> float:
+    return stdev(data) if len(data) > 1 else 0.0
 
 
 VALUE_MAP: dict[str, Callable[[str], Any]] = {
@@ -78,14 +85,11 @@ VALUE_MAP: dict[str, Callable[[str], Any]] = {
     "date": Entry.parse_date,
 }
 
-
-COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}
-
 logger = logging.getLogger(__name__)
 setup_logging()
 
 
-class App:
+class App(BaseApp):
     @staticmethod
     def load_entries() -> list[Entry]:
         return Mongo.load_entries()
@@ -109,12 +113,6 @@ class App:
             styles=["cyan"],
         )
 
-    def error(self, text: str):
-        self.cns.print(f" {text}", style="bold red")
-
-    def warning(self, text: str):
-        self.cns.print(f" {text}", style="bold yellow")
-
     @staticmethod
     def md(text: str) -> Markdown:
         return Markdown(text)
@@ -124,6 +122,7 @@ class App:
             return int(s)
         except ValueError:
             self.cns.print(f" Not an integer: {s!r}", style="bold red")
+        return None
 
     def __init__(self):
         self.running = True
@@ -132,26 +131,13 @@ class App:
         self.cns = Console()
         self.input = partial(rinput, self.cns)
 
+        super().__init__(self.cns, input, prompt_str=">>>")  # keep builtin input
+
         self.chatbot = ChatBot(self.entries, Mongo)
 
-        self.command_methods: dict[
-            str, Callable[[PositionalArgs, KeywordArgs, Flags], None]
-        ] = {
-            method_name[4:]: getattr(self, method_name)
-            for method_name in dir(self)
-            if method_name.startswith("cmd_")
-        }
-        self.help_messages = {
-            cmd_root: parse_docstring(cmd_fn.__doc__)
-            for cmd_root, cmd_fn in self.command_methods.items()
-        }
-        for alias, command in COMMAND_ALIASES.items():
-            self.command_methods[alias] = self.command_methods[command]
-            self.help_messages[alias] = self.help_messages[command]
-
-        _t_repo_0 = time.perf_counter()
+        _t_repo_0 = pc()
         self.repo_info = RepoInfo()
-        self.repo_info_loading_time = time.perf_counter() - _t_repo_0
+        self.repo_info_loading_time = pc() - _t_repo_0
 
         logger.info(
             f"""init App; loading times:
@@ -258,19 +244,31 @@ repo={self.repo_info_loading_time:.3f}s;
             title_fmtd + "[bold green] has been removed from the watch list."
         )
 
-    def entry_by_idx(self, idx: int | str) -> Entry | None:
+    def entry_by_idx(
+        self, idx: int | str, *, suppress_errors: bool = False
+    ) -> Entry | None:
         try:
             idx_ = int(idx)
             return self.entries[idx_]
         except (ValueError, IndexError):
-            self.error(f"Invalid index: {idx}.")
+            if not suppress_errors:
+                self.error(f"Invalid index: {idx}.")
             return None
+
+    def entry_by_idx_or_title(self, idx_title: str | int) -> Entry | None:
+        """Get an entry by index or title.
+        If a title matches multiple entries, return the most recent one."""
+        by_id = self.entry_by_idx(idx_title, suppress_errors=True)
+        if by_id:
+            return by_id
+        by_title = self._find_exact_matches(str(idx_title))
+        if by_title:
+            return by_title[-1][1]
+        return None
 
     def header(self):
         branch = f"[violet] {self.repo_info.get_branch()}[/]"
-        last_commit_from = (
-            f"[gold3]󰚰 {self.repo_info.get_last_commit_timestamp()}[/]"
-        )
+        last_commit_from = f"[gold3]󰚰 {self.repo_info.get_last_commit_timestamp()}[/]"
         self.cns.rule(
             rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
         )
@@ -320,6 +318,7 @@ repo={self.repo_info_loading_time:.3f}s;
             date=entry.date.strftime("%d.%m.%Y") if entry.date else "",
             notes=entry.notes + " " + " ".join(f"#{t}" for t in entry.tags),
             button_text="Modify",
+            image_ids=entry.image_ids,
         )
         entry_app.run()
         if entry_app.entry is not None:
@@ -344,9 +343,6 @@ repo={self.repo_info_loading_time:.3f}s;
         tags = build_tags(self.entries)
         if not pos:
             _s = slice(2) if "verbose" not in flags else slice(None)
-
-            def std(data: list[float]) -> float:
-                return stdev(data) if len(data) > 1 else 0.0
 
             # TODO: more columns for verbose?
             self.cns.print(
@@ -380,10 +376,9 @@ repo={self.repo_info_loading_time:.3f}s;
             return
         # movie specification by title (or index)
         title_or_idx = pos[1]
-        exact_matches = self._find_exact_matches(title_or_idx)
-        if exact_matches:
-            entry = exact_matches[-1][1]
-        elif not (entry := self.entry_by_idx(title_or_idx)):
+        entry = self.entry_by_idx_or_title(title_or_idx)
+        if not entry:
+            self.warning(f"No entry found matching idx or title: {title_or_idx!r}")
             return
         if {"d", "delete"} & flags:
             try:
@@ -427,10 +422,10 @@ repo={self.repo_info_loading_time:.3f}s;
             if note.lower() in e.notes.lower()
         ]
         if matches:
-            ids, matches = zip(*matches)
+            ids, entries = zip(*matches)
             self.cns.print(
                 get_entries_table(
-                    matches, ids, title=f"[bold yellow]{len(matches)}[/] matches"
+                    entries, ids, title=f"[bold yellow]{len(matches)}[/] matches"
                 )
             )
         else:
@@ -480,7 +475,7 @@ repo={self.repo_info_loading_time:.3f}s;
             chatbot = ChatBotApp(self.chatbot, "full" not in flags)
             chatbot.run()
             return
-        t0 = time.perf_counter()
+        t0 = pc()
         AI_STATUS_TEXT_OPTIONS = [
             "Beep Beep Boop Boop 󰚩",
             "Thinking hard ",
@@ -492,7 +487,7 @@ repo={self.repo_info_loading_time:.3f}s;
                 prompt,
                 "full" not in flags,
             )
-        t1 = time.perf_counter()
+        t1 = pc()
         self.cns.print(
             Panel(
                 self.md(result),
@@ -501,9 +496,10 @@ repo={self.repo_info_loading_time:.3f}s;
         )
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """list [--series | --movies] [--n <n>] [--all]
+        """list [--series | --movies] [--gallery] [--n <n>] [--all]
         List last n entries (default is 5).
         If --all is specified, show all matched entries.
+        If --gallery is specified, filter the entries that have attached images.
         If --series or --movies is specified, filter the entries by type."""
         if F_SERIES in flags and F_MOVIES in flags:
             self.error(f"Cannot specify both --{F_SERIES} and --{F_MOVIES} ")
@@ -516,8 +512,12 @@ repo={self.repo_info_loading_time:.3f}s;
             entries = [ent for ent in entries if ent.is_series]
         elif F_MOVIES in flags:
             entries = [ent for ent in entries if not ent.is_series]
+        if "gallery" in flags:
+            entries = [ent for ent in entries if ent.image_ids]
         _slice = slice(0, None, None) if F_ALL in flags else slice(-n, None, None)
-        self.cns.print(get_entries_table(entries[_slice], title=f"Last {n} entries"))
+        entries = entries[_slice]
+        n = len(entries)
+        self.cns.print(get_entries_table(entries, title=f"Last {n} entries"))
 
     def cmd_group(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """group [<title>] [--series | --movies] [--n <n>] [--all]
@@ -577,8 +577,8 @@ repo={self.repo_info_loading_time:.3f}s;
         series = [e.rating for e in self.entries if e.is_series]
         avg_movies = mean(movies)
         avg_series = mean(series)
-        stdev_movies = stdev(movies)
-        stdev_series = stdev(series)
+        stdev_movies = std(movies)
+        stdev_series = std(series)
         self.cns.print(
             f"Averages:\n  - movies: {format_rating(avg_movies)} ± {stdev_movies:.3f} "
             f"(n={len(movies)})\n  - series: {format_rating(avg_series)} ± {stdev_series:.3f} (n={len(series)})"
@@ -587,7 +587,7 @@ repo={self.repo_info_loading_time:.3f}s;
         watched_more_than_once = [g for g in groups if len(g.ratings) > 1]
         watched_times = [len(g.ratings) for g in groups]
         watched_times_mean = mean(watched_times)
-        watched_times_stdev = stdev(watched_times) if len(watched_times) > 1 else 0
+        watched_times_stdev = std(watched_times)
         self.cns.print(
             f"There are {len(groups)} unique entries; {len(watched_more_than_once)} of them have been "
             f"watched more than once ({watched_times_mean:.2f} ± {watched_times_stdev:.2f} times on average).\n"
@@ -739,6 +739,13 @@ repo={self.repo_info_loading_time:.3f}s;
         entry = Entry(None, title, rating, when, type, notes)
         self._try_add_entry(entry)
 
+    def cmd_images(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """images ...
+        Manage images in the database.
+        """
+        images_app = ImagesApp(self, self.cns, self.input)
+        images_app.run()
+
     def _try_add_entry(self, entry: Entry):
         self._process_watch_again_tag_on_add(entry)
         self.add_entry(entry)
@@ -876,17 +883,13 @@ repo={self.repo_info_loading_time:.3f}s;
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """sql
         Start the SQL-like query mode."""
-        from src.obj.sql_mode import SqlMode
-
-        sql_mode = SqlMode(self.entries, self.cns, self.input)
+        sql_mode = SqlApp(self.entries, self.cns, self.input)
         sql_mode.run()
 
     def cmd_books(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """books
         Start the books subapp."""
-        from src.obj.books_mode import BooksMode
-
-        books_mode = BooksMode(self.cns, self.input)
+        books_mode = BooksApp(self.cns, self.input)
         books_mode.run()
 
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -912,12 +915,6 @@ repo={self.repo_info_loading_time:.3f}s;
         Exit the application."""
         self.running = False
 
-    def cmd_cls(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """cls | clear
-        Clear the console."""
-        os.system("cls" if os.name == "nt" else "clear")
-        self.header()
-
     def cmd_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """reload
         Bring the data up to date.
@@ -935,45 +932,7 @@ repo={self.repo_info_loading_time:.3f}s;
     def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         raise NotImplementedError("Debug command not implemented")
 
-    def maybe_command(self, root):
-        maybe = possible_match(root, set(self.command_methods))
-        self.error(
-            f'Invalid command: "{root}". '
-            + (f'Did you mean: "{maybe}"? ' if maybe else "")
-            + 'Type "help" for a list of commands'
-        )
-
-    def process_command(self, command: str):
-        try:
-            root, pos, kwargs, flags = parse(command)
-        except ParsingError as e:
-            self.error(f"{e}: {command!r}")
-            logger.info(f"parsing error: {e} for command {command!r}")
-            return
-        command_method = self.command_methods.get(root)
-        if command_method is None:
-            self.maybe_command(root)
-            return
-        if "help" in flags:
-            self.cmd_help([root], {}, set())
-            return
-        command_method(pos, kwargs, flags)
-        logger.info(f"executed command: {root=!r}, {pos=!r}, {kwargs=!r}, {flags=!r}")
-
-    def run(self):
-        logger.info("starting App")
+    def pre_run(self):
+        """Prepare the application to run."""
+        super().pre_run()
         self.cmd_export([], {}, {"silent"})
-        self.header()
-        while self.running:
-            try:
-                command = self.input(">>> ")
-                self.process_command(command)
-            except EOFError:
-                print()
-                return
-            except KeyboardInterrupt:
-                return
-            except Exception as _:
-                self.cns.print_exception()
-                logger.error("unhandled exception", exc_info=True)
-        logger.info("stopping App")

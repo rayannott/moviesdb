@@ -5,9 +5,9 @@ from typing import TypeVar
 from git import Commit
 
 from src.mongo import Mongo
+from src.obj.book import Book
 from src.obj.entry import Entry
 from src.obj.entry_group import EntryGroup
-from src.obj.books_mode import Book
 from src.paths import ALLOWED_USERS
 from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
 
@@ -27,9 +27,12 @@ def select_entry_by_oid_part(oid_part: str, entries: list[Entry]) -> Entry | Non
 def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) -> str:
     note_str = f": {entry.notes}" if entry.notes and verbose else ""
     watched_date_str = f" ({entry.date.strftime('%d.%m.%Y')})" if entry.date else ""
+    _num_images_str = (
+        " {" + f"{len(entry.image_ids)} img" + "}" if entry.image_ids else ""
+    )
     tags_str = f" [{' '.join(entry.tags)}]" if entry.tags else ""
     oid_part = "{" + str(entry._id)[-4:] + "} " if with_oid else ""
-    return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{note_str}{tags_str}"
+    return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{_num_images_str}{note_str}{tags_str}"
 
 
 def format_book(book: Book, verbose: bool = False) -> str:
@@ -97,7 +100,7 @@ def report_repository_info() -> str:
         return f"""commit {commit.hexsha}
 Author: {commit.author.name} <{commit.author.email}>
 Date:   {commit.authored_datetime}
-{commit.message}"""
+{commit.message}"""  # type: ignore[str-bytes-safe]
 
     repo_info = RepoInfo()
     return f"""Bot started at {BOT_STARTED} on branch: {repo_info.get_branch()}.

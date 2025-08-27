@@ -1,11 +1,14 @@
 [project]
 name = "moviesdb"
-version = "1.0.0"
+version = "1.0.4"
 requires-python = ">=3.13"
 dependencies = [
+    "boto3>=1.40.15",
+    "boto3-stubs[s3]>=1.40.15",
     "gitpython>=3.1.45",
     "nbformat>=5.10.4",
     "openai>=1.100.2",
+    "pillow>=11.3.0",
     "plotly>=6.3.0",
     "pydantic>=2.11.7",
     "pymongo>=4.14.1",
@@ -20,6 +23,18 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel>=6.30.1",
+    "mypy>=1.17.1",
+    "plotly-stubs>=0.0.6",
     "pytest>=8.4.1",
     "ruff>=0.12.9",
+    "types-requests>=2.32.4.20250809",
 ]
+
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning:supabase\\._sync\\.client"]
+
+[tool.mypy]
+explicit_package_bases = true
+check_untyped_defs = true

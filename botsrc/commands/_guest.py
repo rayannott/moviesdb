@@ -1,6 +1,7 @@
 import logging
 
 import telebot
+from telebot import types
 
 from src.parser import KeywordArgs
 from src.utils.utils import AccessRightsManager
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def guest(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     kwargs: KeywordArgs,
 ):

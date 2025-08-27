@@ -1,13 +1,14 @@
 import logging
 
 import telebot
+from telebot import types
 
 from botsrc.utils import ME_CHAT_ID
 
 logger = logging.getLogger(__name__)
 
 
-def suggest(message: telebot.types.Message, bot: telebot.TeleBot):
+def suggest(message: types.Message, bot: telebot.TeleBot):
     if message.text is None or not message.text.strip():
         bot.reply_to(message, "Please provide a text message.")
         logger.info("empty message text")

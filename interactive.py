@@ -1,4 +1,4 @@
-from src.app import App
+from src.apps import App
 
 if __name__ == "__main__":
     print("python interactive mode is running")

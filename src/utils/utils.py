@@ -1,10 +1,10 @@
 import datetime
 import difflib
 import json
-import re
 import logging
+import re
 
-from git import Repo, Commit
+from git import Commit, Repo
 
 from src.paths import ALLOWED_USERS
 
@@ -122,10 +122,10 @@ class AccessRightsManager:
 class RepoInfo:
     def __init__(self):
         try:
-            self.repo = Repo(".")
+            self.repo: Repo | None = Repo(".")
             self.recent_commits = list(self.repo.iter_commits(max_count=5))
-            self.on_branch = self.repo.active_branch.name
-            self.last_commit = self.recent_commits[0]
+            self.on_branch: str | None = self.repo.active_branch.name
+            self.last_commit: Commit | None = self.recent_commits[0]
         except Exception as e:
             logger.error(f"Error initializing RepoInfo: {e}")
             self.repo = None

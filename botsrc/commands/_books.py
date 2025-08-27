@@ -1,23 +1,24 @@
 import logging
 
 import telebot
+from telebot import types
 
 from botsrc.utils import format_book
-from src.obj.books_mode import BooksMode
-from src.parser import PositionalArgs, Flags
+from src.apps import BooksApp
+from src.parser import Flags, PositionalArgs
 
 logger = logging.getLogger(__name__)
 
 
 def books(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     pos: PositionalArgs,
     flags: Flags,
 ):
     # TODO: implement other logic (n books, find, ...)
-    client = BooksMode.get_client()
-    books = BooksMode.get_books(client)
+    client = BooksApp.get_client()
+    books = BooksApp.get_books(client)
     if not books:
         bot.reply_to(message, "No books found.")
         return

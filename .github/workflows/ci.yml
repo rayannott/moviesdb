@@ -31,3 +31,5 @@ jobs:
       run: uv run pytest
     - name: Run ruff
       run: uv run ruff check --output-format=github .
+    - name: Run mypy
+      run: uv run mypy .

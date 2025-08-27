@@ -1,21 +1,22 @@
 import re
-import pytest
 
+import pytest
 from supabase import Client
 
-from src.obj.books_mode import Book, BooksMode
+from src.apps import BooksApp
+from src.obj.book import Book
 
 
 @pytest.fixture(scope="session")
 def supabase_client() -> Client:
     """Fixture to create a Supabase client."""
-    return BooksMode.get_client()
+    return BooksApp.get_client()
 
 
 @pytest.fixture
 def books(supabase_client: Client) -> list[Book]:
     """Fixture to get books from the Supabase client."""
-    return BooksMode.get_books(supabase_client)
+    return BooksApp.get_books(supabase_client)
 
 
 def test_get_books(books: list[Book]):

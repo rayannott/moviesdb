@@ -1,11 +1,11 @@
 from src.utils.env import (
     MONGODB_PASSWORD,
-    TELEGRAM_TOKEN,
+    OMDB_API_KEY,
     OPENAI_API_KEY,
     OPENAI_PROJECT_ID,
-    OMDB_API_KEY,
     SUPABASE_API_KEY,
     SUPABASE_PROJECT_ID,
+    TELEGRAM_TOKEN,
 )
 
 

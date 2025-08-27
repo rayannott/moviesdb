@@ -1,6 +1,7 @@
 import logging
 
 import telebot
+from telebot import types
 
 from botsrc.utils import format_entry, select_entry_by_oid_part
 from src.mongo import Mongo
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def pop(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     pos: PositionalArgs,
 ):

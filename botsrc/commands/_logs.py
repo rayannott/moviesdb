@@ -1,15 +1,14 @@
-import re
-
-import logging
 import io
 import json
+import logging
+import re
 import zipfile
 
 import telebot
+from telebot import types
 
 from src.parser import Flags
 from src.paths import LOGS_DIR
-
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ def escape_md_v2(text: str) -> str:
 
 
 def logs(
-    message: telebot.types.Message,
+    message: types.Message,
     bot: telebot.TeleBot,
     flags: Flags,
 ):
