@@ -2,7 +2,7 @@ import inspect
 
 from rich.console import Console
 
-from obj.book import BooksMode
+from src.apps import BooksApp
 
 SIGNATURE = inspect.Signature(
     parameters=[
@@ -31,6 +31,6 @@ def test_cmd_signatures():
     def _mock_input(x: str) -> str:
         return x
 
-    app = BooksMode(_mock_console, _mock_input)
+    app = BooksApp(_mock_console, _mock_input)
     for cmd_method in app.command_methods.values():
         assert inspect.signature(cmd_method) == SIGNATURE
