@@ -34,18 +34,20 @@ class ImagesApp(BaseApp):
             t2 = pc()
         self._connected_in = t1 - t0
         self._images_loaded_in = t2 - t1
+        self._tags_loaded_in = 0.0
 
         self.register_aliases({"tags": "tag"})
         self._load_tags()
 
-    # TODO: store images in a variable and reload using get_images() with _reload()
-
     def _load_tags(self):
         # this starts a thread that loads image tags
         def _load_tags():
-            self.image_manager._get_tags()
+            _t0 = pc()
+            self.image_manager._get_ids_to_tags()
+            self._tags_loaded_in = pc() - _t0
 
-        self.image_manager._get_tags.cache_clear()
+        self.image_manager._get_ids_to_tags.cache_clear()
+        # TODO use a thread pool executor
         load_tags_thread = threading.Thread(target=_load_tags)
         load_tags_thread.start()
 
@@ -80,8 +82,8 @@ class ImagesApp(BaseApp):
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """list [<filter>] [--n <n>]
         Show images. Apply filter if specified.
-            filter: sha1 prefix (#...), 'detached', 'attached', '*', tag ('tag=avatar')
-            n: number of images to list (default: 5, only applies without filter)
+        filter: sha1 prefix (#...), 'attached', '*', tag ('tag=avatar'); prepend '!' for negation
+        n: number of images to list (default: 5, only applies without filter)
         """
         if pos:
             # list with filter
@@ -90,7 +92,7 @@ class ImagesApp(BaseApp):
             if not some_images:
                 self.warning(f"No images found matching {filter!r}.")
                 return
-            self.cns.print(f"Images matching {filter!r}:")
+            self.cns.print(f"{len(some_images)} images matching {filter!r}:")
             for img in some_images:
                 self.cns.print(str(img))
             return
@@ -106,9 +108,9 @@ class ImagesApp(BaseApp):
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """show [<filter>] [--no-browser]
         Show image(s).
-            If no filter given: show image from clipboard.
-            If filter given: show images matching the filter.
-            --no-browser: open locally instead of in browser
+        If no filter given: show image from clipboard.
+        If filter given: show images matching the filter.
+        --no-browser: open locally instead of in browser
         """
         if not pos:
             image = self.image_manager.grab_clipboard_image()
@@ -121,7 +123,7 @@ class ImagesApp(BaseApp):
         image_filter = pos[0]
         imgs = self.image_manager.get_images(image_filter)
         if not imgs:
-            self.warning(f"No image found with ID: {image_filter}")
+            self.warning(f"No image found matching {image_filter!r}")
             return
         if not self._confirm(imgs, "Show", ask_if_len_ge=3):
             return
@@ -131,16 +133,31 @@ class ImagesApp(BaseApp):
             self.cns.print(msg)
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """tag|tags [--reload]
+        """tag|tags [<filter> **<tags>] [--no-reload]
         Manage image tags.
-        If --reload is specified, recompute the tags (runs in background).
+        If a filter is given, set the specified tags on all images matching the filter.
+        Unless --no-reload is specified, recompute the tags (runs in background).
+        E.g., 'tag *' would clear tags on all images, `tag !what= --what avatar` 
+        would set 'what' tag to 'avatar' on all images that don't have it.
         """
-        ...
-        if "reload" in flags:
+        if not pos or len(pos) > 2:
+            self.error("Specify filter.")
+            return
+        image_filter = pos[0]
+        imgs = self.image_manager.get_images(image_filter)
+        if not imgs:
+            self.warning(f"No image found matching {image_filter!r}")
+            return
+        if not self._confirm(imgs, f"Set tags to {kwargs!r} in", ask_if_len_ge=1):
+            return
+        for img in imgs:
+            new_img = self.image_manager.set_s3_tags_for(img, kwargs)
+            self.cns.print(f"Updated: {new_img}")
+        if "no-reload" not in flags:
             self._load_tags()
 
     def cmd_upload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """upload [--attach <entry_id|title>] [**tags]
+        """upload [--attach <entry_id|title>] [**<tags>]
         Upload image from clipboard and optionally attach it to an entry.
         Any additional kwargs are passed as tags to the image's metadata.
         E.g., an image uploaded with
@@ -184,9 +201,9 @@ class ImagesApp(BaseApp):
             return
         images = self.image_manager.get_images(image_filter)
         if not images:
-            self.warning(f"No image found with ID: {image_filter}")
+            self.warning(f"No image found matching {image_filter!r}")
             return
-        if not self._confirm(images, "Attach", ask_if_len_ge=1):
+        if not self._confirm(images, "Attach", ask_if_len_ge=2):
             return
         for img in images:
             entry.attach_image(img.s3_id)
@@ -197,6 +214,7 @@ class ImagesApp(BaseApp):
         """detach <image> <entry_id|title>
         Detach image from entry.
         """
+        # TODO remove detach; add argument to prev command?
         if len(pos) < 2:
             self.error("Usage: detach <image> <entry_id|title>")
             return
@@ -207,9 +225,9 @@ class ImagesApp(BaseApp):
             return
         images = self.image_manager.get_images(image_filter)
         if not images:
-            self.warning(f"No image found with ID: {image_filter}")
+            self.warning(f"No image found matching {image_filter!r}")
             return
-        if not self._confirm(images, "Detach", ask_if_len_ge=1):
+        if not self._confirm(images, "Detach", ask_if_len_ge=2):
             return
         for img in images:
             entry.detach_image(img.s3_id)
@@ -226,9 +244,9 @@ class ImagesApp(BaseApp):
         image_filter = pos[0]
         imgs = self.image_manager.get_images(image_filter)
         if not imgs:
-            self.warning(f"No image found with ID: {image_filter}")
+            self.warning(f"No image found matching {image_filter!r}")
             return
-        if not self._confirm(imgs, "Delete", ask_if_len_ge=2):
+        if not self._confirm(imgs, "Delete", ask_if_len_ge=1):
             return
         for img_to_delete in imgs:
             self.image_manager.delete_image(img_to_delete)
@@ -271,6 +289,7 @@ class ImagesApp(BaseApp):
         self.cns.print(
             f"Total images: {num_total_images}\nAttached images: {num_attached_images}"
         )
+        self.cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
 
     def cmd_clearcache(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """clearcache

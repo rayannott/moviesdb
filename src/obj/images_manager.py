@@ -41,6 +41,14 @@ class S3Image:
     entries: list[Entry] = field(default_factory=list, hash=False, compare=False)
     tags: dict[str, str] = field(default_factory=dict, hash=False, compare=False)
 
+    def with_tags(self, tags: dict[str, str]) -> "S3Image":
+        return S3Image(
+            s3_id=self.s3_id,
+            size_bytes=self.size_bytes,
+            entries=self.entries,
+            tags=tags,
+        )
+
     @property
     def id(self) -> str:
         return Path(self.s3_id).stem
@@ -76,28 +84,35 @@ class S3Image:
         return f"Image(#{self.sha1_short}; {self.dt:%d.%m.%Y @ %H:%M}{_size_info}){_tags}{_attached}"
 
     def match(self, filter: str) -> bool:
-        """Check if the image id matches the filter."""
+        """Check if the image id matches the filter.
+        If filter starts with '!', the match is negated."""
+        should_negate = filter.startswith("!")
+
+        def negate(x: bool) -> bool:
+            return not x if should_negate else x
+
+        filter = filter.lstrip("!")
         if filter == "*":
-            return True
-        if filter == "detached":
-            return not self.entries
+            return negate(True)
         if filter == "attached":
-            return bool(self.entries)
+            return negate(bool(self.entries))
         if filter[0] == "#" and len(filter) >= 4 and filter[1:] in self.sha1:
-            return True
+            return negate(True)
         if (
             DATE_RE.match(filter)
             and self.dt.date() == datetime.strptime(filter, "%d.%m.%Y").date()
         ):
-            return True
+            return negate(True)
         # by tags
         if "=" in filter:
             tag_key, tag_value = filter.split("=", maxsplit=1)
-            return any(
-                tag_key in key and tag_value in value
-                for key, value in self.tags.items()
+            return negate(
+                any(
+                    tag_key in key and tag_value in value
+                    for key, value in self.tags.items()
+                )
             )
-        return False
+        return negate(False)
 
     def local_path(self) -> Path:
         return IMAGES_TMP_DIR / self.s3_id
@@ -182,14 +197,26 @@ class ImagesStore:
         ]
 
     @cache
-    def _get_tags(self) -> dict[str, dict[str, str]]:
+    def _get_ids_to_tags(self) -> dict[str, dict[str, str]]:
         tags: dict[str, dict[str, str]] = {}
         for s3_img in self._get_s3_images():
-            head = self._s3.head_object(
-                Bucket=IMAGES_SERIES_BUCKET_NAME, Key=s3_img.s3_id
+            resp = self._s3.get_object_tagging(
+                Bucket=IMAGES_SERIES_BUCKET_NAME,
+                Key=s3_img.s3_id,
             )
-            tags[s3_img.s3_id] = head.get("Metadata", {})
+            tags[s3_img.s3_id] = {t["Key"]: t["Value"] for t in resp["TagSet"]}
         return tags
+
+    def set_s3_tags_for(self, s3_img: S3Image, tags: dict[str, str]) -> S3Image:
+        """Set tags for an S3 image. Overwrites existing tags with the same keys.
+        Return the updated S3Image object."""
+        tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
+        self._s3.put_object_tagging(
+            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Key=s3_img.s3_id,
+            Tagging={"TagSet": tag_set},  # type: ignore
+        )
+        return s3_img.with_tags(tags)
 
     def get_images(self, filter: str = "") -> list[S3Image]:
         """
@@ -208,7 +235,7 @@ class ImagesStore:
             for obj in response.get("Contents", [])
             if (key := obj.get("Key"))
         }
-        _tags = self._get_tags()
+        _tags = self._get_ids_to_tags()
         for entry in self.entries:
             for image_id in entry.image_ids:
                 _id_to_entries_size[image_id][0].append(entry)
@@ -285,15 +312,17 @@ class ImagesStore:
         img: Image.Image,
         s3_img: S3Image,
         tags: dict[str, str] | None,
-    ):
+    ) -> S3Image:
         """Caches the image locally and uploads it to S3."""
         img.save(s3_img.local_path(), format="PNG")
         self._s3.upload_file(
             str(s3_img.local_path()),
             IMAGES_SERIES_BUCKET_NAME,
             s3_img.s3_id,
-            ExtraArgs={"Metadata": tags} if tags else None,
         )
+        if tags:
+            return self.set_s3_tags_for(s3_img, tags)
+        return s3_img
 
     def upload_from_clipboard(
         self, tags: dict[str, str] | None = None
@@ -303,8 +332,7 @@ class ImagesStore:
             return None
         key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
         s3_img = S3Image(key)
-        self._upload_image(img, s3_img, tags)
-        return s3_img
+        return self._upload_image(img, s3_img, tags)
 
     def get_image_stats(self) -> tuple[int, int]:
         images = self.get_images()
