@@ -12,7 +12,7 @@ from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.rich_utils import format_entry
 
 if TYPE_CHECKING:
-    from src.app import App
+    from apps.app import App
 
 
 class ImagesApp(BaseApp):

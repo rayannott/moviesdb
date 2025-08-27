@@ -1,6 +1,6 @@
 import inspect
 
-from src.app import App
+from src.apps import App
 
 SIGNATURE = inspect.Signature(
     parameters=[
