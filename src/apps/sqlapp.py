@@ -62,7 +62,6 @@ class SqlApp(BaseApp):
             self.conn.close()
         except Exception:
             pass
-        return super().post_run()
 
     # ----- internals -----
 

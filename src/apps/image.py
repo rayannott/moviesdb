@@ -12,7 +12,7 @@ from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.rich_utils import format_entry
 
 if TYPE_CHECKING:
-    from apps.app import App
+    from src.apps import App
 
 
 class ImagesApp(BaseApp):
@@ -45,9 +45,6 @@ class ImagesApp(BaseApp):
         self.cns.print(
             f"[dim]Connected to S3 in {self._connected_in:.3f} sec; {len(self.images)} images loaded in {self._images_loaded_in:.3f} sec."
         )
-
-    def post_run(self):
-        super().post_run()
 
     def _confirm(
         self, imgs: list[S3Image], prompt: str, *, ask_if_len_ge: int = 5

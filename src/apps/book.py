@@ -51,9 +51,6 @@ class BooksApp(BaseApp):
             f" loaded {len(self.existing_books)} books in {self._loaded_books_in:.3f} sec."
         )
 
-    def post_run(self):
-        return super().post_run()
-
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """list [--n <n>] [--sortby <key>] [--verbose]
         List the last n books, sorted by the given key.

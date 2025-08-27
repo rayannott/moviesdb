@@ -17,6 +17,7 @@ DEFAULT_COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}
 
 # TODO more logging in this module
 
+
 class BaseApp(ABC):
     def __init__(
         self,
@@ -114,12 +115,10 @@ class BaseApp(ABC):
         logger.info("stopping App")
         self.post_run()
 
-    @abstractmethod
     def pre_run(self):
         """Prepare the application to run."""
         self.header()
 
-    @abstractmethod
     def post_run(self):
         """Clean up the application after it has run."""
         pass

@@ -934,6 +934,3 @@ repo={self.repo_info_loading_time:.3f}s;
         """Prepare the application to run."""
         super().pre_run()
         self.cmd_export([], {}, {"silent"})
-
-    def post_run(self):
-        super().post_run()
