@@ -49,12 +49,6 @@ class ImagesApp(BaseApp):
     def post_run(self):
         super().post_run()
 
-    def error(self, msg: str):
-        self.app.error(msg)
-
-    def warning(self, msg: str):
-        self.app.warning(msg)
-
     def _confirm(
         self, imgs: list[S3Image], prompt: str, *, ask_if_len_ge: int = 5
     ) -> bool:

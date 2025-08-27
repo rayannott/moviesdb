@@ -6,6 +6,7 @@ from collections.abc import Callable
 from rich.console import Console
 from src.parser import ParsingError, PositionalArgs, KeywordArgs, Flags, parse
 from src.utils.help_utils import parse_docstring, get_rich_help
+from src.utils.utils import possible_match
 
 
 class BaseApp(ABC):
@@ -53,6 +54,20 @@ class BaseApp(ABC):
         os.system("cls" if os.name == "nt" else "clear")
         self.header()
 
+    def error(self, text: str):
+        self.cns.print(f" {text}", style="bold red")
+
+    def warning(self, text: str):
+        self.cns.print(f" {text}", style="bold yellow")
+
+    def _maybe_command(self, root):
+        maybe = possible_match(root, set(self.command_methods))
+        self.error(
+            f'Invalid command: "{root}". '
+            + (f'Did you mean: "{maybe}"? ' if maybe else "")
+            + 'Type "help" for a list of commands'
+        )
+
     def run(self):
         self.pre_run()
         while self.running:
@@ -64,7 +79,7 @@ class BaseApp(ABC):
                 continue
             command_method = self.command_methods.get(root)
             if command_method is None:
-                self.cns.print(f"Unknown command: {root}.", style="bold red")
+                self._maybe_command(root)
                 continue
             if "help" in flags:
                 self.cmd_help([root], {}, set())

@@ -1,80 +1,36 @@
+from collections.abc import Callable
 from time import perf_counter as pc
-from datetime import datetime
-from dataclasses import dataclass
-from typing import Callable, NamedTuple
 
 from rich.console import Console
-from supabase import create_client, Client
+from supabase import Client, create_client
 
-from src.utils.rich_utils import get_rich_table, format_rating
-from src.utils.help_utils import parse_docstring, get_rich_help
+from src.apps.base import BaseApp
+from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.env import SUPABASE_API_KEY, SUPABASE_PROJECT_ID
-from src.parser import parse, PositionalArgs, KeywordArgs, Flags, ParsingError
+from src.obj.book import Book
+from src.utils.rich_utils import get_rich_table, format_rating
+from src.utils.help_utils import get_rich_help
 
 
-class Book(NamedTuple):
-    """A class for comparing."""
+class BooksApp(BaseApp):
+    def __init__(self, cns: Console, input_fn: Callable[[str], str]):
+        super().__init__(cns, input_fn, "BOOKS>")
+        with self.cns.status("Connecting..."):
+            t0 = pc()
+            self.client = self.get_client()
+            t1 = pc()
+            self.existing_books = self.get_books(self.client)
+            t2 = pc()
+        self._connected_in = t1 - t0
+        self._loaded_books_in = t2 - t1
+        self.verbose = False
 
-    dt_read: datetime  # this is the id, primary key
-    title: str  # this is the id, primary key
-    author: str | None
-    rating: float | None
-    n_pages: int | None
-    body: str
-
-    def __repr__(self) -> str:
-        return f"{self.title} from {self.dt_read:%d.%m.%Y}"
-
-    @classmethod
-    def from_sql_row(cls, row: dict) -> "Book":
-        return cls(
-            dt_read=datetime.fromisoformat(row["dt_read"]),
-            title=row["title"],
-            author=row.get("author"),
-            rating=row.get("rating"),
-            n_pages=row.get("n_pages"),
-            body=row["body"],
-        )
-
-    def to_row(self) -> dict:
-        return {
-            "dt_read": self.dt_read.isoformat(),
-            "title": self.title,
-            "author": self.author,
-            "rating": self.rating,
-            "n_pages": self.n_pages,
-            "body": self.body,
-        }
-
-    def to_row_values_only(self) -> list:
-        return [
-            self.title,
-            self.dt_read,
-            self.rating,
-            self.author,
-            self.n_pages,
-            self.body,
-        ]
-
-    def insert(self, client: Client):
-        client.table("books").insert(self.to_row()).execute()
-
-    def update(self, client: Client):
-        _ = (
-            client.table("books")
-            .update(self.to_row())
-            .match({"title": self.title, "dt_read": self.dt_read.isoformat()})
-            .execute()
-        )
-
-
-@dataclass
-class BooksMode:
     @staticmethod
     def get_client() -> Client:
         """Creates and returns a Supabase client."""
         return create_client(
-            f"https://{SUPABASE_PROJECT_ID}.supabase.co", SUPABASE_API_KEY
+            f"https://{SUPABASE_PROJECT_ID}.supabase.co",
+            SUPABASE_API_KEY,
         )
 
     @staticmethod
@@ -83,37 +39,20 @@ class BooksMode:
         existing_rows = client.table("books").select("*").execute().data
         return [Book.from_sql_row(row) for row in existing_rows]
 
-    def __init__(self, cns: Console, input_fn: Callable[[str], str]):
-        self.cns = cns
-        self.input = input_fn
-
-        with self.cns.status("Connecting..."):
-            t0 = pc()
-            self.client = self.get_client()
-            t1 = pc()
-            self.existing_books = self.get_books(self.client)
-            t2 = pc()
+    def header(self):
         self.cns.rule(
             f"Books App ({len(self.existing_books)} books)", style="bold yellow"
         )
+
+    def pre_run(self):
+        super().pre_run()
         self.cns.print(
-            f"[dim]Connected to Supabase in {t1 - t0:.3f} sec; loaded books in {t2 - t1:.3f} sec."
+            f"[dim]Connected to Supabase in {self._connected_in:.3f} sec;"
+            f" loaded {len(self.existing_books)} books in {self._loaded_books_in:.3f} sec."
         )
-        self.verbose = False
-        self.running = True
 
-        self.command_methods: dict[
-            str, Callable[[PositionalArgs, KeywordArgs, Flags], None]
-        ] = {
-            method_name[4:]: getattr(self, method_name)
-            for method_name in dir(self)
-            if method_name.startswith("cmd_")
-        }
-
-        self.help_messages = {
-            cmd_root: parse_docstring(cmd_fn.__doc__)
-            for cmd_root, cmd_fn in self.command_methods.items()
-        }
+    def post_run(self):
+        return super().post_run()
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """list [--n <n>] [--sortby <key>] [--verbose]
@@ -224,20 +163,3 @@ class BooksMode:
             f"Verbose mode {'on  ' if self.verbose else 'off  '}",
             style=f"bold {'green' if self.verbose else 'red'}",
         )
-
-    def run(self):
-        while self.running:
-            command = self.input("[bold yellow]BOOKS> ")
-            try:
-                root, pos, kwargs, flags = parse(command)
-            except ParsingError as e:
-                self.cns.print(f"{e}: {command!r}", style="bold red")
-                continue
-            command_method = self.command_methods.get(root)
-            if command_method is None:
-                self.cns.print(f"Unknown command: {root}.", style="bold red")
-                continue
-            if "help" in flags:
-                self.cmd_help([root], {}, set())
-                continue
-            command_method(pos, kwargs, flags)

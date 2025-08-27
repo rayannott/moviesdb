@@ -8,7 +8,7 @@ with Console().status("Loading dependencies..."):
     import logging
     import os
     import random
-    from functools import cache, partial
+    from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
     from typing import Any, Callable
@@ -27,9 +27,8 @@ with Console().status("Loading dependencies..."):
         build_tags,
         is_verbose,
     )
-    from src.apps.images import ImagesApp
+    from src.apps import ImagesApp, SqlApp, BooksApp
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
-    from src.obj.images_manager import ImagesStore
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
@@ -131,11 +130,6 @@ class App:
         except ValueError:
             self.cns.print(f" Not an integer: {s!r}", style="bold red")
         return None
-
-    @property
-    @cache
-    def image_manager(self) -> ImagesStore:
-        return ImagesStore(self.entries)
 
     def __init__(self):
         self.running = True
@@ -637,7 +631,6 @@ repo={self.repo_info_loading_time:.3f}s;
         self.cns.print(
             f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
             f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
-            f"[magenta]Connected to ImageStore in [/] {self.image_manager.loaded_in:.3f} sec\n"
             f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
             f"[magenta]Last commit:[/]\n"
             f"  {format_commit(self.repo_info.get_last_commit())}"
@@ -910,17 +903,13 @@ repo={self.repo_info_loading_time:.3f}s;
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """sql
         Start the SQL-like query mode."""
-        from src.obj.sql_mode import SqlMode
-
-        sql_mode = SqlMode(self.entries, self.cns, self.input)
+        sql_mode = SqlApp(self.entries, self.cns, self.input)
         sql_mode.run()
 
     def cmd_books(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """books
         Start the books subapp."""
-        from src.obj.books_mode import BooksMode
-
-        books_mode = BooksMode(self.cns, self.input)
+        books_mode = BooksApp(self.cns, self.input)
         books_mode.run()
 
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):

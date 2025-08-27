@@ -2,7 +2,7 @@ import inspect
 
 from rich.console import Console
 
-from src.obj.books_mode import BooksMode
+from obj.book import BooksMode
 
 SIGNATURE = inspect.Signature(
     parameters=[

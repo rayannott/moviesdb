@@ -3,7 +3,7 @@ import pytest
 
 from supabase import Client
 
-from src.obj.books_mode import Book, BooksMode
+from obj.book import Book, BooksMode
 
 
 @pytest.fixture(scope="session")
