@@ -80,6 +80,7 @@ class ImagesApp(BaseApp):
             TimeRemainingColumn(),
             expand=True,
             transient=True,
+            refresh_per_second=30,
         )
         with progress:
             task = progress.add_task("Loading image tags...", total=self._num_images)
@@ -87,6 +88,7 @@ class ImagesApp(BaseApp):
                 res[s3_id] = tags
                 progress.update(task, advance=1)
         self._tags_loaded_in = pc() - _t0
+        self.cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
         return res
 
     def header(self):
@@ -179,16 +181,18 @@ class ImagesApp(BaseApp):
             self.cns.print(msg)
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """tag|tags <filter> **<tags>
+        """tag|tags [<filter> **<tags>]
         Manage image tags.
+        Reload tags if no arguments given.
         Set the specified tags on all images matching the filter.
         If a tag value is empty, the tag is removed.
         E.g., 'tag *' would clear tags on all images, `tag !what= --what avatar`
         would set 'what' tag to 'avatar' on all images that don't have it.
         """
-        # TODO change behavior
-        if not pos or len(pos) > 2:
-            self.error("Specify filter.")
+        if not pos:
+            if not self._ids_to_tags:
+                self._ids_to_tags = self.load_tags_pretty()
+            # TODO add tags stats here
             return
         image_filter = pos[0]
         imgs = self.get_images(image_filter)
@@ -198,6 +202,7 @@ class ImagesApp(BaseApp):
         if not self._confirm(imgs, f"Set tags to {kwargs!r} in", ask_if_len_ge=1):
             return
         new_imgs = []
+        # TODO change behavior
         for img in imgs:
             new_img = self.image_manager.set_s3_tags_for(img, kwargs)
             self.cns.print(f"Updated: {new_img}")
@@ -330,7 +335,7 @@ class ImagesApp(BaseApp):
         ):
             self.cns.print(msg)
 
-    def cm_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+    def cmd_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """reload
         Reload image tags from S3.
         """
