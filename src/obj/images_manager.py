@@ -185,8 +185,14 @@ class ImagesStore:
                         f"Image {img} is attached to an entry but does not exist in S3."
                     )
 
-    def _detect_duplicates(self):
-        pass  # TODO: implement using ETag (hash)
+    def _group_by_etag_hash(self) -> defaultdict[str, list[str]]:
+        # to detect duplicates
+        response = self._get_s3_response()
+        raw_s3_obj_contents = response.get("Contents", [])
+        hash_to_images = defaultdict(list)
+        for obj in raw_s3_obj_contents:
+            hash_to_images[obj.get("ETag")].append(obj.get("Key"))
+        return hash_to_images
 
     def _get_s3_images_bare(self) -> list[S3Image]:
         response = self._get_s3_response()
