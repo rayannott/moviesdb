@@ -5,7 +5,14 @@ import threading
 
 from rich.console import Console
 from rich.prompt import Prompt
-
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from src.apps.base import BaseApp
 from src.mongo import Mongo
 from src.obj.images_manager import ImagesStore, S3Image
@@ -30,26 +37,57 @@ class ImagesApp(BaseApp):
             t0 = pc()
             self.image_manager = ImagesStore(app.entries)
             t1 = pc()
-            self._num_images = len(self.image_manager._get_s3_images())
+            self._num_images = len(self.image_manager._get_s3_images_bare())
             t2 = pc()
         self._connected_in = t1 - t0
         self._images_loaded_in = t2 - t1
         self._tags_loaded_in = 0.0
 
-        self.register_aliases({"tags": "tag"})
-        self._load_tags()
+        # S3 key -> Tags; keep in memory; reload on demand
+        self._ids_to_tags: dict[str, dict[str, str]] = {}
 
-    def _load_tags(self):
+        self._lock = threading.Lock()
+
+        self.register_aliases({"tags": "tag"})
+
+        # self._reload_ids_to_tags_thread()
+        # self._ids_to_tags = self.load_tags_pretty()
+
+    def _reload_ids_to_tags_thread(self):
         # this starts a thread that loads image tags
         def _load_tags():
             _t0 = pc()
-            self.image_manager._get_ids_to_tags()
+            _ids_to_tags = self.image_manager._get_ids_to_tags()
+            with self._lock:
+                self._ids_to_tags = _ids_to_tags
             self._tags_loaded_in = pc() - _t0
 
         self.image_manager._get_ids_to_tags.cache_clear()
         # TODO use a thread pool executor
         load_tags_thread = threading.Thread(target=_load_tags)
         load_tags_thread.start()
+
+    def load_tags_pretty(self) -> dict[str, dict[str, str]]:
+        res = {}
+        _t0 = pc()
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(bar_width=None),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            TimeElapsedColumn(),
+            "->",
+            TimeRemainingColumn(),
+            expand=True,
+            transient=True,
+        )
+        with progress:
+            task = progress.add_task("Loading image tags...", total=self._num_images)
+            for s3_id, tags in self.image_manager._iterate_ids_tagsets():
+                res[s3_id] = tags
+                progress.update(task, advance=1)
+        self._tags_loaded_in = pc() - _t0
+        return res
 
     def header(self):
         self.cns.rule(
@@ -79,6 +117,14 @@ class ImagesApp(BaseApp):
             return False
         return True
 
+    def get_images(self, filter: str = "*") -> list[S3Image]:
+        return self.image_manager.get_images(filter, with_tags=self._ids_to_tags)
+
+    def update_in_memory_tags(self, images: list[S3Image]):
+        with self._lock:
+            for img in images:
+                self._ids_to_tags[img.s3_id] = img.tags
+
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """list [<filter>] [--n <n>]
         Show images. Apply filter if specified.
@@ -88,7 +134,7 @@ class ImagesApp(BaseApp):
         if pos:
             # list with filter
             filter = pos[0]
-            some_images = self.image_manager.get_images(filter)
+            some_images = self.get_images(filter)
             if not some_images:
                 self.warning(f"No images found matching {filter!r}.")
                 return
@@ -98,11 +144,11 @@ class ImagesApp(BaseApp):
             return
         if (n := self.app.try_int(kwargs.get("n", "5"))) is None:
             return
-        self._images = self.image_manager.get_images()
-        if not self._images:
+        _images = self.get_images()
+        if not _images:
             return
         self.cns.print(f"Last {n} images:")
-        for img in self._images[-n:]:
+        for img in _images[-n:]:
             self.cns.print(str(img))
 
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -121,7 +167,7 @@ class ImagesApp(BaseApp):
                 self.warning("No image found in clipboard.")
             return
         image_filter = pos[0]
-        imgs = self.image_manager.get_images(image_filter)
+        imgs = self.get_images(image_filter)
         if not imgs:
             self.warning(f"No image found matching {image_filter!r}")
             return
@@ -133,31 +179,33 @@ class ImagesApp(BaseApp):
             self.cns.print(msg)
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """tag|tags [<filter> **<tags>] [--no-reload]
+        """tag|tags <filter> **<tags>
         Manage image tags.
-        If a filter is given, set the specified tags on all images matching the filter.
-        Unless --no-reload is specified, recompute the tags (runs in background).
-        E.g., 'tag *' would clear tags on all images, `tag !what= --what avatar` 
+        Set the specified tags on all images matching the filter.
+        If a tag value is empty, the tag is removed.
+        E.g., 'tag *' would clear tags on all images, `tag !what= --what avatar`
         would set 'what' tag to 'avatar' on all images that don't have it.
         """
+        # TODO change behavior
         if not pos or len(pos) > 2:
             self.error("Specify filter.")
             return
         image_filter = pos[0]
-        imgs = self.image_manager.get_images(image_filter)
+        imgs = self.get_images(image_filter)
         if not imgs:
             self.warning(f"No image found matching {image_filter!r}")
             return
         if not self._confirm(imgs, f"Set tags to {kwargs!r} in", ask_if_len_ge=1):
             return
+        new_imgs = []
         for img in imgs:
             new_img = self.image_manager.set_s3_tags_for(img, kwargs)
             self.cns.print(f"Updated: {new_img}")
-        if "no-reload" not in flags:
-            self._load_tags()
+            new_imgs.append(new_img)
+        self.update_in_memory_tags(new_imgs)
 
     def cmd_upload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """upload [--attach <entry_id|title>] [**<tags>]
+        """upload [--to <entry_id|title>] [**<tags>]
         Upload image from clipboard and optionally attach it to an entry.
         Any additional kwargs are passed as tags to the image's metadata.
         E.g., an image uploaded with
@@ -165,7 +213,7 @@ class ImagesApp(BaseApp):
         would match all of the following tag-filters:
             '=', 'what=', '=me', '=john'
         """
-        attach_to_entry_id = kwargs.pop("attach", None)
+        attach_to_entry_id = kwargs.pop("to", None)
         with self.cns.status("Uploading image from clipboard..."):
             img_cb = self.image_manager.upload_from_clipboard(kwargs)
         if not img_cb:
@@ -180,6 +228,7 @@ class ImagesApp(BaseApp):
                 )
         if img_cb:
             self.cns.print(f"Uploaded {img_cb}")
+            self.update_in_memory_tags([img_cb])
             if entry_:
                 entry_.attach_image(img_cb.s3_id)
                 Mongo.update_entry(entry_)
@@ -199,7 +248,7 @@ class ImagesApp(BaseApp):
         if not entry:
             self.error("Entry not found.")
             return
-        images = self.image_manager.get_images(image_filter)
+        images = self.get_images(image_filter)
         if not images:
             self.warning(f"No image found matching {image_filter!r}")
             return
@@ -223,7 +272,7 @@ class ImagesApp(BaseApp):
         if not entry:
             self.error("Entry not found.")
             return
-        images = self.image_manager.get_images(image_filter)
+        images = self.get_images(image_filter)
         if not images:
             self.warning(f"No image found matching {image_filter!r}")
             return
@@ -242,7 +291,7 @@ class ImagesApp(BaseApp):
             self.error("Usage: delete <image>")
             return
         image_filter = pos[0]
-        imgs = self.image_manager.get_images(image_filter)
+        imgs = self.get_images(image_filter)
         if not imgs:
             self.warning(f"No image found matching {image_filter!r}")
             return
@@ -281,14 +330,23 @@ class ImagesApp(BaseApp):
         ):
             self.cns.print(msg)
 
+    def cm_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """reload
+        Reload image tags from S3.
+        """
+        self._ids_to_tags = self.load_tags_pretty()
+
     def cmd_stats(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """stats
         Show total and attached image statistics.
         """
-        num_total_images, num_attached_images = self.image_manager.get_image_stats()
-        self.cns.print(
-            f"Total images: {num_total_images}\nAttached images: {num_attached_images}"
+        num_attached_images = sum(1 for img in self.get_images() if img.entries)
+        total_size_mb = sum(
+            img.size_bytes * 2**-20 for img in self.get_images() if img.size_bytes
         )
+        self.cns.print(f"""Total images: {self._num_images}
+Attached images: {num_attached_images}
+Total size: {total_size_mb:.2f} MB""")
         self.cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
 
     def cmd_clearcache(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
