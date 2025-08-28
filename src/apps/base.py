@@ -73,19 +73,15 @@ class BaseApp(ABC):
 
     def _maybe_command(self, root):
         maybe = possible_match(root, set(self.command_methods))
-        self.error(
-            f'Invalid command: "{root}". '
+        self.warning(
+            f'Unknown command: "{root}". '
             + (f'Did you mean: "{maybe}"? ' if maybe else "")
             + 'Type "help" for a list of commands'
         )
 
-    def process_command(self, command: str):
-        try:
-            root, pos, kwargs, flags = parse(command)
-        except ParsingError as e:
-            self.error(f"{e}: {command!r}")
-            logger.info(f"parsing error: {e} for command {command!r}")
-            return
+    def process_command(
+        self, root: str, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags
+    ):
         command_method = self.command_methods.get(root)
         if command_method is None:
             self._maybe_command(root)
@@ -102,7 +98,11 @@ class BaseApp(ABC):
         while self.running:
             try:
                 command = self.input(self.prompt_str + " ")
-                self.process_command(command)
+                self.process_command(*parse(command))
+            except ParsingError as e:
+                self.error(f"{e}: {command!r}")
+                logger.info(f"parsing error: {e} for command {command!r}")
+                return None
             except EOFError:
                 print()
                 return

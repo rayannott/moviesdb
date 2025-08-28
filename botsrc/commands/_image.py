@@ -41,7 +41,7 @@ def image(
 
     match pos:
         case ["list", filter]:
-            imgs = image_manager.get_images_by_filter(filter)
+            imgs = image_manager.get_images(filter)
             if not imgs:
                 bot.send_message(
                     message.chat.id, f"No images found matching {filter!r}"
