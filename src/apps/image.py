@@ -159,7 +159,7 @@ class ImagesApp(BaseApp):
         E.g. 'app find avatar'
         """
         if not pos:
-            self.cns.print("[bold red]No command specified.[/]")
+            self.error("No main app command specified; try 'app help'")
             return
         root, *rest = pos
         if root == 'images':
