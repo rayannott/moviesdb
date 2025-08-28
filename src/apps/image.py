@@ -153,6 +153,19 @@ class ImagesApp(BaseApp):
         for img in _images[-n:]:
             self.cns.print(str(img))
 
+    def cmd_app(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """app <cmd> *<args> **<kwargs>
+        Run command for the main app.
+        E.g. 'app find avatar'
+        """
+        if not pos:
+            self.cns.print("[bold red]No command specified.[/]")
+            return
+        root, *rest = pos
+        if root == 'images':
+            self.cns.print("[bold black]Inception?..")
+        self.app.process_command(root, rest, kwargs, flags)
+
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """show [<filter>] [--no-browser]
         Show image(s).
