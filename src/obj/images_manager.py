@@ -123,6 +123,14 @@ class S3Image:
             return True
         return False
 
+    def to_dict(self) -> dict:
+        return {
+            "s3_id": self.s3_id,
+            "sha1": self.sha1,
+            "size_bytes": self.size_bytes,
+            "tags": self.tags,
+        }
+
 
 class ImagesStore:
     def __init__(self, entries: list[Entry]):
@@ -276,11 +284,11 @@ class ImagesStore:
             return None
         return img
 
-    def _download_image_to(self, file_key: str, to: Path):
+    def _download_image_to(self, s3_id: str, to: Path):
         try:
-            self._s3.download_file(IMAGES_SERIES_BUCKET_NAME, file_key, str(to))
+            self._s3.download_file(IMAGES_SERIES_BUCKET_NAME, s3_id, str(to))
         except Exception as e:
-            logger.error(f"Error downloading image {file_key}", exc_info=e)
+            logger.error(f"Error downloading image {s3_id}", exc_info=e)
 
     def show_images(
         self, s3_images: list[S3Image], in_browser: bool = True
@@ -295,7 +303,6 @@ class ImagesStore:
             yield f"Opened {img} in the browser"
         return
 
-    @deprecated("Use show_images() instead.", category=DeprecationWarning)
     def _show_locally(self, s3_images: list[S3Image]) -> Iterator[str]:
         s3_image_paths: list[tuple[S3Image, Path]] = []
         for s3_img in s3_images:
