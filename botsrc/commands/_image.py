@@ -5,7 +5,7 @@ from telebot import types
 
 from botsrc.utils import select_entry_by_oid_part
 from src.mongo import Mongo
-from src.obj.images_manager import ImagesStore, S3Image
+from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ MAX_IMAGES = 10
 
 
 def get_media_group(
-    image_manager: ImagesStore,
+    image_manager: ImageManager,
     images: list[S3Image],
     caption: str | None = None,
 ) -> list[types.InputMediaPhoto]:
@@ -37,7 +37,7 @@ def image(
     kwargs: KeywordArgs,
 ):
     entries = sorted(Mongo.load_entries())
-    image_manager = ImagesStore(entries)
+    image_manager = ImageManager(entries)
 
     match pos:
         case ["list", filter]:

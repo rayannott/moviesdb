@@ -925,10 +925,10 @@ repo={self.repo_info_loading_time:.3f}s;
 
         # images
         _t5 = pc()
-        from src.obj.images_manager import ImagesStore
+        from src.obj.image import ImageManager
 
         with _status("[bold cyan] Loading images..."):
-            image_manager = ImagesStore(self.entries)
+            image_manager = ImageManager(self.entries)
             _num_images = len(image_manager._get_s3_images_bare())
         _ids_to_tags = {}
         with (tags_progress := _progress()):

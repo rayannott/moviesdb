@@ -8,7 +8,7 @@ from rich.prompt import Prompt
 
 from src.apps.base import BaseApp
 from src.mongo import Mongo
-from src.obj.images_manager import ImagesStore, S3Image
+from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.rich_utils import format_entry
 from src.utils.rich_utils import get_pretty_progress
@@ -29,7 +29,7 @@ class ImagesApp(BaseApp):
 
         with self.cns.status("Connecting..."):
             t0 = pc()
-            self.image_manager = ImagesStore(app.entries)
+            self.image_manager = ImageManager(app.entries)
             t1 = pc()
             self._num_images = len(self.image_manager._get_s3_images_bare())
             t2 = pc()

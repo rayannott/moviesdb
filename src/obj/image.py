@@ -132,7 +132,7 @@ class S3Image:
         }
 
 
-class ImagesStore:
+class ImageManager:
     def __init__(self, entries: list[Entry]):
         self.entries = entries
         _t0 = pc()
