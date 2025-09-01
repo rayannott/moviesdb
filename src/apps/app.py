@@ -7,15 +7,19 @@ with Console().status("Loading dependencies..."):
     import json
     import logging
     import random
+    from datetime import datetime, timezone
     from functools import partial
     from itertools import batched, starmap
     from statistics import mean, stdev
     from typing import Any, Callable
+    from pathlib import Path
+    from contextlib import nullcontext
 
     from bson import ObjectId
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
+    from rich.progress import TaskID
 
     from setup_logging import setup_logging
     from src.apps.base import BaseApp
@@ -48,6 +52,7 @@ with Console().status("Loading dependencies..."):
         get_groups_table,
         get_rich_table,
         rinput,
+        get_pretty_progress,
     )
     from src.utils.utils import (
         F_ALL,
@@ -829,13 +834,49 @@ repo={self.repo_info_loading_time:.3f}s;
         self.recently_popped.append(popped_entry)
 
     def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """export [--silent]
-        Export the database to a JSON file in the current directory.
-        If --silent is specified, do not print any messages."""
+        """export [--silent] [--full]
+        Export the entries (movies and series) and the watch list to ./export-local/{db|watch_list}.json.
+        If --silent is specified, do not print any messages.
+        If --full is specified, also export: books, images."""
 
         def _print(what: str):
             if "silent" not in flags:
                 self.cns.print(what)
+
+        def _status(msg: str):
+            return self.cns.status(msg) if "silent" not in flags else nullcontext()
+
+        def _dump_export_meta(what: dict[str, float]):
+            with open(LOCAL_DIR / "_meta.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "now": datetime.now(timezone.utc).isoformat(),
+                        "exported_in_sec": what,
+                    },
+                    f,
+                    indent=2,
+                )
+                _print(f"Export completed in {sum(what.values()):.3e} seconds.")
+
+        class _SilentProgress:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def add_task(self, *a, **k) -> TaskID:
+                return TaskID(0)
+
+            def update(self, *a, **k):
+                pass
+
+        def _progress():
+            return _SilentProgress() if "silent" in flags else get_pretty_progress()
+
+        _time_took_to_export: dict[str, float] = {}
+
+        _t0 = pc()
 
         LOCAL_DIR.mkdir(exist_ok=True)
         dbfile = LOCAL_DIR / "db.json"
@@ -847,12 +888,78 @@ repo={self.repo_info_loading_time:.3f}s;
                 ensure_ascii=False,
             )
             _print(f"Exported {len(self.entries)} entries to {dbfile.absolute()}.")
+        _t1 = pc()
+        _time_took_to_export["entries"] = _t1 - _t0
+
         wlfile = LOCAL_DIR / "watch_list.json"
         with wlfile.open("w", encoding="utf-8") as f:
             json.dump(self.watch_list.items(), f, indent=2, ensure_ascii=False)
             _print(
                 f"Exported {len(self.watch_list)} watch list entries to {wlfile.absolute()}."
             )
+        _t2 = pc()
+        _time_took_to_export["watch_list"] = _t2 - _t1
+
+        if "full" not in flags:
+            _dump_export_meta(_time_took_to_export)
+            return
+
+        # books
+        _t3 = pc()
+        with _status("[bold cyan] Exporting books..."):
+            from src.apps.book import BooksApp
+
+            books_file = LOCAL_DIR / "books.json"
+            books_json = [
+                book.to_row()
+                for book in sorted(
+                    BooksApp.get_books(BooksApp.get_client()),
+                    key=lambda b: b.dt_read,
+                )
+            ]
+        with books_file.open("w", encoding="utf-8") as f:
+            json.dump(books_json, f, indent=2, ensure_ascii=False)
+            _print(f"Exported {len(books_json)} books to {books_file.absolute()}.")
+        _t4 = pc()
+        _time_took_to_export["books"] = _t4 - _t3
+
+        # images
+        _t5 = pc()
+        from src.obj.images_manager import ImagesStore
+
+        with _status("[bold cyan] Loading images..."):
+            image_manager = ImagesStore(self.entries)
+            _num_images = len(image_manager._get_s3_images_bare())
+        _ids_to_tags = {}
+        with (tags_progress := _progress()):
+            task = tags_progress.add_task("Loading image tags...", total=_num_images)
+            for s3_id, tags in image_manager._iterate_ids_tagsets():
+                _ids_to_tags[s3_id] = tags
+                tags_progress.update(task, advance=1)
+        imgs = image_manager.get_images(with_tags=_ids_to_tags)
+        images_subdir = LOCAL_DIR / "images"
+        images_subdir.mkdir(exist_ok=True)
+        img_meta_file = images_subdir / "meta.json"
+        with img_meta_file.open("w", encoding="utf-8") as f:
+            json.dump([img.to_dict() for img in imgs], f, indent=2)
+            _print(
+                f"Exported the metadata of {len(imgs)} images to {img_meta_file.absolute()}."
+            )
+
+        with (images_progress := _progress()):
+            task = images_progress.add_task("Downloading images...", total=len(imgs))
+            for img in imgs:
+                image_manager._download_image_to(
+                    img.s3_id, images_subdir / Path(img.s3_id).name
+                )
+                images_progress.update(task, advance=1)
+        images_dir_size = sum(f.stat().st_size for f in images_subdir.iterdir())
+        _print(
+            f"Exported {len(imgs)} images to {images_subdir.absolute()} (total size: {images_dir_size * 2**-20:.3f} MB)"
+        )
+        _t6 = pc()
+        _time_took_to_export["images"] = _t6 - _t5
+        _dump_export_meta(_time_took_to_export)
 
     def cmd_guest(
         self,

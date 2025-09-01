@@ -6,6 +6,14 @@ from rich.align import Align
 from rich.console import Console, RenderableType
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from src.obj.entry import Entry, Type, is_verbose
 from src.obj.entry_group import EntryGroup
@@ -203,3 +211,18 @@ def comparison(renderable1: RenderableType, renderable2: RenderableType) -> Tabl
     table.add_column("2", ratio=1)
     table.add_row(renderable1, renderable2)
     return table
+
+
+def get_pretty_progress() -> Progress:
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(bar_width=None),
+        "[progress.percentage]{task.percentage:>3.0f}%",
+        TimeElapsedColumn(),
+        "->",
+        TimeRemainingColumn(),
+        expand=True,
+        transient=True,
+        refresh_per_second=30,
+    )

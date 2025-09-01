@@ -5,19 +5,13 @@ import threading
 
 from rich.console import Console
 from rich.prompt import Prompt
-from rich.progress import (
-    Progress,
-    SpinnerColumn,
-    BarColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
+
 from src.apps.base import BaseApp
 from src.mongo import Mongo
 from src.obj.images_manager import ImagesStore, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.rich_utils import format_entry
+from src.utils.rich_utils import get_pretty_progress
 
 if TYPE_CHECKING:
     from src.apps import App
@@ -70,18 +64,8 @@ class ImagesApp(BaseApp):
     def load_tags_pretty(self) -> dict[str, dict[str, str]]:
         res = {}
         _t0 = pc()
-        progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[bold blue]{task.description}"),
-            BarColumn(bar_width=None),
-            "[progress.percentage]{task.percentage:>3.0f}%",
-            TimeElapsedColumn(),
-            "->",
-            TimeRemainingColumn(),
-            expand=True,
-            transient=True,
-            refresh_per_second=30,
-        )
+
+        progress = get_pretty_progress()
         with progress:
             task = progress.add_task("Loading image tags...", total=self._num_images)
             for s3_id, tags in self.image_manager._iterate_ids_tagsets():
