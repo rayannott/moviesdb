@@ -5,7 +5,7 @@ from telebot import types
 
 from botsrc.utils import select_entry_by_oid_part
 from src.mongo import Mongo
-from obj.image import ImageManager, S3Image
+from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 
 logger = logging.getLogger(__name__)
