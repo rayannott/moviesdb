@@ -18,7 +18,7 @@ def watch(
     kwargs: KeywordArgs,
 ):
     watch_list = Mongo.load_watch_list()
-    if not (pos or kwargs or flags):
+    if not (pos or kwargs or (flags - {"guest"})):
         bot.send_message(
             message.chat.id,
             f"Movies: {', '.join(watch_list.movies)}\n\nSeries: {', '.join(watch_list.series)}",
