@@ -44,8 +44,8 @@ class ImagesApp(BaseApp):
 
         self.register_aliases({"tags": "tag"})
 
-        # self._reload_ids_to_tags_thread()
-        # self._ids_to_tags = self.load_tags_pretty()
+        # check for duplicates
+        self._check_resolve_duplicate_images(verbose_if_no_dups=False)
 
     def _reload_ids_to_tags_thread(self):
         # this starts a thread that loads image tags
@@ -60,6 +60,46 @@ class ImagesApp(BaseApp):
         # TODO use a thread pool executor
         load_tags_thread = threading.Thread(target=_load_tags)
         load_tags_thread.start()
+
+    def _check_resolve_duplicate_images(self, *, verbose_if_no_dups: bool):
+        hash_to_img_ids = self.image_manager._group_by_etag_hash()
+        dups = {h: ids for h, ids in hash_to_img_ids.items() if len(ids) > 1}
+        if not dups:
+            if verbose_if_no_dups:
+                self.cns.print("[green]No duplicate images found.")
+            return
+        self.cns.print(f"[bold yellow]Found {len(dups)} duplicate groups:")
+        for i, ids in enumerate(dups.values()):
+            self.cns.print(f"Group {i + 1}:")
+            for s3_id in ids:
+                self.cns.print(f"  - {S3Image(s3_id)}")
+        prompt = Prompt.ask(
+            "[yellow]Delete all but the first added image in each group? (this will ask for confirmation again)",
+            choices=["y", "n"],
+            default="n",
+            console=self.cns,
+        )
+        if prompt != "y":
+            self.cns.print("[yellow]No images were deleted.")
+            return
+        to_delete = []
+        for ids in dups.values():
+            s3_img_objs = sorted(map(S3Image, ids), key=lambda img: img.dt)
+            to_delete.extend(s3_img_objs[1:])
+        self.cns.print(f"Selected {', '.join(map(str, to_delete))} for deletion.")
+        prompt = Prompt.ask(
+            "Delete them?",
+            choices=["y", "n"],
+            default="n",
+            console=self.cns,
+        )
+        if prompt != "y":
+            self.cns.print("[yellow]No images were deleted.")
+            return
+        for img in to_delete:
+            self.image_manager.delete_image(img)
+            self.cns.print(f"[red]Deleted {img}")
+        self.cns.print(f"[green]Deleted {len(to_delete)} images.")
 
     def load_tags_pretty(self) -> dict[str, dict[str, str]]:
         res = {}
@@ -146,9 +186,15 @@ class ImagesApp(BaseApp):
             self.error("No main app command specified; try 'app help'")
             return
         root, *rest = pos
-        if root == 'images':
+        if root == "images":
             self.cns.print("[bold black]Inception?..")
         self.app.process_command(root, rest, kwargs, flags)
+
+    def cmd_dups(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
+        """dups
+        Check for and optionally resolve duplicate images.
+        """
+        self._check_resolve_duplicate_images(verbose_if_no_dups=True)
 
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """show [<filter>] [--no-browser]
