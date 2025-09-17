@@ -368,7 +368,7 @@ class ImageManager:
             image_to_entries[image]
         return image_to_entries
 
-    def generate_presigned_url(self, s3_img: S3Image, expires_in=120):
+    def generate_presigned_url(self, s3_img: S3Image, expires_in_sec=120):
         """
         Generate a presigned URL for an S3 object.
         """
@@ -380,6 +380,6 @@ class ImageManager:
                 "ResponseContentType": "image/png",
                 "ResponseContentDisposition": "inline",
             },
-            ExpiresIn=expires_in,
+            ExpiresIn=expires_in_sec,
         )
         return url

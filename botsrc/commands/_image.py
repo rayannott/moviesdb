@@ -21,7 +21,7 @@ def get_media_group(
 ) -> list[types.InputMediaPhoto]:
     photo_group = [
         types.InputMediaPhoto(
-            image_manager.generate_presigned_url(img, expires_in=10),
+            image_manager.generate_presigned_url(img, expires_in_sec=10),
             caption=caption if i == 0 else None,
         )
         for i, img in enumerate(images)
