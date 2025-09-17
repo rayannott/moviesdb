@@ -1,7 +1,8 @@
+import threading
 from collections.abc import Callable
+from pathlib import Path
 from time import perf_counter as pc
 from typing import TYPE_CHECKING
-import threading
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -10,8 +11,7 @@ from src.apps.base import BaseApp
 from src.mongo import Mongo
 from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.utils.rich_utils import format_entry
-from src.utils.rich_utils import get_pretty_progress
+from src.utils.rich_utils import format_entry, get_pretty_progress
 
 if TYPE_CHECKING:
     from src.apps import App
@@ -253,20 +253,31 @@ class ImagesApp(BaseApp):
         self.update_in_memory_tags(new_imgs)
 
     def cmd_upload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """upload [--to <entry_id|title>] [**<tags>]
+        """upload [<path>] [--to <entry_id|title>] [**<tags>]
         Upload image from clipboard and optionally attach it to an entry.
         Any additional kwargs are passed as tags to the image's metadata.
+        If (global) path is given, upload from path instead of clipboard.
         E.g., an image uploaded with
-            upload --attach -1 --what avatar --who me|john --misc something
+            upload --to -1 --what avatar --who me|john --misc something
         would match all of the following tag-filters:
             '=', 'what=', '=me', '=john'
         """
         attach_to_entry_id = kwargs.pop("to", None)
-        with self.cns.status("Uploading image from clipboard..."):
-            img_cb = self.image_manager.upload_from_clipboard(kwargs)
-        if not img_cb:
-            self.warning("No image found in clipboard.")
-            return
+        with self.cns.status("Uploading image..."):
+            if not pos:
+                image = self.image_manager.upload_from_clipboard(kwargs)
+                if not image:
+                    self.warning("No image found in clipboard.")
+                    return
+            else:
+                path = Path(pos[0])
+                if not path.exists():
+                    self.error(f"File not found: {path}")
+                    return
+                image = self.image_manager.upload_from_path(path, kwargs)
+                if not image:
+                    self.error(f"Failed to upload image from path: {path}")
+                    return
         entry_ = None
         if attach_to_entry_id:
             entry_ = self.app.entry_by_idx_or_title(attach_to_entry_id)
@@ -274,15 +285,15 @@ class ImagesApp(BaseApp):
                 self.warning(
                     f"No entry found with ID: {attach_to_entry_id}; not attaching."
                 )
-        if img_cb:
-            self.cns.print(f"Uploaded {img_cb}")
-            self.update_in_memory_tags([img_cb])
+        if image:
+            self.cns.print(f"Uploaded {image}")
+            self.update_in_memory_tags([image])
             if entry_:
-                entry_.attach_image(img_cb.s3_id)
+                entry_.attach_image(image.s3_id)
                 Mongo.update_entry(entry_)
                 self.cns.print(f"Attached to {format_entry(entry_)}")
         else:
-            self.error(f"Failed to upload {img_cb} from clipboard.")
+            self.error(f"Failed to upload {image} from clipboard.")
 
     def cmd_attach(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """attach <image> <entry_id|title>
