@@ -2,11 +2,11 @@ import logging
 import re
 import subprocess
 import webbrowser
-from functools import cache
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import cache
 from hashlib import sha1
 from pathlib import Path
 from time import perf_counter as pc
@@ -342,6 +342,21 @@ class ImageManager:
         if tags:
             return self.set_s3_tags_for(s3_img, tags)
         return s3_img
+    
+    def upload_from_path(
+        self, path: Path, tags: dict[str, str] | None = None
+    ) -> S3Image | None:
+        try:
+            img = Image.open(path)
+        except UnidentifiedImageError as e:
+            logger.error(f"Error opening image from path {path}", exc_info=e)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error opening image from path {path}", exc_info=e)
+            return None
+        key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
+        s3_img = S3Image(key)
+        return self._upload_image(img, s3_img, tags)
 
     def upload_from_clipboard(
         self, tags: dict[str, str] | None = None
