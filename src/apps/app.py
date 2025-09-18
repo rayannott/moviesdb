@@ -129,9 +129,16 @@ class App(BaseApp):
             self.cns.print(f" Not an integer: {s!r}", style="bold red")
         return None
 
+    @property
+    def entries(self) -> list[Entry]:
+        return sorted(self.load_entries())
+
+    @property
+    def watch_list(self) -> WatchList:
+        return self.load_watch_list()
+
     def __init__(self):
         self.running = True
-        self._load_all()
 
         self.cns = Console()
         self.input = partial(rinput, self.cns)
@@ -155,13 +162,8 @@ repo={self.repo_info_loading_time:.3f}s;
 
         self.recently_popped: list[Entry] = []
 
-    def _load_all(self):
-        self.entries = sorted(self.load_entries())
-        self.watch_list = self.load_watch_list()
-
     def add_entry(self, entry: Entry):
         Mongo.add_entry(entry)
-        self.entries.append(entry)
 
     def get_groups(self) -> list[EntryGroup]:
         """
@@ -227,7 +229,6 @@ repo={self.repo_info_loading_time:.3f}s;
             )
             if update_title == "y":
                 title = possible_title
-        self.watch_list.add(title, is_series)
         Mongo.add_watchlist_entry(title, is_series)
         self.cns.print(
             format_title(title, Type.SERIES if is_series else Type.MOVIE)
@@ -332,7 +333,6 @@ repo={self.repo_info_loading_time:.3f}s;
                 self.cns.print(format_entry(entry))
                 return
             entry_app.entry._id = entry._id
-            self.entries[int(idx)] = entry_app.entry
             Mongo.update_entry(entry_app.entry)
             self.cns.print(
                 f"[green]󰚰 Updated[/]\n - was: {format_entry(entry)}\n - now: {format_entry(entry_app.entry)}"
@@ -755,16 +755,17 @@ repo={self.repo_info_loading_time:.3f}s;
         self._process_watch_again_tag_on_add(entry)
         self.add_entry(entry)
         self.cns.print(f"[green] Added [/]\n{format_entry(entry)}")
-        if self.watch_list.remove(entry.title, entry.type == Type.SERIES):
-            if not Mongo.delete_watchlist_entry(entry.title, entry.type == Type.SERIES):
-                self.error(
-                    f"Failed to remove {format_title(entry.title, entry.type)} from the watch list."
-                )
-                return
-            self.cns.print(
-                "[green]󰺝 Removed from watch list[/]: "
-                + format_title(entry.title, entry.type)
+        if not self.watch_list.remove(entry.title, entry.type == Type.SERIES):
+            return
+        if not Mongo.delete_watchlist_entry(entry.title, entry.type == Type.SERIES):
+            self.error(
+                f"Failed to remove {format_title(entry.title, entry.type)} from the watch list."
             )
+            return
+        self.cns.print(
+            "[green]󰺝 Removed from watch list[/]: "
+            + format_title(entry.title, entry.type)
+        )
 
     def cmd_random(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """random [<n>] [--tag <tag>]
@@ -816,21 +817,19 @@ repo={self.repo_info_loading_time:.3f}s;
             )
             to_restore = self.recently_popped.pop()
             Mongo.add_entry(to_restore)
-            self.entries.append(to_restore)
             self.cns.print(f"Restored:\n{format_entry(to_restore)}")
             return
         if not pos:
             self.error("No index provided.")
             return
         idx = pos[0]
-        if not (entry := self.entry_by_idx(idx)):
+        if not (popped_entry := self.entry_by_idx(idx)):
             return
-        popped_entry = self.entries.pop(int(idx))
         assert popped_entry._id
         if not Mongo.delete_entry(popped_entry._id):
             self.error(f"{format_entry(popped_entry)} was not in the database.")
             return
-        self.cns.print(f"󰺝 Removed\n{format_entry(entry)}")
+        self.cns.print(f"󰺝 Removed\n{format_entry(popped_entry)}")
         self.recently_popped.append(popped_entry)
 
     def cmd_export(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -882,7 +881,7 @@ repo={self.repo_info_loading_time:.3f}s;
         dbfile = LOCAL_DIR / "db.json"
         with dbfile.open("w", encoding="utf-8") as f:
             json.dump(
-                [entry.as_dict() for entry in sorted(self.entries)],
+                [entry.as_dict() for entry in self.entries],
                 f,
                 indent=2,
                 ensure_ascii=False,
@@ -1021,20 +1020,6 @@ repo={self.repo_info_loading_time:.3f}s;
         """exit
         Exit the application."""
         self.running = False
-
-    def cmd_reload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """reload
-        Bring the data up to date.
-        This is done automatically on startup."""
-        old_entries = self.entries.copy()
-        old_watch_list = self.watch_list.copy()
-        self._load_all()
-        if old_entries != self.entries:
-            self.cns.print("Reloaded entries.", style="bold green")
-        if old_watch_list != self.watch_list:
-            self.cns.print("Reloaded watch list.", style="bold green")
-        if old_entries == self.entries and old_watch_list == self.watch_list:
-            self.warning("Already up to date.")
 
     def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         raise NotImplementedError("Debug command not implemented")
