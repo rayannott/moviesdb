@@ -24,7 +24,7 @@ def format_image_prefix(num_images: int) -> str:
     if num_images == 0:
         return ""
     if num_images == 1:
-        return "[green][/] "
+        return "[green][/]  "
     return f"[green] {num_images}[/] "
 
 
