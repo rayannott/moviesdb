@@ -296,11 +296,11 @@ class ImagesApp(BaseApp):
             self.error(f"Failed to upload {image} from clipboard.")
 
     def cmd_attach(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """attach <image> <entry_id|title>
-        Attach image to entry.
+        """attach <filter> <entry_id|title>
+        Attach filtered image(s) to entry.
         """
         if len(pos) < 2:
-            self.error("Usage: attach <image> <entry_id|title>")
+            self.error("Usage: attach <filter> <entry_id|title>")
             return
         image_filter, entry_id_str = pos
         entry = self.app.entry_by_idx_or_title(entry_id_str)
@@ -319,12 +319,12 @@ class ImagesApp(BaseApp):
             self.cns.print(f"Attached {img} to {format_entry(entry)}")
 
     def cmd_detach(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """detach <image> <entry_id|title>
-        Detach image from entry.
+        """detach <filter> <entry_id|title>
+        Detach filtered image(s) from entry.
         """
         # TODO remove detach; add argument to prev command?
         if len(pos) < 2:
-            self.error("Usage: detach <image> <entry_id|title>")
+            self.error("Usage: detach <filter> <entry_id|title>")
             return
         image_filter, entry_id_str = pos
         entry = self.app.entry_by_idx_or_title(entry_id_str)
@@ -343,11 +343,11 @@ class ImagesApp(BaseApp):
             self.cns.print(f"Detached {img} from {format_entry(entry)}")
 
     def cmd_delete(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """delete <image>
+        """delete <filter>
         Delete image from S3 and detach from all associated entries.
         """
         if not pos:
-            self.error("Usage: delete <image>")
+            self.error("Usage: delete <filter>")
             return
         image_filter = pos[0]
         imgs = self.get_images(image_filter)
