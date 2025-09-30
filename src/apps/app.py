@@ -347,9 +347,6 @@ repo={self.repo_info_loading_time:.3f}s;
         If --delete is specified, remove the tag from the entry."""
         tags = build_tags(self.entries)
         if not pos:
-            _s = slice(2) if "verbose" not in flags else slice(None)
-
-            # TODO: more columns for verbose?
             self.cns.print(
                 get_rich_table(
                     [
@@ -357,15 +354,15 @@ repo={self.repo_info_loading_time:.3f}s;
                             format_tag(tag),
                             str(len(entries)),
                             f"{format_rating(mean(entry.rating for entry in entries))} ± {std([entry.rating for entry in entries]):.2f}",
-                        ][_s]
+                        ]
                         for tag, entries in sorted(
                             tags.items(), key=lambda x: len(x[1]), reverse=True
                         )
                     ],
-                    ["Tag", "Count", "Rating"][_s],
+                    ["Tag", "Count", "Rating"],
                     title="All tags",
-                    justifiers=["left", "right", "center"][_s],
-                    styles=["cyan", "white", None][_s],
+                    justifiers=["left", "right", "center"],
+                    styles=["cyan", "white", None],
                 )
             )
             return
