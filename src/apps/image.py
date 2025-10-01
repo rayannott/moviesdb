@@ -1,5 +1,6 @@
 import threading
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import perf_counter as pc
 from typing import TYPE_CHECKING
@@ -37,29 +38,14 @@ class ImagesApp(BaseApp):
         self._images_loaded_in = t2 - t1
         self._tags_loaded_in = 0.0
 
-        # S3 key -> Tags; keep in memory; reload on demand
-        self._ids_to_tags: dict[str, dict[str, str]] = {}
+        # S3 key -> Tags
+        self._ids_to_tags: dict[str, dict[str, str]] = self.load_tags_pretty()
 
         self._lock = threading.Lock()
 
         self.register_aliases({"tags": "tag"})
 
-        # check for duplicates
         self._check_resolve_duplicate_images(verbose_if_no_dups=False)
-
-    def _reload_ids_to_tags_thread(self):
-        # this starts a thread that loads image tags
-        def _load_tags():
-            _t0 = pc()
-            _ids_to_tags = self.image_manager._get_ids_to_tags()
-            with self._lock:
-                self._ids_to_tags = _ids_to_tags
-            self._tags_loaded_in = pc() - _t0
-
-        self.image_manager._get_ids_to_tags.cache_clear()
-        # TODO use a thread pool executor
-        load_tags_thread = threading.Thread(target=_load_tags)
-        load_tags_thread.start()
 
     def _check_resolve_duplicate_images(self, *, verbose_if_no_dups: bool):
         hash_to_img_ids = self.image_manager._group_by_etag_hash()
@@ -102,15 +88,27 @@ class ImagesApp(BaseApp):
         self.cns.print(f"[green]Deleted {len(to_delete)} images.")
 
     def load_tags_pretty(self) -> dict[str, dict[str, str]]:
+        """
+        Loads image tags from S3 concurrently using a ThreadPoolExecutor,
+        while showing a single Rich progress bar.
+        """
         res = {}
         _t0 = pc()
 
+        def worker(s3_id: S3Image) -> tuple[str, dict[str, str]]:
+            return s3_id.s3_id, self.image_manager.get_tags_for(s3_id)
+
+        all_ids = self.image_manager._get_s3_images_bare()
+
         progress = get_pretty_progress()
-        with progress:
-            task = progress.add_task("Loading image tags...", total=self._num_images)
-            for s3_id, tags in self.image_manager._iterate_ids_tagsets():
+        with progress, ThreadPoolExecutor(max_workers=16) as executor:
+            task = progress.add_task("Loading image tags...", total=len(all_ids))
+            futures = {executor.submit(worker, s3_id): s3_id for s3_id in all_ids}
+            for fut in as_completed(futures):
+                s3_id, tags = fut.result()
                 res[s3_id] = tags
                 progress.update(task, advance=1)
+
         self._tags_loaded_in = pc() - _t0
         self.cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
         return res
@@ -125,7 +123,8 @@ class ImagesApp(BaseApp):
         super().pre_run()
         self.cns.print(
             f"[dim]Connected to S3 in {self._connected_in:.3f} sec; "
-            f"{self._num_images} images loaded in {self._images_loaded_in:.3f} sec."
+            f"{self._num_images} images loaded in {self._images_loaded_in:.3f} sec; "
+            f"tags loaded in {self._tags_loaded_in:.3f} sec."
         )
 
     def _confirm(
@@ -224,7 +223,7 @@ class ImagesApp(BaseApp):
             self.cns.print(msg)
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """tag|tags [<filter> **<tags>]
+        """tag|tags <filter> **<tags>
         Manage image tags.
         Reload tags if no arguments given.
         Set the specified tags on all images matching the filter.
@@ -233,9 +232,7 @@ class ImagesApp(BaseApp):
         would set 'what' tag to 'avatar' on all images that don't have it.
         """
         if not pos:
-            if not self._ids_to_tags:
-                self._ids_to_tags = self.load_tags_pretty()
-            # TODO add tags stats here
+            self.error("Usage: tag|tags <filter> **<tags>")
             return
         image_filter = pos[0]
         imgs = self.get_images(image_filter)
