@@ -210,13 +210,16 @@ class ImageManager:
             if (key := obj.get("Key"))
         ]
 
+    def get_tags_for(self, s3_img: S3Image) -> dict[str, str]:
+        resp = self._s3.get_object_tagging(
+            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Key=s3_img.s3_id,
+        )
+        return {t["Key"]: t["Value"] for t in resp["TagSet"]}
+
     def _iterate_ids_tagsets(self) -> Iterator[tuple[str, dict[str, str]]]:
         for s3_img in self._get_s3_images_bare():
-            resp = self._s3.get_object_tagging(
-                Bucket=IMAGES_SERIES_BUCKET_NAME,
-                Key=s3_img.s3_id,
-            )
-            yield s3_img.s3_id, {t["Key"]: t["Value"] for t in resp["TagSet"]}
+            yield s3_img.s3_id, self.get_tags_for(s3_img)
 
     @cache
     def _get_ids_to_tags(self) -> dict[str, dict[str, str]]:
@@ -342,7 +345,7 @@ class ImageManager:
         if tags:
             return self.set_s3_tags_for(s3_img, tags)
         return s3_img
-    
+
     def upload_from_path(
         self, path: Path, tags: dict[str, str] | None = None
     ) -> S3Image | None:
