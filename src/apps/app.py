@@ -7,19 +7,20 @@ with Console().status("Loading dependencies..."):
     import json
     import logging
     import random
-    from datetime import datetime, timezone
+    from contextlib import nullcontext
+    from datetime import datetime
     from functools import partial
     from itertools import batched, starmap
+    from pathlib import Path
     from statistics import mean, stdev
     from typing import Any, Callable
-    from pathlib import Path
-    from contextlib import nullcontext
+    from zoneinfo import ZoneInfo
 
     from bson import ObjectId
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.prompt import Prompt
     from rich.progress import TaskID
+    from rich.prompt import Prompt
 
     from setup_logging import setup_logging
     from src.apps.base import BaseApp
@@ -35,6 +36,7 @@ with Console().status("Loading dependencies..."):
         is_verbose,
     )
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
+    from src.obj.image import ImageManager
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
@@ -50,9 +52,9 @@ with Console().status("Loading dependencies..."):
         format_title,
         get_entries_table,
         get_groups_table,
+        get_pretty_progress,
         get_rich_table,
         rinput,
-        get_pretty_progress,
     )
     from src.utils.utils import (
         F_ALL,
@@ -842,33 +844,18 @@ repo={self.repo_info_loading_time:.3f}s;
         def _status(msg: str):
             return self.cns.status(msg) if "silent" not in flags else nullcontext()
 
-        def _dump_export_meta(what: dict[str, float]):
+        def _dump_export_meta(what: dict[str, float], with_images: bool):
             with open(LOCAL_DIR / "_meta.json", "w", encoding="utf-8") as f:
                 json.dump(
                     {
-                        "now": datetime.now(timezone.utc).isoformat(),
+                        "now": datetime.now(tz=ZoneInfo("Europe/Berlin")).isoformat(),
+                        "with_images": with_images,
                         "exported_in_sec": what,
                     },
                     f,
                     indent=2,
                 )
-                _print(f"Export completed in {sum(what.values()):.3e} seconds.")
-
-        class _SilentProgress:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                pass
-
-            def add_task(self, *a, **k) -> TaskID:
-                return TaskID(0)
-
-            def update(self, *a, **k):
-                pass
-
-        def _progress():
-            return _SilentProgress() if "silent" in flags else get_pretty_progress()
+                _print(f"Export completed in {sum(what.values()):.2f} seconds.")
 
         _time_took_to_export: dict[str, float] = {}
 
@@ -897,13 +884,12 @@ repo={self.repo_info_loading_time:.3f}s;
         _time_took_to_export["watch_list"] = _t2 - _t1
 
         if "full" not in flags:
-            _dump_export_meta(_time_took_to_export)
+            _dump_export_meta(_time_took_to_export, with_images=False)
             return
 
         # books
         _t3 = pc()
         with _status("[bold cyan] Exporting books..."):
-            from src.apps.book import BooksApp
 
             books_file = LOCAL_DIR / "books.json"
             books_json = [
@@ -921,17 +907,13 @@ repo={self.repo_info_loading_time:.3f}s;
 
         # images
         _t5 = pc()
-        from src.obj.image import ImageManager
 
         with _status("[bold cyan] Loading images..."):
             image_manager = ImageManager(self.entries)
             _num_images = len(image_manager._get_s3_images_bare())
+            _print(f"Found {_num_images} images in the database.")
         _ids_to_tags = {}
-        with (tags_progress := _progress()):
-            task = tags_progress.add_task("Loading image tags...", total=_num_images)
-            for s3_id, tags in image_manager._iterate_ids_tagsets():
-                _ids_to_tags[s3_id] = tags
-                tags_progress.update(task, advance=1)
+        _ids_to_tags = image_manager.load_tags_pretty(self.cns)
         imgs = image_manager.get_images(with_tags=_ids_to_tags)
         images_subdir = LOCAL_DIR / "images"
         images_subdir.mkdir(exist_ok=True)
@@ -942,7 +924,7 @@ repo={self.repo_info_loading_time:.3f}s;
                 f"Exported the metadata of {len(imgs)} images to {img_meta_file.absolute()}."
             )
 
-        with (images_progress := _progress()):
+        with (images_progress := get_pretty_progress()):
             task = images_progress.add_task("Downloading images...", total=len(imgs))
             for img in imgs:
                 image_manager._download_image_to(
@@ -955,7 +937,7 @@ repo={self.repo_info_loading_time:.3f}s;
         )
         _t6 = pc()
         _time_took_to_export["images"] = _t6 - _t5
-        _dump_export_meta(_time_took_to_export)
+        _dump_export_meta(_time_took_to_export, with_images=True)
 
     def cmd_guest(
         self,

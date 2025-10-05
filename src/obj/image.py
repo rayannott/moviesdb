@@ -4,6 +4,7 @@ import subprocess
 import webbrowser
 from collections import defaultdict
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import cache
@@ -14,9 +15,12 @@ from warnings import deprecated
 
 import boto3
 from PIL import Image, ImageGrab, UnidentifiedImageError
+from rich.console import Console
+from rich.prompt import Prompt
 
 from src.obj.entry import Entry
 from src.utils.env import IMAGES_SERIES_BUCKET_NAME
+from src.utils.rich_utils import get_pretty_progress
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +213,80 @@ class ImageManager:
             for obj in response.get("Contents", [])
             if (key := obj.get("Key"))
         ]
+
+    def _check_resolve_duplicate_images(
+        self,
+        cns: Console,
+        *,
+        verbose_if_no_dups: bool,
+        prompt_to_delete: bool = True,
+    ):
+        hash_to_img_ids = self._group_by_etag_hash()
+        dups = {h: ids for h, ids in hash_to_img_ids.items() if len(ids) > 1}
+        if not dups:
+            if verbose_if_no_dups:
+                cns.print("[green]No duplicate images found.")
+            return
+        cns.print(f"[bold yellow]Found {len(dups)} duplicate groups:")
+        for i, ids in enumerate(dups.values()):
+            cns.print(f"Group {i + 1}:")
+            for s3_id in ids:
+                cns.print(f"  - {S3Image(s3_id)}")
+        if not prompt_to_delete:
+            return
+        prompt = Prompt.ask(
+            "[yellow]Delete all but the first added image in each group? (this will ask for confirmation again)",
+            choices=["y", "n"],
+            default="n",
+            console=cns,
+        )
+        if prompt != "y":
+            cns.print("[yellow]No images were deleted.")
+            return
+        to_delete = []
+        for ids in dups.values():
+            s3_img_objs = sorted(map(S3Image, ids), key=lambda img: img.dt)
+            to_delete.extend(s3_img_objs[1:])
+        cns.print(f"Selected {', '.join(map(str, to_delete))} for deletion.")
+        prompt = Prompt.ask(
+            "Delete them?",
+            choices=["y", "n"],
+            default="n",
+            console=cns,
+        )
+        if prompt != "y":
+            cns.print("[yellow]No images were deleted.")
+            return
+        for img in to_delete:
+            self.delete_image(img)
+            cns.print(f"[red]Deleted {img}")
+        cns.print(f"[green]Deleted {len(to_delete)} images.")
+
+    def load_tags_pretty(self, cns: Console) -> dict[str, dict[str, str]]:
+        """
+        Loads image tags from S3 concurrently using a ThreadPoolExecutor,
+        while showing a single Rich progress bar.
+        """
+        res = {}
+        _t0 = pc()
+
+        def worker(s3_id: S3Image) -> tuple[str, dict[str, str]]:
+            return s3_id.s3_id, self.get_tags_for(s3_id)
+
+        all_ids = self._get_s3_images_bare()
+
+        progress = get_pretty_progress()
+        with progress, ThreadPoolExecutor(max_workers=16) as executor:
+            task = progress.add_task("Loading image tags...", total=len(all_ids))
+            futures = {executor.submit(worker, s3_id): s3_id for s3_id in all_ids}
+            for fut in as_completed(futures):
+                s3_id, tags = fut.result()
+                res[s3_id] = tags
+                progress.update(task, advance=1)
+
+        self._tags_loaded_in = pc() - _t0
+        cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
+        return res
 
     def get_tags_for(self, s3_img: S3Image) -> dict[str, str]:
         resp = self._s3.get_object_tagging(
