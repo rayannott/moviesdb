@@ -6,12 +6,13 @@ from collections import defaultdict
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from functools import cache
 from hashlib import sha1
 from pathlib import Path
 from time import perf_counter as pc
 from warnings import deprecated
+from zoneinfo import ZoneInfo
 
 import boto3
 from PIL import Image, ImageGrab, UnidentifiedImageError
@@ -38,7 +39,7 @@ IMAGES_EXPORTED_DIR.mkdir(exist_ok=True, parents=True)
 
 def get_new_image_id() -> str:
     """Generate a new image ID."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(tz=ZoneInfo("Europe/Berlin")).isoformat()
 
 
 @dataclass(frozen=True, slots=True)
