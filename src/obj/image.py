@@ -32,6 +32,9 @@ FOLDER_PATH = Path(FOLDER_NAME)
 IMAGES_TMP_DIR = Path(".images-tmp-local")
 (IMAGES_TMP_DIR / FOLDER_NAME).mkdir(exist_ok=True, parents=True)
 
+IMAGES_EXPORTED_DIR = Path("export-local", "images")
+IMAGES_EXPORTED_DIR.mkdir(exist_ok=True, parents=True)
+
 
 def get_new_image_id() -> str:
     """Generate a new image ID."""
@@ -56,6 +59,10 @@ class S3Image:
     @property
     def id(self) -> str:
         return Path(self.s3_id).stem
+
+    @property
+    def filename(self) -> str:
+        return Path(self.s3_id).name
 
     @property
     def dt(self) -> datetime:
@@ -121,6 +128,9 @@ class S3Image:
     def local_path(self) -> Path:
         return IMAGES_TMP_DIR / self.s3_id
 
+    def exported_local_path(self) -> Path:
+        return IMAGES_EXPORTED_DIR / self.filename
+
     def clear_cache(self) -> bool:
         if self.local_path().exists():
             self.local_path().unlink()
@@ -145,10 +155,17 @@ class ImageManager:
         self._check_s3_consistency()
         self.loaded_in = pc() - _t0
 
+    def _get_exported_local_images(self) -> list[S3Image]:
+        return [
+            img
+            for img in self._get_s3_images_bare()
+            if img.exported_local_path().exists()
+        ]
+
     def _get_local_images(self) -> list[S3Image]:
         return [
             S3Image(
-                s3_id=str(img_path.relative_to(IMAGES_TMP_DIR)),
+                s3_id=FOLDER_NAME + "/" + img_path.name,
                 size_bytes=img_path.stat().st_size,
             )
             for img_path in IMAGES_TMP_DIR.glob("**/*.png")

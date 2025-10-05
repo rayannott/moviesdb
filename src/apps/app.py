@@ -19,7 +19,6 @@ with Console().status("Loading dependencies..."):
     from bson import ObjectId
     from rich.markdown import Markdown
     from rich.panel import Panel
-    from rich.progress import TaskID
     from rich.prompt import Prompt
 
     from setup_logging import setup_logging
@@ -890,7 +889,6 @@ repo={self.repo_info_loading_time:.3f}s;
         # books
         _t3 = pc()
         with _status("[bold cyan] Exporting books..."):
-
             books_file = LOCAL_DIR / "books.json"
             books_json = [
                 book.to_row()
@@ -908,32 +906,45 @@ repo={self.repo_info_loading_time:.3f}s;
         # images
         _t5 = pc()
 
-        with _status("[bold cyan] Loading images..."):
+        with _status("[bold cyan]󰈭 Exporting images..."):
             image_manager = ImageManager(self.entries)
-            _num_images = len(image_manager._get_s3_images_bare())
-            _print(f"Found {_num_images} images in the database.")
-        _ids_to_tags = {}
+            images_bare = image_manager._get_s3_images_bare()
+
+        _local_exported_images = image_manager._get_exported_local_images()
+        new_images_set = set(images_bare) - set(_local_exported_images)
+        # TODO remove images that are no longer in the database but were previously exported
+
+        if not new_images_set:
+            _print("No new images to export.")
+            _dump_export_meta(_time_took_to_export, with_images=False)
+            return
+
         _ids_to_tags = image_manager.load_tags_pretty(self.cns)
         imgs = image_manager.get_images(with_tags=_ids_to_tags)
+
         images_subdir = LOCAL_DIR / "images"
         images_subdir.mkdir(exist_ok=True)
         img_meta_file = images_subdir / "meta.json"
         with img_meta_file.open("w", encoding="utf-8") as f:
             json.dump([img.to_dict() for img in imgs], f, indent=2)
             _print(
-                f"Exported the metadata of {len(imgs)} images to {img_meta_file.absolute()}."
+                f"Exported the metadata of all {len(imgs)} images to {img_meta_file.absolute()}."
             )
 
         with (images_progress := get_pretty_progress()):
-            task = images_progress.add_task("Downloading images...", total=len(imgs))
-            for img in imgs:
+            task = images_progress.add_task(
+                f"Downloading {len(new_images_set)} images...",
+                total=len(new_images_set),
+            )
+            for img in new_images_set:
                 image_manager._download_image_to(
                     img.s3_id, images_subdir / Path(img.s3_id).name
                 )
                 images_progress.update(task, advance=1)
         images_dir_size = sum(f.stat().st_size for f in images_subdir.iterdir())
         _print(
-            f"Exported {len(imgs)} images to {images_subdir.absolute()} (total size: {images_dir_size * 2**-20:.3f} MB)"
+            f"Exported {len(new_images_set)} images to {images_subdir.absolute()}; "
+            f"current total directory size: {images_dir_size * 2**-20:.3f} MB."
         )
         _t6 = pc()
         _time_took_to_export["images"] = _t6 - _t5
