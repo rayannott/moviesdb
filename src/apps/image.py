@@ -1,6 +1,5 @@
 import threading
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import perf_counter as pc
 from typing import TYPE_CHECKING
@@ -12,7 +11,7 @@ from src.apps.base import BaseApp
 from src.mongo import Mongo
 from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.utils.rich_utils import format_entry, get_pretty_progress
+from src.utils.rich_utils import format_entry
 
 if TYPE_CHECKING:
     from src.apps import App
@@ -39,79 +38,18 @@ class ImagesApp(BaseApp):
         self._tags_loaded_in = 0.0
 
         # S3 key -> Tags
-        self._ids_to_tags: dict[str, dict[str, str]] = self.load_tags_pretty()
+        self._ids_to_tags: dict[str, dict[str, str]] = (
+            self.image_manager.load_tags_pretty(self.cns)
+        )
 
         self._lock = threading.Lock()
 
         self.register_aliases({"tags": "tag"})
 
-        self._check_resolve_duplicate_images(verbose_if_no_dups=False)
-
-    def _check_resolve_duplicate_images(self, *, verbose_if_no_dups: bool):
-        hash_to_img_ids = self.image_manager._group_by_etag_hash()
-        dups = {h: ids for h, ids in hash_to_img_ids.items() if len(ids) > 1}
-        if not dups:
-            if verbose_if_no_dups:
-                self.cns.print("[green]No duplicate images found.")
-            return
-        self.cns.print(f"[bold yellow]Found {len(dups)} duplicate groups:")
-        for i, ids in enumerate(dups.values()):
-            self.cns.print(f"Group {i + 1}:")
-            for s3_id in ids:
-                self.cns.print(f"  - {S3Image(s3_id)}")
-        prompt = Prompt.ask(
-            "[yellow]Delete all but the first added image in each group? (this will ask for confirmation again)",
-            choices=["y", "n"],
-            default="n",
-            console=self.cns,
+        self.image_manager._check_resolve_duplicate_images(
+            self.cns,
+            verbose_if_no_dups=False,
         )
-        if prompt != "y":
-            self.cns.print("[yellow]No images were deleted.")
-            return
-        to_delete = []
-        for ids in dups.values():
-            s3_img_objs = sorted(map(S3Image, ids), key=lambda img: img.dt)
-            to_delete.extend(s3_img_objs[1:])
-        self.cns.print(f"Selected {', '.join(map(str, to_delete))} for deletion.")
-        prompt = Prompt.ask(
-            "Delete them?",
-            choices=["y", "n"],
-            default="n",
-            console=self.cns,
-        )
-        if prompt != "y":
-            self.cns.print("[yellow]No images were deleted.")
-            return
-        for img in to_delete:
-            self.image_manager.delete_image(img)
-            self.cns.print(f"[red]Deleted {img}")
-        self.cns.print(f"[green]Deleted {len(to_delete)} images.")
-
-    def load_tags_pretty(self) -> dict[str, dict[str, str]]:
-        """
-        Loads image tags from S3 concurrently using a ThreadPoolExecutor,
-        while showing a single Rich progress bar.
-        """
-        res = {}
-        _t0 = pc()
-
-        def worker(s3_id: S3Image) -> tuple[str, dict[str, str]]:
-            return s3_id.s3_id, self.image_manager.get_tags_for(s3_id)
-
-        all_ids = self.image_manager._get_s3_images_bare()
-
-        progress = get_pretty_progress()
-        with progress, ThreadPoolExecutor(max_workers=16) as executor:
-            task = progress.add_task("Loading image tags...", total=len(all_ids))
-            futures = {executor.submit(worker, s3_id): s3_id for s3_id in all_ids}
-            for fut in as_completed(futures):
-                s3_id, tags = fut.result()
-                res[s3_id] = tags
-                progress.update(task, advance=1)
-
-        self._tags_loaded_in = pc() - _t0
-        self.cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
-        return res
 
     def header(self):
         self.cns.rule(
@@ -193,7 +131,9 @@ class ImagesApp(BaseApp):
         """dups
         Check for and optionally resolve duplicate images.
         """
-        self._check_resolve_duplicate_images(verbose_if_no_dups=True)
+        self.image_manager._check_resolve_duplicate_images(
+            self.cns, verbose_if_no_dups=True
+        )
 
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """show [<filter>] [--no-browser]
@@ -390,7 +330,7 @@ class ImagesApp(BaseApp):
         """reload
         Reload image tags from S3.
         """
-        self._ids_to_tags = self.load_tags_pretty()
+        self._ids_to_tags = self.image_manager.load_tags_pretty(self.cns)
 
     def cmd_stats(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """stats

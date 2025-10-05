@@ -102,7 +102,6 @@ class BaseApp(ABC):
             except ParsingError as e:
                 self.error(f"{e}: {command!r}")
                 logger.info(f"parsing error: {e} for command {command!r}")
-                return None
             except EOFError:
                 print()
                 return

@@ -4,19 +4,24 @@ import subprocess
 import webbrowser
 from collections import defaultdict
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from functools import cache
 from hashlib import sha1
 from pathlib import Path
 from time import perf_counter as pc
 from warnings import deprecated
+from zoneinfo import ZoneInfo
 
 import boto3
 from PIL import Image, ImageGrab, UnidentifiedImageError
+from rich.console import Console
+from rich.prompt import Prompt
 
 from src.obj.entry import Entry
 from src.utils.env import IMAGES_SERIES_BUCKET_NAME
+from src.utils.rich_utils import get_pretty_progress
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +33,13 @@ FOLDER_PATH = Path(FOLDER_NAME)
 IMAGES_TMP_DIR = Path(".images-tmp-local")
 (IMAGES_TMP_DIR / FOLDER_NAME).mkdir(exist_ok=True, parents=True)
 
+IMAGES_EXPORTED_DIR = Path("export-local", "images")
+IMAGES_EXPORTED_DIR.mkdir(exist_ok=True, parents=True)
+
 
 def get_new_image_id() -> str:
     """Generate a new image ID."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(tz=ZoneInfo("Europe/Berlin")).isoformat()
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +60,10 @@ class S3Image:
     @property
     def id(self) -> str:
         return Path(self.s3_id).stem
+
+    @property
+    def filename(self) -> str:
+        return Path(self.s3_id).name
 
     @property
     def dt(self) -> datetime:
@@ -96,7 +108,7 @@ class S3Image:
             return negate(True)
         if filter == "attached":
             return negate(bool(self.entries))
-        if filter[0] == "#" and len(filter) >= 4 and filter[1:] in self.sha1:
+        if filter[0] == "#" and len(filter) >= 4 and self.sha1.startswith(filter[1:]):
             return negate(True)
         if (
             DATE_RE.match(filter)
@@ -116,6 +128,9 @@ class S3Image:
 
     def local_path(self) -> Path:
         return IMAGES_TMP_DIR / self.s3_id
+
+    def exported_local_path(self) -> Path:
+        return IMAGES_EXPORTED_DIR / self.filename
 
     def clear_cache(self) -> bool:
         if self.local_path().exists():
@@ -141,10 +156,17 @@ class ImageManager:
         self._check_s3_consistency()
         self.loaded_in = pc() - _t0
 
+    def _get_exported_local_images(self) -> list[S3Image]:
+        return [
+            img
+            for img in self._get_s3_images_bare()
+            if img.exported_local_path().exists()
+        ]
+
     def _get_local_images(self) -> list[S3Image]:
         return [
             S3Image(
-                s3_id=str(img_path.relative_to(IMAGES_TMP_DIR)),
+                s3_id=FOLDER_NAME + "/" + img_path.name,
                 size_bytes=img_path.stat().st_size,
             )
             for img_path in IMAGES_TMP_DIR.glob("**/*.png")
@@ -209,6 +231,80 @@ class ImageManager:
             for obj in response.get("Contents", [])
             if (key := obj.get("Key"))
         ]
+
+    def _check_resolve_duplicate_images(
+        self,
+        cns: Console,
+        *,
+        verbose_if_no_dups: bool,
+        prompt_to_delete: bool = True,
+    ):
+        hash_to_img_ids = self._group_by_etag_hash()
+        dups = {h: ids for h, ids in hash_to_img_ids.items() if len(ids) > 1}
+        if not dups:
+            if verbose_if_no_dups:
+                cns.print("[green]No duplicate images found.")
+            return
+        cns.print(f"[bold yellow]Found {len(dups)} duplicate groups:")
+        for i, ids in enumerate(dups.values()):
+            cns.print(f"Group {i + 1}:")
+            for s3_id in ids:
+                cns.print(f"  - {S3Image(s3_id)}")
+        if not prompt_to_delete:
+            return
+        prompt = Prompt.ask(
+            "[yellow]Delete all but the first added image in each group? (this will ask for confirmation again)",
+            choices=["y", "n"],
+            default="n",
+            console=cns,
+        )
+        if prompt != "y":
+            cns.print("[yellow]No images were deleted.")
+            return
+        to_delete = []
+        for ids in dups.values():
+            s3_img_objs = sorted(map(S3Image, ids), key=lambda img: img.dt)
+            to_delete.extend(s3_img_objs[1:])
+        cns.print(f"Selected {', '.join(map(str, to_delete))} for deletion.")
+        prompt = Prompt.ask(
+            "Delete them?",
+            choices=["y", "n"],
+            default="n",
+            console=cns,
+        )
+        if prompt != "y":
+            cns.print("[yellow]No images were deleted.")
+            return
+        for img in to_delete:
+            self.delete_image(img)
+            cns.print(f"[red]Deleted {img}")
+        cns.print(f"[green]Deleted {len(to_delete)} images.")
+
+    def load_tags_pretty(self, cns: Console) -> dict[str, dict[str, str]]:
+        """
+        Loads image tags from S3 concurrently using a ThreadPoolExecutor,
+        while showing a single Rich progress bar.
+        """
+        res = {}
+        _t0 = pc()
+
+        def worker(s3_id: S3Image) -> tuple[str, dict[str, str]]:
+            return s3_id.s3_id, self.get_tags_for(s3_id)
+
+        all_ids = self._get_s3_images_bare()
+
+        progress = get_pretty_progress()
+        with progress, ThreadPoolExecutor(max_workers=16) as executor:
+            task = progress.add_task("Loading image tags...", total=len(all_ids))
+            futures = {executor.submit(worker, s3_id): s3_id for s3_id in all_ids}
+            for fut in as_completed(futures):
+                s3_id, tags = fut.result()
+                res[s3_id] = tags
+                progress.update(task, advance=1)
+
+        self._tags_loaded_in = pc() - _t0
+        cns.print(f"[dim]Tags loaded in {self._tags_loaded_in:.3f} sec.")
+        return res
 
     def get_tags_for(self, s3_img: S3Image) -> dict[str, str]:
         resp = self._s3.get_object_tagging(
