@@ -7,7 +7,6 @@ with Console().status("Loading dependencies..."):
     import json
     import logging
     import random
-    from contextlib import nullcontext
     from datetime import datetime
     from functools import partial
     from itertools import batched, starmap
@@ -840,9 +839,6 @@ repo={self.repo_info_loading_time:.3f}s;
             if "silent" not in flags:
                 self.cns.print(what)
 
-        def _status(msg: str):
-            return self.cns.status(msg) if "silent" not in flags else nullcontext()
-
         def _dump_export_meta(what: dict[str, float], with_images: bool):
             with open(LOCAL_DIR / "_meta.json", "w", encoding="utf-8") as f:
                 json.dump(
@@ -888,7 +884,7 @@ repo={self.repo_info_loading_time:.3f}s;
 
         # books
         _t3 = pc()
-        with _status("[bold cyan] Exporting books..."):
+        with self.cns.status("[bold cyan] Exporting books..."):
             books_file = LOCAL_DIR / "books.json"
             books_json = [
                 book.to_row()
@@ -906,7 +902,7 @@ repo={self.repo_info_loading_time:.3f}s;
         # images
         _t5 = pc()
 
-        with _status("[bold cyan]󰈭 Exporting images..."):
+        with self.cns.status("[bold cyan]󰈭 Exporting images..."):
             image_manager = ImageManager(self.entries)
             images_bare = image_manager._get_s3_images_bare()
 
