@@ -108,7 +108,7 @@ class S3Image:
             return negate(True)
         if filter == "attached":
             return negate(bool(self.entries))
-        if filter[0] == "#" and len(filter) >= 4 and filter[1:] in self.sha1:
+        if filter[0] == "#" and len(filter) >= 4 and self.sha1.startswith(filter[1:]):
             return negate(True)
         if (
             DATE_RE.match(filter)
