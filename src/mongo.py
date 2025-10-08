@@ -82,8 +82,13 @@ class Mongo:
         return cls.aimemory().delete_one({"_id": oid}).deleted_count == 1
 
     @classmethod
-    def load_bot_guests(cls) -> list[str]: ...
+    def load_bot_guests(cls) -> list[str]:
+        return [guest["username"] for guest in cls.botguests().find()]
 
     @classmethod
     def add_bot_guest(cls, username: str) -> ObjectId:
         return cls.botguests().insert_one({"username": username}).inserted_id
+
+    @classmethod
+    def remove_bot_guest(cls, username: str) -> bool:
+        return cls.botguests().delete_one({"username": username}).deleted_count == 1

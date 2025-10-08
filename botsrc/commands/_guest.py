@@ -4,7 +4,7 @@ import telebot
 from telebot import types
 
 from src.parser import KeywordArgs
-from src.utils.utils import AccessRightsManager
+from src.utils.bot_guest_manager import GuestManager
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ def guest(
     bot: telebot.TeleBot,
     kwargs: KeywordArgs,
 ):
-    am = AccessRightsManager()
+    am = GuestManager()
     if (name := kwargs.get("add")) is not None:
         am.add(name)
         msg = f"{name} added to the guests list"
