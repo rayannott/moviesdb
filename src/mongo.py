@@ -30,6 +30,10 @@ class Mongo:
         return cls.client().db.aimemory
 
     @classmethod
+    def botguests(cls) -> Collection:
+        return cls.client().db.botguests
+
+    @classmethod
     def update_entry(cls, entry: Entry):
         cls.entries().replace_one({"_id": entry._id}, entry.as_dict())
 
@@ -76,3 +80,10 @@ class Mongo:
     @classmethod
     def delete_aimemory_item(cls, oid: ObjectId) -> bool:
         return cls.aimemory().delete_one({"_id": oid}).deleted_count == 1
+
+    @classmethod
+    def load_bot_guests(cls) -> list[str]: ...
+
+    @classmethod
+    def add_bot_guest(cls, username: str) -> ObjectId:
+        return cls.botguests().insert_one({"username": username}).inserted_id
