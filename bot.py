@@ -14,13 +14,13 @@ from botsrc.utils import (
 from setup_logging import setup_logging
 from src.parser import ParsingError, parse
 from src.utils.env import TELEGRAM_TOKEN
-from src.utils.utils import AccessRightsManager
+from src.utils.bot_guest_manager import GuestManager
 
 logger = logging.getLogger(__name__)
 setup_logging()
 
 bot = TeleBot(TELEGRAM_TOKEN)
-access_rights_manager = AccessRightsManager()
+guest_manager = GuestManager()
 
 
 def pre_process_command(func):
@@ -36,7 +36,7 @@ def pre_process_command(func):
         logger.info(f"{name}(@{username};id={message.chat.id}):{message.text}")
         if message.chat.id == ME_CHAT_ID:
             extra_flags = set()
-        elif username in access_rights_manager:
+        elif username in guest_manager:
             extra_flags = {"guest"}
         else:
             bot.reply_to(message, "You are not allowed to use this bot.")

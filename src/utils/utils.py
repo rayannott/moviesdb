@@ -1,12 +1,10 @@
 import datetime
 import difflib
-import json
 import logging
 import re
 
 from git import Commit, Repo
 
-from src.paths import ALLOWED_USERS
 
 logger = logging.getLogger(__name__)
 
@@ -86,37 +84,6 @@ def parse_date(date_str: str) -> datetime.datetime | None:
         except ValueError:
             continue
     return None
-
-
-class AccessRightsManager:
-    def __init__(self):
-        self.guests = self.load_allowed_users()
-
-    @staticmethod
-    def load_allowed_users() -> set[str]:
-        if not ALLOWED_USERS.exists():
-            return set()
-        with ALLOWED_USERS.open("r") as f:
-            return set(json.load(f))
-
-    def dump_allowed_users(self):
-        with ALLOWED_USERS.open("w") as fw:
-            json.dump(list(self.guests), fw)
-
-    def add(self, username: str):
-        self.guests.add(username)
-        self.dump_allowed_users()
-
-    def remove(self, username: str) -> bool:
-        if username not in self.guests:
-            return False
-        self.guests.remove(username)
-        self.dump_allowed_users()
-        return True
-
-    def __contains__(self, username: str) -> bool:
-        self.guests = self.load_allowed_users()
-        return username in self.guests
 
 
 class RepoInfo:
