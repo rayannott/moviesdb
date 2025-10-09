@@ -59,11 +59,11 @@ with Console().status("Loading dependencies..."):
         F_MOVIES,
         F_SERIES,
         TAG_WATCH_AGAIN,
-        AccessRightsManager,
         RepoInfo,
         possible_match,
         replace_tag_alias,
     )
+    from botsrc.bot_guest_manager import GuestManager
 
     DEP_LOADING_TIME = pc() - _t_dep_0
 
@@ -957,12 +957,12 @@ repo={self.repo_info_loading_time:.3f}s;
         add: add a name to the guest list.
         remove: remove a name from the guest list.
         If no arguments are given, show the guest list."""
-        am = AccessRightsManager()
+        guest_manager = GuestManager()
         if (name := kwargs.get("add")) is not None:
-            am.add(name)
+            guest_manager.add(name)
             self.cns.print(f"{name} added to the guests list", style="bold green")
         elif (name := kwargs.get("remove")) is not None:
-            is_ok = am.remove(name)
+            is_ok = guest_manager.remove(name)
             if is_ok:
                 self.cns.print(
                     f"{name} removed from the guests list", style="bold green"
@@ -970,7 +970,7 @@ repo={self.repo_info_loading_time:.3f}s;
             else:
                 self.error(f"{name} was not in the guest list")
         else:
-            self.cns.print("Guests: " + ", ".join(am.guests))
+            self.cns.print("Guests: " + ", ".join(guest_manager.guests))
 
     def cmd_sql(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """sql

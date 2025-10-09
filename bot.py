@@ -14,7 +14,7 @@ from botsrc.utils import (
 from setup_logging import setup_logging
 from src.parser import ParsingError, parse
 from src.utils.env import TELEGRAM_TOKEN
-from src.utils.bot_guest_manager import GuestManager
+from botsrc.bot_guest_manager import GuestManager
 
 logger = logging.getLogger(__name__)
 setup_logging()
