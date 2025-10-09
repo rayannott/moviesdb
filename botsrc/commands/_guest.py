@@ -4,7 +4,7 @@ import telebot
 from telebot import types
 
 from src.parser import KeywordArgs
-from src.utils.bot_guest_manager import GuestManager
+from botsrc.bot_guest_manager import GuestManager
 
 logger = logging.getLogger(__name__)
 
