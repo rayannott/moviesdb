@@ -15,6 +15,7 @@ from setup_logging import setup_logging
 from src.parser import ParsingError, parse
 from src.utils.env import TELEGRAM_TOKEN
 from botsrc.bot_guest_manager import GuestManager
+from botsrc.commands import upload_photo
 
 logger = logging.getLogger(__name__)
 setup_logging()
@@ -86,6 +87,13 @@ def on_stop(message: types.Message, extra_flags: set[str]):
     bot.send_message(message.chat.id, "Shutting down.")
     logger.info("Stopping bot via /stop")
     bot.stop_bot()
+
+
+# received a photo:
+@bot.message_handler(content_types=["photo"])
+@pre_process_command
+def handle_photo(message: types.Message, extra_flags: set[str]):
+    upload_photo(message, bot)
 
 
 @bot.message_handler(func=lambda msg: True)
