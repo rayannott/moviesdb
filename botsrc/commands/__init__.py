@@ -10,6 +10,7 @@ from botsrc.commands._pop import pop
 from botsrc.commands._suggest import suggest
 from botsrc.commands._tag import tag
 from botsrc.commands._watch import watch
+from botsrc.commands._upload import upload_photo
 
 __all__ = [
     "add",
@@ -24,4 +25,5 @@ __all__ = [
     "logs",
     "books",
     "image",
+    "upload_photo",
 ]

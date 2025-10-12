@@ -1,3 +1,4 @@
+import io
 import logging
 import re
 import subprocess
@@ -435,6 +436,22 @@ class ImageManager:
         img.save(s3_img.local_path(), format="PNG")
         self._s3.upload_file(
             str(s3_img.local_path()),
+            IMAGES_SERIES_BUCKET_NAME,
+            s3_img.s3_id,
+        )
+        if tags:
+            return self.set_s3_tags_for(s3_img, tags)
+        return s3_img
+
+    def _upload_image_bytes(
+        self,
+        img_bytes: bytes,
+        s3_img: S3Image,
+        tags: dict[str, str] | None,
+    ) -> S3Image:
+        """Uploads image bytes to S3."""
+        self._s3.upload_fileobj(
+            io.BytesIO(img_bytes),
             IMAGES_SERIES_BUCKET_NAME,
             s3_img.s3_id,
         )
