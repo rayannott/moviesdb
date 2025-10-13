@@ -136,11 +136,11 @@ class ImagesApp(BaseApp):
         )
 
     def cmd_show(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """show [<filter>] [--no-browser]
+        """show [<filter>] [--browser]
         Show image(s).
         If no filter given: show image from clipboard.
         If filter given: show images matching the filter.
-        --no-browser: open locally instead of in browser
+        --browser: open in browser instead of terminal.
         """
         if not pos:
             image = self.image_manager.grab_clipboard_image()
@@ -158,7 +158,7 @@ class ImagesApp(BaseApp):
         if not self._confirm(imgs, "Show", ask_if_len_ge=3):
             return
         for msg in self.image_manager.show_images(
-            imgs, in_browser="no-browser" not in flags
+            imgs, in_browser="browser" in flags
         ):
             self.cns.print(msg)
 
@@ -306,8 +306,9 @@ class ImagesApp(BaseApp):
                 self.cns.print(f"  detached from {format_entry(entry)}")
 
     def cmd_entry(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """entry <entry_id|title> [--no-browser]
-        Show all images for an entry.
+        """entry <entry_id|title> [--browser]
+        Show all images for an entry in the terminal.
+        --browser: open in browser instead of terminal.
         """
         if not pos:
             self.error("Usage: entry <entry_id|title>")
@@ -322,7 +323,7 @@ class ImagesApp(BaseApp):
             return
         for msg in self.image_manager.show_images(
             list(map(S3Image, entry.image_ids)),
-            in_browser="no-browser" not in flags,
+            in_browser="browser" in flags,
         ):
             self.cns.print(msg)
 

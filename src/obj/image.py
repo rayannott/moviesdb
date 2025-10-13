@@ -391,32 +391,37 @@ class ImageManager:
             logger.error(f"Error downloading image {s3_id}", exc_info=e)
 
     def show_images(
-        self, s3_images: list[S3Image], in_browser: bool = True
+        self, s3_images: list[S3Image], in_browser: bool = False
     ) -> Iterator[str]:
-        if not in_browser:
-            self._show_locally(s3_images)
-            return
-        controller = webbrowser.get("firefox")
         for img in s3_images:
             url = self.generate_presigned_url(img)
-            controller.open_new_tab(url)
-            yield f"Opened {img} in the browser"
-        return
+            if not in_browser:
+                yield f"{img}"
+                self._show_locally(url)
+            else:
+                self.browser().open_new_tab(url)
+                yield f"Opened {img} in the browser"
 
-    def _show_locally(self, s3_images: list[S3Image]) -> Iterator[str]:
-        s3_image_paths: list[tuple[S3Image, Path]] = []
-        for s3_img in s3_images:
-            local_path = s3_img.local_path()
-            if not local_path.exists():
-                yield (
-                    f"Does not exist locally; downloading {s3_img.id} to {local_path}..."
-                )
-            self._download_image_to(s3_img.s3_id, local_path)
-            s3_image_paths.append((s3_img, local_path))
-        for s3_img, img_path in s3_image_paths:
-            with Image.open(img_path) as img:
-                img.show(title=s3_img.id)
-                yield f"Opened {s3_img} locally"
+    @cache
+    def browser(self):
+        return webbrowser.get("firefox")
+
+    def _show_in_browser(self, presigned_url: str):
+        try:
+            self.browser().open_new_tab(presigned_url)
+        except Exception as e:
+            logger.error("Error opening image in browser", exc_info=e)
+
+    def _show_locally(self, presigned_url: str):
+        try:
+            subprocess.run(["mcat", presigned_url])
+            print()
+        except Exception as e:
+            logger.error(
+                "Error showing image locally with mcat. Make sure mcat is installed. Opening in browser instead.",
+                exc_info=e,
+            )
+            self._show_in_browser(presigned_url)
 
     def clear_cache(self) -> int:
         # only use to clear the local directory populated by uploading images
