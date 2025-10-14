@@ -5,7 +5,8 @@
 Use `uv`!
 
 ```sh
-source .venv/bin/activate
+uv venv
+uv sync
 uv run main.py
 ```
 
@@ -18,16 +19,9 @@ It can
 - modify the database by adding, removing or modifying entries
 - chat with the database via an openai model;
 - request relevant information from the OMDB online database;
-- run a telegram bot that mirrors the functionality of the terminal app;
+- run a telegram bot that (almost) mirrors the functionality of the terminal app;
+- store images and attach them to entries;
 - and much more!
 
-### A Telegram Bot?
-Yes, you can try it out [here](https://t.me/mymoviesdbbot) in the read-only mode.
-
 ## Who is it for?
-<s>For me.</s> For me and maybe for you, but you'd need to do some setting up.
-
-Here's the
-### Minimal setup
-
-First of all, in the `src/utils/env.py`, comment out the `assert` statements associated with the optional features (`TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `OPENAI_PROJECT_ID`, `OMDB_API_KEY`) and define `MONGODB_PASSWORD` in the `.env` file. Then, in your free tier MongoDB Atlas, create an app (`MoviesSeries`) and collections (`entries`, `watchlist`). Replace the `uri` variable in `src/mongo.py` with your own MongoDB URI.
+For me.
