@@ -1,0 +1,11 @@
+services:
+  moviesbot:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: eu-north-1
+        awslogs-group: moviesdb
+        awslogs-stream: ec2-user
