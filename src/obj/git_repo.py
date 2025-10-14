@@ -32,7 +32,7 @@ class RepoInfo:
             f"[bold cyan]{self.last_commit.hexsha[:8]}[/] "
             f"[dim]<{self.last_commit.author.name} <{self.last_commit.author.email}>[/] "
             f"[green]{self.last_commit_timestamp}[/]\n  "
-            f"{self.last_commit.message}"
+            f"{self.last_commit.message}"  # type: ignore[str-bytes-safe]
             if self.last_commit is not None
             else "[red]No info[/]"
         )
