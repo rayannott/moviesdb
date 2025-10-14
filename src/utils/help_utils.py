@@ -1,3 +1,5 @@
+import warnings
+
 from rich.align import Align
 from rich.table import Table
 from rich.text import Text
@@ -17,7 +19,9 @@ def parse_docstring(docstring: str | None) -> tuple[str, str, str] | None:
     if docstring is None:
         return None
     lines = docstring.splitlines()
-    assert len(lines) >= 2, "Docstring must have at least 2 lines"
+    if len(lines) < 2:
+        warnings.warn(f"Docstring is too short: {docstring!r}")
+        return None
     signature = lines[0]
     short_desc = lines[1]
     rest = "\n".join(lines[2:])

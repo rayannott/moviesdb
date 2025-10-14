@@ -46,9 +46,16 @@ class BaseApp(ABC):
             self.command_methods[alias] = self.command_methods[command]
             self.help_messages[alias] = self.help_messages[command]
 
+    def try_int(self, s) -> int | None:
+        try:
+            return int(s)
+        except ValueError:
+            self.error(f" Not an integer: {s!r}")
+        return None
+
     def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """exit
-        Exit the books subapp."""
+        Exit the application."""
         self.running = False
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):

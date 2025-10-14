@@ -44,8 +44,6 @@ class SqlApp(BaseApp):
             styles=["bold white", "blue"],
         )
 
-    # ----- lifecycle -----
-
     def pre_run(self):
         super().pre_run()
         self.cns.print(self._schema_table)
@@ -56,14 +54,9 @@ class SqlApp(BaseApp):
     def post_run(self):
         try:
             self.cursor.close()
-        except Exception:
-            pass
-        try:
             self.conn.close()
-        except Exception:
-            pass
-
-    # ----- internals -----
+        except Exception as e:
+            self.warning(f"Error closing the database connection: {e}")
 
     def build_in_memory_db(self) -> sqlite3.Connection:
         conn = sqlite3.connect(":memory:")

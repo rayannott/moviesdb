@@ -74,7 +74,12 @@ class BooksApp(BaseApp):
             )
             return
 
-        _s = slice(-5, None, None) if sortby == "dt" else slice(0, 5, None)
+        n_str = kwargs.get("n", 5)
+        if (n := self.try_int(n_str)) is None or n <= 0:
+            self.error(f"n must be a positive integer, got {n_str!r}")
+            return
+
+        _s = slice(-n, None, None) if sortby == "dt" else slice(0, n, None)
         _books = self.existing_books.copy()
         _books.sort(key=sort_fn)
         table = self.get_books_table(_books[_s], force_verbose="verbose" in flags)
@@ -137,11 +142,6 @@ class BooksApp(BaseApp):
                     close, title="Close matches", force_verbose="verbose" in flags
                 )
             )
-
-    def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """exit
-        Exit the books subapp."""
-        self.running = False
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """help [<command>]
