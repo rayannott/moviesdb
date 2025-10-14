@@ -1,11 +1,8 @@
-import logging
-
 import telebot
 from telebot import types
+from loguru import logger
 
 from src.obj.image import FOLDER_PATH, ImageManager, get_new_image_id, S3Image
-
-logger = logging.getLogger(__name__)
 
 
 def upload_photo(
@@ -23,7 +20,7 @@ def upload_photo(
         bot.reply_to(message, "Failed to get photo file path.")
         return
     photo_bytes = bot.download_file(photo_info.file_path)
-    logger.info(f"Photo received; {photo_id=}, {photo_info=}, {len(photo_bytes)=}")
+    logger.debug(f"Photo received; {photo_id=}, {photo_info=}, {len(photo_bytes)=}")
 
     image_manager = ImageManager([])
     key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
@@ -31,4 +28,4 @@ def upload_photo(
 
     image_manager._upload_image_bytes(photo_bytes, s3_img, tags=None)
     bot.reply_to(message, f"Photo uploaded with id: {s3_img.id}")
-    logger.info(f"Photo uploaded; {s3_img=}")
+    logger.debug(f"Photo uploaded; {s3_img=}")

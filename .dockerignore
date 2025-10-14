@@ -1,11 +1,13 @@
 .env
-venv/
+.venv/
 
 __pycache__/
 *.py[cod]
 .pytest_cache/
 
+*_cache/
+
 .vscode/
 
-local/
 logs/
+*local

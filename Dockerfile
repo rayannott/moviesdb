@@ -1,6 +1,7 @@
 FROM python:3.13-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  git curl \
   && curl -LsSf https://astral.sh/uv/install.sh | sh \
   && apt-get purge -y --auto-remove curl \
   && rm -rf /var/lib/apt/lists/*
@@ -10,13 +11,11 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock* ./
 
-CMD ["uv", "sync"]
+RUN uv sync --no-cache
 
 COPY . .
 
-# Option A: run via uv (no PATH juggling)
-# CMD ["uv", "run", "python", "main.py"]
-# or CMD ["uv", "run", "python", "bot.py"]  # for the tg bot
+CMD uv run python bot.py
 
 
 # build new image with:

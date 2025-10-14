@@ -1,14 +1,11 @@
-import logging
-
 import telebot
 from telebot import types
+from loguru import logger
 
 from botsrc.utils import list_many_groups
 from src.mongo import Mongo
 from src.obj.entry_group import groups_from_list_of_entries
 from src.parser import PositionalArgs
-
-logger = logging.getLogger(__name__)
 
 
 def group(

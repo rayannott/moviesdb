@@ -1,7 +1,7 @@
-import logging
 from functools import wraps
 
 from telebot import TeleBot, types
+from loguru import logger
 
 from botsrc.compiled import BOT_COMMANDS
 from botsrc.helper import get_help
@@ -11,14 +11,11 @@ from botsrc.utils import (
     ME_CHAT_ID,
     report_repository_info,
 )
-from setup_logging import setup_logging
 from src.parser import ParsingError, parse
 from src.utils.env import TELEGRAM_TOKEN
 from botsrc.bot_guest_manager import GuestManager
 from botsrc.commands import upload_photo
 
-logger = logging.getLogger(__name__)
-setup_logging()
 
 bot = TeleBot(TELEGRAM_TOKEN)
 guest_manager = GuestManager()
