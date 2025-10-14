@@ -8,8 +8,9 @@ from src.mongo import Mongo
 from src.obj.book import Book
 from src.obj.entry import Entry
 from src.obj.entry_group import EntryGroup
+from src.obj.git_repo import RepoManager
 from src.paths import ALLOWED_USERS
-from src.utils.utils import TAG_WATCH_AGAIN, RepoInfo
+from src.utils.utils import TAG_WATCH_AGAIN
 
 BOT_STARTED = datetime.now()
 
@@ -102,10 +103,10 @@ Author: {commit.author.name} <{commit.author.email}>
 Date:   {commit.authored_datetime}
 {commit.message}"""  # type: ignore[str-bytes-safe]
 
-    repo_info = RepoInfo()
-    return f"""Bot started at {BOT_STARTED} on branch: {repo_info.get_branch()}.
+    repo_info = RepoManager().get_repo_info()
+    return f"""Bot started at {BOT_STARTED} on branch: {repo_info.branch_name}.
     - Last commit:
-{_commit_to_str(repo_info.get_last_commit())}"""
+{_commit_to_str(repo_info.last_commit)}"""
 
 
 ObjectT = TypeVar("ObjectT")

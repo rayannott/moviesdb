@@ -38,6 +38,7 @@ with Console().status("Loading dependencies..."):
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
+    from src.obj.git_repo import RepoManager
     from src.parser import Flags, KeywordArgs, PositionalArgs
     from src.paths import LOCAL_DIR
     from src.utils.help_utils import get_rich_help
@@ -59,7 +60,6 @@ with Console().status("Loading dependencies..."):
         F_MOVIES,
         F_SERIES,
         TAG_WATCH_AGAIN,
-        RepoInfo,
         possible_match,
         replace_tag_alias,
     )
@@ -147,15 +147,14 @@ class App(BaseApp):
 
         self.chatbot = ChatBot(self.entries, Mongo)
 
-        _t_repo_0 = pc()
-        self.repo_info = RepoInfo()
-        self.repo_info_loading_time = pc() - _t_repo_0
+        self.repo_manager = RepoManager()
+        self.repo_info = self.repo_manager.get_repo_info()
 
         logger.info(
             f"""init App; loading times:
 dependencies={DEP_LOADING_TIME:.3f}s,
 mongo={MONGO_LOADING_TIME:.3f}s,
-repo={self.repo_info_loading_time:.3f}s;
+repo={self.repo_manager.loaded_in:.3f}s;
 {len(self.entries)} entries,
 {len(self.watch_list)} watch list items""".replace("\n", " ")
         )
@@ -273,8 +272,10 @@ repo={self.repo_info_loading_time:.3f}s;
         return None
 
     def header(self):
-        branch = f"[violet] {self.repo_info.get_branch()}[/]"
-        last_commit_from = f"[gold3]󰚰 {self.repo_info.get_last_commit_timestamp()}[/]"
+        branch = f"[violet] {self.repo_info.branch_name}[/]"
+        last_commit_from = (
+            f"[gold3]󰚰 {self.repo_info.last_commit_date}[/]"
+        )
         self.cns.rule(
             rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
         )
@@ -599,23 +600,13 @@ repo={self.repo_info_loading_time:.3f}s;
         if "dev" not in flags:
             return
 
-        def format_commit(commit):
-            if commit is None:
-                return "[red]No info[/]"
-            return (
-                f"[bold cyan]{commit.hexsha[:8]}[/] "
-                f"[dim]<{commit.author.name} <{commit.author.email}>[/] "
-                f"[green]{commit.committed_datetime.strftime('%Y-%m-%d %H:%M:%S')}[/]\n  "
-                f"{commit.message}"
-            )
-
         self.cns.rule("Dev stats", style="bold magenta")
         self.cns.print(
             f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
             f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
-            f"[magenta]Loaded repo info in[/] {self.repo_info_loading_time:.3f} sec\n\n"
+            f"[magenta]Loaded repo info in[/] {self.repo_manager.loaded_in:.3f} sec\n\n"
             f"[magenta]Last commit:[/]\n"
-            f"  {format_commit(self.repo_info.get_last_commit())}"
+            f"  {self.repo_info.last_commit_rich_formatted}"
         )
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
