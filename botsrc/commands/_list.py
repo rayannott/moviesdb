@@ -1,13 +1,10 @@
-import logging
-
 import telebot
 from telebot import types
+from loguru import logger
 
 from botsrc.utils import list_many_entries
 from src.mongo import Mongo
 from src.parser import Flags
-
-logger = logging.getLogger(__name__)
 
 
 def list_(
@@ -26,4 +23,4 @@ def list_(
         override_title="Last 5 entries:",
     )
     bot.send_message(message.chat.id, msg)
-    logger.info(msg)
+    logger.debug(msg)

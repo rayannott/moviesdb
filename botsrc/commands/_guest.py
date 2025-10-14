@@ -1,12 +1,10 @@
-import logging
-
 import telebot
 from telebot import types
 
+from loguru import logger
+
 from src.parser import KeywordArgs
 from botsrc.bot_guest_manager import GuestManager
-
-logger = logging.getLogger(__name__)
 
 
 def guest(
@@ -28,4 +26,4 @@ def guest(
     else:
         msg = "Guests: " + ", ".join(am.guests)
     bot.send_message(message.chat.id, msg)
-    logger.info(f"{msg}; (current guests: {am.guests})")
+    logger.debug(f"{msg}; (current guests: {am.guests})")

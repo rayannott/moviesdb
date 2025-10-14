@@ -5,7 +5,6 @@ from botsrc.commands._group import group
 from botsrc.commands._guest import guest
 from botsrc.commands._image import image
 from botsrc.commands._list import list_
-from botsrc.commands._logs import logs
 from botsrc.commands._pop import pop
 from botsrc.commands._suggest import suggest
 from botsrc.commands._tag import tag
@@ -22,7 +21,6 @@ __all__ = [
     "watch",
     "pop",
     "guest",
-    "logs",
     "books",
     "image",
     "upload_photo",

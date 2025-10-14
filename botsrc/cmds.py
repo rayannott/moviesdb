@@ -11,7 +11,6 @@ from botsrc.commands import (
     guest,
     image,
     list_,
-    logs,
     pop,
     suggest,
     tag,
@@ -147,21 +146,6 @@ def cmd_tag(
         oid(flag): show the mongoDB OIDs
     """
     tag(message, bot, pos, flags)
-
-
-def cmd_logs(
-    pos: PositionalArgs,
-    kwargs: KeywordArgs,
-    flags: Flags,
-    bot: telebot.TeleBot,
-    message: types.Message,
-):
-    """logs [--full]
-    Take a peak into the logs.
-    If the --full flag is specified, send the logs as a zip file. Otherwise, just show the last 10 lines of the log file.
-        full(flag): if specified, send all logs as a single zip file
-    """
-    logs(message, bot, flags)
 
 
 def cmd_group(

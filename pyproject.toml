@@ -6,6 +6,7 @@ dependencies = [
     "boto3>=1.40.15",
     "boto3-stubs[s3]>=1.40.15",
     "gitpython>=3.1.45",
+    "loguru>=0.7.3",
     "nbformat>=5.10.4",
     "openai>=1.100.2",
     "pillow>=11.3.0",
