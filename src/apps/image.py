@@ -105,7 +105,7 @@ class ImagesApp(BaseApp):
             for img in some_images:
                 self.cns.print(str(img))
             return
-        if (n := self.app.try_int(kwargs.get("n", "5"))) is None:
+        if (n := self.try_int(kwargs.get("n", "5"))) is None:
             return
         _images = self.get_images()
         if not _images:
@@ -157,9 +157,7 @@ class ImagesApp(BaseApp):
             return
         if not self._confirm(imgs, "Show", ask_if_len_ge=3):
             return
-        for msg in self.image_manager.show_images(
-            imgs, in_browser="browser" in flags
-        ):
+        for msg in self.image_manager.show_images(imgs, in_browser="browser" in flags):
             self.cns.print(msg)
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):

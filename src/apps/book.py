@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from time import perf_counter as pc
+from typing import Protocol, TypeVar
 
 from rich.console import Console
 from supabase import Client, create_client
@@ -58,12 +59,20 @@ class BooksApp(BaseApp):
             sortby: return entries sorted by date (key=dt), rating (key=rating), or number of pages (key=pages)
             verbose(flag): if given, display the notes column (overrides subapp verbosity)
         """
-        # TODO: add the n argument
         sortby = kwargs.get("sortby", "dt")
-        _sort_fns = {
+
+        T = TypeVar("T", contravariant=True)
+
+        class Sortable(Protocol[T]):
+            def __lt__(self, other: T, /) -> bool: ...
+            def __gt__(self, other: T, /) -> bool: ...
+            def __le__(self, other: T, /) -> bool: ...
+            def __ge__(self, other: T, /) -> bool: ...
+
+        _sort_fns: dict[str, Callable[[Book], Sortable]] = {
             "dt": lambda x: x.dt_read,
-            "rating": lambda x: -x.rating,
-            "pages": lambda x: -x.n_pages,
+            "rating": lambda x: -(x.rating or 0),
+            "pages": lambda x: -(x.n_pages or 0),
         }
         sort_fn = _sort_fns.get(sortby)
         if sort_fn is None:
@@ -74,7 +83,12 @@ class BooksApp(BaseApp):
             )
             return
 
-        _s = slice(-5, None, None) if sortby == "dt" else slice(0, 5, None)
+        n_str = kwargs.get("n", 5)
+        if (n := self.try_int(n_str)) is None or n <= 0:
+            self.error(f"n must be a positive integer, got {n_str!r}")
+            return
+
+        _s = slice(-n, None, None) if sortby == "dt" else slice(0, n, None)
         _books = self.existing_books.copy()
         _books.sort(key=sort_fn)
         table = self.get_books_table(_books[_s], force_verbose="verbose" in flags)
@@ -137,11 +151,6 @@ class BooksApp(BaseApp):
                     close, title="Close matches", force_verbose="verbose" in flags
                 )
             )
-
-    def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """exit
-        Exit the books subapp."""
-        self.running = False
 
     def cmd_help(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """help [<command>]

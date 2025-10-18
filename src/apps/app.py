@@ -122,13 +122,6 @@ class App(BaseApp):
     def md(text: str) -> Markdown:
         return Markdown(text)
 
-    def try_int(self, s) -> int | None:
-        try:
-            return int(s)
-        except ValueError:
-            self.cns.print(f" Not an integer: {s!r}", style="bold red")
-        return None
-
     @property
     def entries(self) -> list[Entry]:
         return sorted(self.load_entries())
@@ -273,9 +266,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
 
     def header(self):
         branch = f"[violet] {self.repo_info.branch_name}[/]"
-        last_commit_from = (
-            f"[gold3]󰚰 {self.repo_info.last_commit_date}[/]"
-        )
+        last_commit_from = f"[gold3]󰚰 {self.repo_info.last_commit_date}[/]"
         self.cns.rule(
             rf"[bold green]{len(self.entries)}[/] entries \[{branch} {last_commit_from}]"
         )
@@ -992,11 +983,6 @@ repo={self.repo_manager.loaded_in:.3f}s;
             f"Verbose mode {'on  ' if is_verbose else 'off  '}",
             style=f"bold {'green' if is_verbose else 'red'}",
         )
-
-    def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
-        """exit
-        Exit the application."""
-        self.running = False
 
     def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         raise NotImplementedError("Debug command not implemented")
