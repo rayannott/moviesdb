@@ -12,6 +12,7 @@ from src.mongo import Mongo
 from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.rich_utils import format_entry
+from src.utils.utils import is_installed
 
 if TYPE_CHECKING:
     from src.apps import App
@@ -64,6 +65,11 @@ class ImagesApp(BaseApp):
             f"{self._num_images} images loaded in {self._images_loaded_in:.3f} sec; "
             f"tags loaded in {self._tags_loaded_in:.3f} sec."
         )
+        if not is_installed("mcat"):
+            self.cns.print(
+                "[red]Warning: mcat is not installed. The default show "
+                "command will not work. Use the --browser flag to avoid errors.[/]"
+            )
 
     def _confirm(
         self, imgs: list[S3Image], prompt: str, *, ask_if_len_ge: int = 5

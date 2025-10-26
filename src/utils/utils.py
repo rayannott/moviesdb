@@ -2,8 +2,7 @@ import datetime
 import difflib
 import logging
 import re
-
-
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -83,3 +82,13 @@ def parse_date(date_str: str) -> datetime.datetime | None:
         except ValueError:
             continue
     return None
+
+
+def is_installed(cmd: str) -> bool:
+    try:
+        subprocess.run(
+            [cmd, "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        return True
+    except FileNotFoundError:
+        return False
