@@ -197,28 +197,56 @@ class ImagesApp(BaseApp):
         """upload [<path>] [--to <entry_id|title>] [**<tags>]
         Upload image from clipboard and optionally attach it to an entry.
         Any additional kwargs are passed as tags to the image's metadata.
-        If (global) path is given, upload from path instead of clipboard.
+        If an absolute path (either directory or file) is given, upload from path instead of clipboard.
         E.g., an image uploaded with
-            upload --to -1 --what avatar --who me|john --misc something
+            upload --to -1 --what avatar --who john/me --misc something
         would match all of the following tag-filters:
             '=', 'what=', '=me', '=john'
         """
         attach_to_entry_id = kwargs.pop("to", None)
-        with self.cns.status("Uploading image..."):
-            if not pos:
-                image = self.image_manager.upload_from_clipboard(kwargs)
-                if not image:
-                    self.warning("No image found in clipboard.")
-                    return
-            else:
-                path = Path(pos[0])
-                if not path.exists():
-                    self.error(f"File not found: {path}")
-                    return
-                image = self.image_manager.upload_from_path(path, kwargs)
+        images: list[S3Image] = []
+        if not pos:
+            image = self.image_manager.upload_from_clipboard(kwargs)
+            if not image:
+                self.warning("No image found in clipboard.")
+                return
+        else:
+            path = Path(pos[0])
+            if not path.exists():
+                self.error(f"File not found: {path}")
+                return
+            if path.is_file():
+                with self.cns.status("Uploading image..."):
+                    image = self.image_manager.upload_from_path(path, kwargs)
                 if not image:
                     self.error(f"Failed to upload image from path: {path}")
                     return
+            else:
+                paths = [
+                    p for p in path.iterdir() if p.suffix in {".png", ".jpg", ".jpeg"}
+                ]
+                if not paths:
+                    self.error(f"No files found in directory: {path}")
+                    return
+                self.cns.print(paths)
+                ask = Prompt.ask(
+                    f"Upload all {len(paths)} images from directory {path}?",
+                    choices=["y", "n"],
+                    default="n",
+                    console=self.cns,
+                )
+                if ask != "y":
+                    self.cns.print("Upload cancelled.")
+                    return
+                for img_path in paths:
+                    with self.cns.status(f"Uploading {img_path}..."):
+                        image = self.image_manager.upload_from_path(img_path, kwargs)
+                    if not image:
+                        self.error(f"Failed to upload image from path: {img_path}")
+                        return
+                    self.cns.print(f"Uploaded {image}")
+                    images.append(image)
+
         entry_ = None
         if attach_to_entry_id:
             entry_ = self.app.entry_by_idx_or_title(attach_to_entry_id)
@@ -226,15 +254,16 @@ class ImagesApp(BaseApp):
                 self.warning(
                     f"No entry found with ID: {attach_to_entry_id}; not attaching."
                 )
-        if image:
-            self.cns.print(f"Uploaded {image}")
-            self.update_in_memory_tags([image])
-            if entry_:
+        if images:
+            self.update_in_memory_tags(images)
+            if not entry_:
+                return
+            for image in images:
                 entry_.attach_image(image.s3_id)
                 Mongo.update_entry(entry_)
                 self.cns.print(f"Attached to {format_entry(entry_)}")
         else:
-            self.error(f"Failed to upload {image} from clipboard.")
+            self.error("Failed to upload from clipboard.")
 
     def cmd_attach(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """attach <filter> <entry_id|title>
