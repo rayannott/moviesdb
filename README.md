@@ -1,6 +1,8 @@
 # moviesdb
 ![workflow](https://github.com/rayannott/moviesdb/actions/workflows/ci.yml/badge.svg)
 
+Some change here
+
 ## Get started
 Use `uv`!
 
