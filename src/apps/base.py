@@ -50,7 +50,7 @@ class BaseApp(ABC):
         try:
             return int(s)
         except ValueError:
-            self.error(f" Not an integer: {s!r}")
+            self.error(f"Not an integer: {s!r}")
         return None
 
     def cmd_exit(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -102,6 +102,7 @@ class BaseApp(ABC):
     def run(self):
         logger.info("starting App")
         self.pre_run()
+        command = "<missing>"
         while self.running:
             try:
                 command = self.input(self.prompt_str + " ")

@@ -1,5 +1,7 @@
+import re
 from time import perf_counter as pc
 
+from pyfzf.pyfzf import FzfPrompt
 from rich.console import Console
 
 with Console().status("Loading dependencies..."):
@@ -20,6 +22,7 @@ with Console().status("Loading dependencies..."):
     from rich.panel import Panel
     from rich.prompt import Prompt
 
+    from botsrc.bot_guest_manager import GuestManager
     from setup_logging import setup_logging
     from src.apps.base import BaseApp
     from src.apps.book import BooksApp
@@ -34,11 +37,11 @@ with Console().status("Loading dependencies..."):
         is_verbose,
     )
     from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
+    from src.obj.git_repo import RepoManager
     from src.obj.image import ImageManager
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.obj.watch_list import WatchList
-    from src.obj.git_repo import RepoManager
     from src.parser import Flags, KeywordArgs, PositionalArgs
     from src.paths import LOCAL_DIR
     from src.utils.help_utils import get_rich_help
@@ -63,7 +66,6 @@ with Console().status("Loading dependencies..."):
         possible_match,
         replace_tag_alias,
     )
-    from botsrc.bot_guest_manager import GuestManager
 
     DEP_LOADING_TIME = pc() - _t_dep_0
 
@@ -129,6 +131,26 @@ class App(BaseApp):
     @property
     def watch_list(self) -> WatchList:
         return self.load_watch_list()
+
+    def fzf_select_entries(self, is_verbose: bool = False) -> list[tuple[int, Entry]]:
+        _entries = self.entries
+
+        def _fmt(idx: int, entry: Entry) -> str:
+            _tags = (" " + " ".join(f"#{t}" for t in entry.tags)) if entry.tags else ""
+            _date = f" ({entry.date.strftime('%d.%m.%Y')})" if entry.date else ""
+            _note = f": {entry.notes}" if is_verbose and entry.notes else ""
+            return f"[{idx}] {entry.title}{_date}{_tags}{_note}"
+
+        fzf = FzfPrompt()
+        res = fzf.prompt(
+            [_fmt(idx, e) for idx, e in reversed(list(enumerate(_entries)))],
+            "--multi",
+        )
+        return [
+            ((idx := int(m.group(1))), _entries[idx])
+            for m in map(re.compile(r"^\[(\d+)\].+$").match, res)
+            if m
+        ]
 
     def __init__(self):
         self.running = True
@@ -276,7 +298,18 @@ repo={self.repo_manager.loaded_in:.3f}s;
         Find entries by the title substring."""
         title = " ".join(pos)
         if not title:
-            self.error("Empty title.")
+            res = self.fzf_select_entries(is_verbose=bool(is_verbose))
+            if not res:
+                return
+            ids, matches = zip(*res)
+            self.cns.print(
+                get_entries_table(
+                    matches,
+                    ids,
+                    title=f"[bold green]{len(res)}[/] selected entries "
+                    f"(avg {format_rating(mean(m.rating for m in matches))})",
+                )
+            )
             return
         exact = self._find_exact_matches(title)
         sub = self._find_substring_matches(title)
@@ -287,7 +320,10 @@ repo={self.repo_manager.loaded_in:.3f}s;
             ids, matches = zip(*exact)
             self.cns.print(
                 get_entries_table(
-                    matches, ids, title=f"[bold green]{len(exact)}[/] exact matches"
+                    matches,
+                    ids,
+                    title=f"[bold green]{len(exact)}[/] exact matches "
+                    f"(avg {format_rating(mean(m.rating for m in matches))})",
                 )
             )
         if sub:
@@ -296,7 +332,8 @@ repo={self.repo_manager.loaded_in:.3f}s;
                 get_entries_table(
                     matches,
                     ids,
-                    title=f"[bold yellow]{len(sub)}[/] possible matches",
+                    title=f"[bold yellow]{len(sub)}[/] possible matches "
+                    f"(avg {format_rating(mean(m.rating for m in matches))})",
                 )
             )
         if watch:
@@ -766,8 +803,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
             n = 1
         n = min(len(to_choose_from), n)
         entries = random.sample(to_choose_from, k=n)
-        for entry in entries:
-            self.cns.print(format_entry(entry))
+        self.cns.print(get_entries_table(entries, title=f"Random {n} entries"))
 
     def cmd_db(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """db <title>
