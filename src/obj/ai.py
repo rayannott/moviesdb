@@ -5,7 +5,11 @@ from pydantic import BaseModel
 
 from src.models.entry import Entry
 from src.services.chatbot_service import ChatbotService
-from src.utils.env import OPENAI_API_KEY, OPENAI_PROJECT_ID
+from src.settings import Settings
+
+_settings = Settings()
+OPENAI_API_KEY = _settings.openai_api_key
+OPENAI_PROJECT_ID = _settings.openai_project_id
 
 
 GPT4O = "gpt-4.1"

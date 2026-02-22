@@ -29,7 +29,6 @@ with Console().status("Loading dependencies..."):
     from src.obj.ai import ChatBot
     from src.obj.entry import is_verbose
     from src.obj.git_repo import RepoManager
-    from src.obj.image import ImageManager
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.parser import Flags, KeywordArgs, PositionalArgs
@@ -39,6 +38,7 @@ with Console().status("Loading dependencies..."):
     from src.services.chatbot_service import ChatbotService
     from src.services.guest_service import GuestService
     from src.services.export_service import ExportService
+    from src.services.image_service import ImageService
     from src.utils.help_utils import get_rich_help
     from src.utils.plots import get_plot
     from src.utils.rich_utils import (
@@ -86,7 +86,7 @@ logger = logging.getLogger(__name__)
 setup_logging()
 
 
-class App(BaseApp):
+class TUIApp(BaseApp):
     """TUI application using services for business logic."""
 
     def __init__(
@@ -96,6 +96,7 @@ class App(BaseApp):
         chatbot_service: ChatbotService,
         guest_service: GuestService,
         export_service: ExportService,
+        image_service: ImageService,
     ) -> None:
         self.running = True
         self.cns = Console()
@@ -108,6 +109,7 @@ class App(BaseApp):
         self._chatbot_svc = chatbot_service
         self._guest_svc = guest_service
         self._export_svc = export_service
+        self._image_svc = image_service
 
         self.chatbot = ChatBot(self.entries, self._chatbot_svc)
 
@@ -728,7 +730,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         Manage images in the database.
         """
         images_app = ImagesApp(
-            self._entry_svc,
+            self._image_svc,
             self.cns,
             self.input,
             process_command_fn=self.process_command,
@@ -855,7 +857,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         # images
         _t5 = _pc()
         with self.cns.status("[bold cyan]󰈭 Exporting images..."):
-            image_manager = ImageManager(self.entries)
+            image_manager = self._image_svc.create_manager()
             images_bare = image_manager._get_s3_images_bare()
 
         _local_exported_images = image_manager._get_exported_local_images()

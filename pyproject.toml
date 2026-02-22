@@ -4,7 +4,7 @@ version = "1.2.1"
 requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.40.15",
-    "boto3-stubs[s3]>=1.40.15",
+    "boto3-stubs[boto3,s3]>=1.40.15",
     "dependency-injector>=4.48.3",
     "fastapi>=0.129.2",
     "gitpython>=3.1.45",

@@ -143,6 +143,9 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+boto3 = [
+    { name = "boto3" },
+]
 s3 = [
     { name = "mypy-boto3-s3" },
 ]
@@ -779,7 +782,7 @@ version = "1.2.1"
 source = { virtual = "." }
 dependencies = [
     { name = "boto3" },
-    { name = "boto3-stubs", extra = ["s3"] },
+    { name = "boto3-stubs", extra = ["boto3", "s3"] },
     { name = "dependency-injector" },
     { name = "fastapi" },
     { name = "gitpython" },
@@ -816,7 +819,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.40.15" },
-    { name = "boto3-stubs", extras = ["s3"], specifier = ">=1.40.15" },
+    { name = "boto3-stubs", extras = ["boto3", "s3"], specifier = ">=1.40.15" },
     { name = "dependency-injector", specifier = ">=4.48.3" },
     { name = "fastapi", specifier = ">=0.129.2" },
     { name = "gitpython", specifier = ">=3.1.45" },

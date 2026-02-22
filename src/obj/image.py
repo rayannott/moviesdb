@@ -16,12 +16,12 @@ from warnings import deprecated
 from zoneinfo import ZoneInfo
 
 import boto3
+from mypy_boto3_s3 import S3Client
 from PIL import Image, ImageGrab, UnidentifiedImageError
 from rich.console import Console
 from rich.prompt import Prompt
 
 from src.models.entry import Entry
-from src.utils.env import IMAGES_SERIES_BUCKET_NAME
 from src.utils.rich_utils import get_pretty_progress
 
 logger = logging.getLogger(__name__)
@@ -149,10 +149,16 @@ class S3Image:
 
 
 class ImageManager:
-    def __init__(self, entries: list[Entry]):
+    def __init__(
+        self,
+        entries: list[Entry],
+        s3_client: S3Client,
+        bucket_name: str,
+    ) -> None:
         self.entries = entries
+        self._s3 = s3_client
+        self._bucket_name = bucket_name
         _t0 = pc()
-        self._s3 = boto3.client("s3", region_name="eu-north-1")
         self._check_access()
         self._check_s3_consistency()
         self.loaded_in = pc() - _t0
@@ -184,7 +190,7 @@ class ImageManager:
                     "aws",
                     "s3",
                     "sync",
-                    f"s3://{IMAGES_SERIES_BUCKET_NAME}",
+                    f"s3://{self._bucket_name}",
                     str(IMAGES_TMP_DIR),
                     "--delete",
                 ]
@@ -194,14 +200,14 @@ class ImageManager:
 
     def _check_access(self):
         try:
-            self._s3.head_bucket(Bucket=IMAGES_SERIES_BUCKET_NAME)
+            self._s3.head_bucket(Bucket=self._bucket_name)
         except Exception as e:
             logger.error("Error checking S3 bucket", exc_info=e)
             raise RuntimeError("Error accessing bucket.") from e
 
     def _get_s3_response(self):
         return self._s3.list_objects_v2(
-            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Bucket=self._bucket_name,
             Prefix=FOLDER_NAME + "/",
         )
 
@@ -309,7 +315,7 @@ class ImageManager:
 
     def get_tags_for(self, s3_img: S3Image) -> dict[str, str]:
         resp = self._s3.get_object_tagging(
-            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Bucket=self._bucket_name,
             Key=s3_img.s3_id,
         )
         return {t["Key"]: t["Value"] for t in resp["TagSet"]}
@@ -327,7 +333,7 @@ class ImageManager:
         Return the updated S3Image object."""
         tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
         self._s3.put_object_tagging(
-            Bucket=IMAGES_SERIES_BUCKET_NAME,
+            Bucket=self._bucket_name,
             Key=s3_img.s3_id,
             Tagging={"TagSet": tag_set},  # type: ignore
         )
@@ -386,7 +392,7 @@ class ImageManager:
 
     def _download_image_to(self, s3_id: str, to: Path):
         try:
-            self._s3.download_file(IMAGES_SERIES_BUCKET_NAME, s3_id, str(to))
+            self._s3.download_file(self._bucket_name, s3_id, str(to))
         except Exception as e:
             logger.error(f"Error downloading image {s3_id}", exc_info=e)
 
@@ -441,7 +447,7 @@ class ImageManager:
         img.save(s3_img.local_path(), format="PNG")
         self._s3.upload_file(
             str(s3_img.local_path()),
-            IMAGES_SERIES_BUCKET_NAME,
+            self._bucket_name,
             s3_img.s3_id,
         )
         if tags:
@@ -457,7 +463,7 @@ class ImageManager:
         """Uploads image bytes to S3."""
         self._s3.upload_fileobj(
             io.BytesIO(img_bytes),
-            IMAGES_SERIES_BUCKET_NAME,
+            self._bucket_name,
             s3_img.s3_id,
         )
         if tags:
@@ -490,7 +496,7 @@ class ImageManager:
         return self._upload_image(img, s3_img, tags)
 
     def delete_image(self, s3_img: S3Image):
-        self._s3.delete_object(Bucket=IMAGES_SERIES_BUCKET_NAME, Key=s3_img.s3_id)
+        self._s3.delete_object(Bucket=self._bucket_name, Key=s3_img.s3_id)
         s3_img.clear_cache()
 
     @deprecated("Use get_images() instead.", category=DeprecationWarning)
@@ -511,7 +517,7 @@ class ImageManager:
         url = self._s3.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": IMAGES_SERIES_BUCKET_NAME,
+                "Bucket": self._bucket_name,
                 "Key": s3_img.s3_id,
                 "ResponseContentType": "image/png",
                 "ResponseContentDisposition": "inline",

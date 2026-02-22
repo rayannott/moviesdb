@@ -17,6 +17,7 @@ from src.models.entry import Entry, EntryType
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.services.entry_service import EntryService
 from src.services.guest_service import GuestService
+from src.services.image_service import ImageService
 from src.services.watchlist_service import WatchlistService
 from src.utils.utils import replace_tag_alias
 
@@ -54,10 +55,12 @@ class BotCommands:
         entry_service: EntryService,
         watchlist_service: WatchlistService,
         guest_service: GuestService,
+        image_service: ImageService,
     ) -> None:
         self._entry_svc = entry_service
         self._watchlist_svc = watchlist_service
         self._guest_svc = guest_service
+        self._image_svc = image_service
 
     def cmd_list(
         self,
@@ -627,5 +630,4 @@ class BotCommands:
         """
         from botsrc.commands._image import image
 
-        entries = sorted(self._entry_svc.get_entries())
-        image(message, bot, pos, flags, kwargs, entries=entries)
+        image(message, bot, pos, flags, kwargs, image_service=self._image_svc)

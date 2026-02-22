@@ -2,7 +2,7 @@ import inspect
 
 import pytest
 
-from src.applications.tui.app import App
+from src.applications.tui.app import TUIApp
 
 SIGNATURE = inspect.Signature(
     parameters=[

@@ -1,19 +1,18 @@
-from src.utils.env import (
-    MONGODB_PASSWORD,
-    OMDB_API_KEY,
-    OPENAI_API_KEY,
-    OPENAI_PROJECT_ID,
-    SUPABASE_API_KEY,
-    SUPABASE_PROJECT_ID,
-    TELEGRAM_TOKEN,
-)
+"""Tests that all required environment variables are present."""
+
+from src.settings import Settings
 
 
-def test_found_env():
-    assert MONGODB_PASSWORD
-    assert TELEGRAM_TOKEN
-    assert OPENAI_API_KEY
-    assert OPENAI_PROJECT_ID
-    assert OMDB_API_KEY
-    assert SUPABASE_API_KEY
-    assert SUPABASE_PROJECT_ID
+def test_found_env() -> None:
+    """All required settings should be loadable from the environment."""
+    settings = Settings()
+    assert settings.mongodb_password
+    assert settings.telegram_bot_token
+    assert settings.openai_api_key
+    assert settings.openai_project_id
+    assert settings.omdb_api
+    assert settings.supabase_api_key
+    assert settings.supabase_project_id
+    assert settings.aws_access_key_id
+    assert settings.aws_secret_access_key
+    assert settings.aws_images_series_bucket_name

@@ -8,7 +8,6 @@ from supabase import Client, create_client
 from src.apps.base import BaseApp
 from src.obj.book import Book
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.utils.env import SUPABASE_API_KEY, SUPABASE_PROJECT_ID
 from src.utils.help_utils import get_rich_help
 from src.utils.rich_utils import format_rating, get_rich_table
 

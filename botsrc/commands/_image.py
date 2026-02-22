@@ -1,29 +1,35 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import telebot
 from telebot import types
 from loguru import logger
 
 from botsrc.utils import select_entry_by_oid_part
-from src.models.entry import Entry
-from src.obj.image import ImageManager, S3Image
+from src.obj.image import S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
+
+if TYPE_CHECKING:
+    from src.obj.image import ImageManager
+    from src.services.image_service import ImageService
 
 
 MAX_IMAGES = 10
 
 
 def get_media_group(
-    image_manager: ImageManager,
+    image_service: ImageService,
     images: list[S3Image],
     caption: str | None = None,
 ) -> list[types.InputMediaPhoto]:
-    photo_group = [
+    return [
         types.InputMediaPhoto(
-            image_manager.generate_presigned_url(img, expires_in_sec=10),
+            image_service.generate_presigned_url(img, expires_in_sec=10),
             caption=caption if i == 0 else None,
         )
         for i, img in enumerate(images)
     ]
-    return photo_group
 
 
 def image(
@@ -32,11 +38,12 @@ def image(
     pos: PositionalArgs,
     flags: Flags,
     kwargs: KeywordArgs,
-    entries: list[Entry] | None = None,
+    image_service: ImageService | None = None,
 ) -> None:
-    if entries is None:
-        entries = []
-    image_manager = ImageManager(entries)
+    if image_service is None:
+        bot.send_message(message.chat.id, "Image service not available.")
+        return
+    image_manager: ImageManager = image_service.create_manager()
 
     match pos:
         case ["list", filter]:
@@ -56,7 +63,7 @@ def image(
             if "show" in flags:
                 logger.debug(f"showing images for {filter!r}")
                 photo_group = get_media_group(
-                    image_manager,
+                    image_service,
                     imgs,
                     caption=f"{len(imgs)} images matching {filter!r}",
                 )
@@ -65,6 +72,7 @@ def image(
                 bot.send_message(message.chat.id, msg)
         case ["entry", entry_oid]:
             logger.debug(f"fetching images for entry matching {entry_oid=!r}")
+            entries = image_service.entry_service.get_entries()
             selected_entry = select_entry_by_oid_part(entry_oid, entries)
             if not selected_entry:
                 bot.send_message(
@@ -83,7 +91,7 @@ def image(
                 logger.debug(f"limiting images to last {MAX_IMAGES}")
                 imgs = imgs[-MAX_IMAGES:]
             photo_group = get_media_group(
-                image_manager, imgs, caption=f"Images of {selected_entry}"
+                image_service, imgs, caption=f"Images of {selected_entry}"
             )
             bot.send_media_group(message.chat.id, photo_group)  # type: ignore
         case _:

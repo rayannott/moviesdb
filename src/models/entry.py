@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_serializer, field_validator, model_validator
 
 from src.exceptions import MalformedEntryException
 from src.models.mongo_base import EntryBaseModel
@@ -30,7 +30,11 @@ class Entry(EntryBaseModel):
     type: EntryType = Field(default=EntryType.MOVIE)
     notes: str = Field(default="")
     tags: set[str] = Field(default_factory=set)
-    image_ids: set[str] = Field(default_factory=set, validation_alias="images")
+    image_ids: set[str] = Field(
+        default_factory=set,
+        validation_alias="images",
+        serialization_alias="images",
+    )
 
     @field_validator("date", mode="before")
     @classmethod
@@ -112,20 +116,20 @@ class Entry(EntryBaseModel):
             f"[{self.rating:.2f}] {self.title}{type_str}{date_str}{note_str}{tags_str}"
         )
 
+    @field_serializer("date")
+    @classmethod
+    def serialize_date(cls, v: datetime | None) -> str | None:
+        return v.strftime("%d.%m.%Y") if v else None
+
+    @field_serializer("tags", "image_ids")
+    @classmethod
+    def serialize_str_set(cls, v: set[str]) -> list[str]:
+        return sorted(v)
+
     def to_mongo_dict(self) -> dict[str, Any]:
-        """Serialize to MongoDB-compatible dict (matches legacy storage format)."""
-        d: dict[str, Any] = {"title": self.title, "rating": self.rating}
-        if self.type != EntryType.MOVIE:
-            d["type"] = self.type.value
-        if self.notes:
-            d["notes"] = self.notes
-        if self.date:
-            d["date"] = self.date.strftime("%d.%m.%Y")
-        if self.tags:
-            d["tags"] = sorted(self.tags)
-        if self.image_ids:
-            d["images"] = sorted(self.image_ids)
-        return d
+        """Serialize to MongoDB-compatible dict."""
+        d = self.model_dump(mode="json", by_alias=True, exclude_defaults=True)
+        return {k: v for k, v in d.items() if v}
 
     def get_per_season(self) -> list[float | None]:
         return parse_per_season_ratings(self.notes)
