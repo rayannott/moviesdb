@@ -22,7 +22,7 @@ class ImageService:
     def create_manager(self) -> ImageManager:
         """Build an ImageManager using current entries."""
         return ImageManager(
-            entries=self._entry_svc.get_entries(),
+            entries=self.entry_service.get_entries(),
             s3_client=self._s3,
             bucket_name=self._bucket_name,
         )
