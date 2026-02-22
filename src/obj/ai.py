@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING, Iterable, TypedDict
+from typing import Iterable, TypedDict
 
 from openai import OpenAI
 from pydantic import BaseModel
 
-from src.obj.entry import Entry
+from src.models.entry import Entry
+from src.services.chatbot_service import ChatbotService
 from src.utils.env import OPENAI_API_KEY, OPENAI_PROJECT_ID
-
-if TYPE_CHECKING:
-    from src.mongo import Mongo
 
 
 GPT4O = "gpt-4.1"
@@ -82,29 +80,37 @@ The user has already watched the following movies:
 {movies_watched_info}
 """
 
-    def __init__(self, entries: list[Entry], mongo: type["Mongo"]):
+    def __init__(
+        self,
+        entries: list[Entry],
+        chatbot_service: ChatbotService,
+    ) -> None:
         self.entries = entries
-        self.mongo = mongo
+        self._chatbot_svc = chatbot_service
         self._client: OpenAI | None = None
         self._conversation_history: list[tuple[str, str]] = []
 
     def get_context(self) -> str:
-        mem_items = self.mongo.load_aimemory_items()
+        mem_items = self._chatbot_svc.get_memory_items()
         return self.CONTEXT.format(
-            movies_watched_info=";".join({entry.title for entry in self.entries}),
+            movies_watched_info=";".join(
+                {entry.title for entry in self.entries}
+            ),
             user_info="\n".join(mem for _, mem in mem_items),
         )
 
     @property
     def client(self) -> OpenAI:
         if self._client is None:
-            self._client = OpenAI(api_key=OPENAI_API_KEY, project=OPENAI_PROJECT_ID)
+            self._client = OpenAI(
+                api_key=OPENAI_API_KEY, project=OPENAI_PROJECT_ID
+            )
         return self._client
 
-    def _add_new_conversation(self, prompt: str, response: str):
+    def _add_new_conversation(self, prompt: str, response: str) -> None:
         self._conversation_history.append((prompt, response))
 
-    def reset(self):
+    def reset(self) -> None:
         self._conversation_history = []
 
     def prompt(
@@ -128,9 +134,9 @@ The user has already watched the following movies:
         )
         resp = completion.choices[0].message.parsed
         if resp is None:
-            return " No response from AI"
+            return " No response from AI"
         resp_text = resp.text
         if resp.to_remember:
-            self.mongo.add_aimemory_item(resp.to_remember)
+            self._chatbot_svc.add_memory(resp.to_remember)
         self._add_new_conversation(text, resp_text)
         return resp_text

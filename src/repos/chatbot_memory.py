@@ -1,19 +1,14 @@
-from bson import ObjectId
-from pymongo.collection import Collection
-from pymongo.mongo_client import MongoClient
-
 from src.models.chatbot_memory_entry import ChatbotMemoryEntry
+from src.repos.mongo_base import MongoRepo
 
 
-class ChatbotMemoryEntriesRepo:
-    def __init__(self, client: MongoClient):
-        self._client = client
+class ChatbotMemoryEntriesRepo(MongoRepo[ChatbotMemoryEntry]):
+    collection_name = "aimemory"
 
-    @property
-    def entries(self) -> Collection:
-        return self._client.db.aimemory
+    def add_item(self, item: str) -> ChatbotMemoryEntry:
+        entry = ChatbotMemoryEntry(item=item)
+        return self.add(entry)
 
-    def add_entry(self, entry: ChatbotMemoryEntry) -> ChatbotMemoryEntry:
-        id = self.entries.insert_one(entry.model_dump())
-        entry.id = str(id.inserted_id)
-        return entry
+    def get_items(self) -> list[tuple[str, str]]:
+        """Return (id, item) pairs for all memory entries."""
+        return [(e.id, e.item) for e in self.get_all()]

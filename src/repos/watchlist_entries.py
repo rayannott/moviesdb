@@ -1,19 +1,13 @@
-from bson import ObjectId
-from pymongo.collection import Collection
-from pymongo.mongo_client import MongoClient
-
 from src.models.watchlist_entry import WatchlistEntry
+from src.repos.mongo_base import MongoRepo
 
 
-class WatchlistEntriesRepo:
-    def __init__(self, client: MongoClient):
-        self._client = client
+class WatchlistEntriesRepo(MongoRepo[WatchlistEntry]):
+    collection_name = "watchlist"
 
-    @property
-    def entries(self) -> Collection:
-        return self._client.db.watchlist
+    def add_by_title(self, title: str, is_series: bool) -> WatchlistEntry:
+        entry = WatchlistEntry(title=title, is_series=is_series)
+        return self.add(entry)
 
-    def add_entry(self, entry: WatchlistEntry) -> WatchlistEntry:
-        id = self.entries.insert_one(entry.model_dump())
-        entry.id = str(id.inserted_id)
-        return entry
+    def delete_by_title(self, title: str, is_series: bool) -> bool:
+        return self.delete_by(title=title, is_series=is_series)

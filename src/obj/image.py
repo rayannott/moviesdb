@@ -20,7 +20,7 @@ from PIL import Image, ImageGrab, UnidentifiedImageError
 from rich.console import Console
 from rich.prompt import Prompt
 
-from src.obj.entry import Entry
+from src.models.entry import Entry
 from src.utils.env import IMAGES_SERIES_BUCKET_NAME
 from src.utils.rich_utils import get_pretty_progress
 

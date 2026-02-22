@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from statistics import mean
 
-from src.obj.entry import Entry, Type
+from src.models.entry import Entry, EntryType
 
 
 @dataclass
 class EntryGroup:
     title: str
     ratings: list[float]
-    type: Type
+    type: EntryType
     watched_last: datetime | None
 
     @staticmethod
@@ -41,7 +41,7 @@ class EntryGroup:
 
 
 def groups_from_list_of_entries(entries: list[Entry]) -> list[EntryGroup]:
-    grouped = defaultdict(list)
+    grouped: defaultdict[tuple[str, EntryType], list[Entry]] = defaultdict(list)
     for entry in entries:
         grouped[(entry.title, entry.type)].append(entry)
     return sorted(

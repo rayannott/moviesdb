@@ -3,7 +3,7 @@ from telebot import types
 from loguru import logger
 
 from botsrc.utils import select_entry_by_oid_part
-from src.mongo import Mongo
+from src.models.entry import Entry
 from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 
@@ -32,8 +32,10 @@ def image(
     pos: PositionalArgs,
     flags: Flags,
     kwargs: KeywordArgs,
-):
-    entries = sorted(Mongo.load_entries())
+    entries: list[Entry] | None = None,
+) -> None:
+    if entries is None:
+        entries = []
     image_manager = ImageManager(entries)
 
     match pos:

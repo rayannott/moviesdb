@@ -15,7 +15,8 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from src.obj.entry import Entry, Type, is_verbose
+from src.models.entry import Entry, EntryType
+from src.obj.entry import is_verbose
 from src.obj.entry_group import EntryGroup
 from src.utils.utils import TAG_WATCH_AGAIN
 
@@ -101,8 +102,8 @@ def format_rating(rating: float):
     return f"[{color}]{rating:.2f}{extra}[/]"
 
 
-def format_title(title: str, entry_type: Type) -> str:
-    if entry_type == Type.SERIES:
+def format_title(title: str, entry_type: EntryType) -> str:
+    if entry_type == EntryType.SERIES:
         return f"[black on white]{title}[/]"
     return f"[bold]{title}[/]"
 

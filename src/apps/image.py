@@ -8,29 +8,31 @@ from rich.console import Console
 from rich.prompt import Prompt
 
 from src.apps.base import BaseApp
-from src.mongo import Mongo
 from src.obj.image import ImageManager, S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.utils.rich_utils import format_entry
 from src.utils.utils import is_installed
 
 if TYPE_CHECKING:
-    from src.apps import App
+    from src.services.entry_service import EntryService
 
 
 class ImagesApp(BaseApp):
     def __init__(
         self,
-        app: "App",
+        entry_service: "EntryService",
         cns: Console,
         input_fn: Callable[[str], str],
+        *,
+        process_command_fn: Callable[..., None] | None = None,
     ):
         super().__init__(cns, input_fn, prompt_str="IMAGES>")
-        self.app = app
+        self._entry_svc = entry_service
+        self._process_command_fn = process_command_fn
 
         with self.cns.status("Connecting..."):
             t0 = pc()
-            self.image_manager = ImageManager(app.entries)
+            self.image_manager = ImageManager(entry_service.get_entries())
             t1 = pc()
             self._num_images = len(self.image_manager._get_s3_images_bare())
             t2 = pc()
@@ -128,10 +130,13 @@ class ImagesApp(BaseApp):
         if not pos:
             self.error("No main app command specified; try 'app help'")
             return
+        if self._process_command_fn is None:
+            self.error("No parent app command handler available.")
+            return
         root, *rest = pos
         if root == "images":
             self.cns.print("[bold black]Inception?..")
-        self.app.process_command(root, rest, kwargs, flags)
+        self._process_command_fn(root, rest, kwargs, flags)
 
     def cmd_dups(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """dups
@@ -249,7 +254,7 @@ class ImagesApp(BaseApp):
 
         entry_ = None
         if attach_to_entry_id:
-            entry_ = self.app.entry_by_idx_or_title(attach_to_entry_id)
+            entry_ = self._entry_svc.entry_by_idx_or_title(attach_to_entry_id)
             if not entry_:
                 self.warning(
                     f"No entry found with ID: {attach_to_entry_id}; not attaching."
@@ -260,7 +265,7 @@ class ImagesApp(BaseApp):
                 return
             for image in images:
                 entry_.attach_image(image.s3_id)
-                Mongo.update_entry(entry_)
+                self._entry_svc.update_entry(entry_)
                 self.cns.print(f"Attached to {format_entry(entry_)}")
         else:
             self.error("Failed to upload from clipboard.")
@@ -273,7 +278,7 @@ class ImagesApp(BaseApp):
             self.error("Usage: attach <filter> <entry_id|title>")
             return
         image_filter, entry_id_str = pos
-        entry = self.app.entry_by_idx_or_title(entry_id_str)
+        entry = self._entry_svc.entry_by_idx_or_title(entry_id_str)
         if not entry:
             self.error("Entry not found.")
             return
@@ -285,7 +290,7 @@ class ImagesApp(BaseApp):
             return
         for img in images:
             entry.attach_image(img.s3_id)
-            Mongo.update_entry(entry)
+            self._entry_svc.update_entry(entry)
             self.cns.print(f"Attached {img} to {format_entry(entry)}")
 
     def cmd_detach(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -297,7 +302,7 @@ class ImagesApp(BaseApp):
             self.error("Usage: detach <filter> <entry_id|title>")
             return
         image_filter, entry_id_str = pos
-        entry = self.app.entry_by_idx_or_title(entry_id_str)
+        entry = self._entry_svc.entry_by_idx_or_title(entry_id_str)
         if not entry:
             self.error("Entry not found.")
             return
@@ -309,7 +314,7 @@ class ImagesApp(BaseApp):
             return
         for img in images:
             entry.detach_image(img.s3_id)
-            Mongo.update_entry(entry)
+            self._entry_svc.update_entry(entry)
             self.cns.print(f"Detached {img} from {format_entry(entry)}")
 
     def cmd_delete(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -335,7 +340,7 @@ class ImagesApp(BaseApp):
                 ok = entry.detach_image(img_to_delete.s3_id)
                 if not ok:
                     self.error(f"Failed to detach {img_to_delete} from {entry}")
-                Mongo.update_entry(entry)
+                self._entry_svc.update_entry(entry)
                 self.cns.print(f"  detached from {format_entry(entry)}")
 
     def cmd_entry(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -347,7 +352,7 @@ class ImagesApp(BaseApp):
             self.error("Usage: entry <entry_id|title>")
             return
         entry_id_str = pos[0]
-        entry = self.app.entry_by_idx_or_title(entry_id_str)
+        entry = self._entry_svc.entry_by_idx_or_title(entry_id_str)
         if not entry:
             self.error("Entry not found.")
             return

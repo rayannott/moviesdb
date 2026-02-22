@@ -361,7 +361,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
                 self.warning("No changes made:")
                 self.cns.print(format_entry(entry))
                 return
-            entry_app.entry._id = entry._id
+            entry_app.entry.id = entry.id
             Mongo.update_entry(entry_app.entry)
             self.cns.print(
                 f"[green]󰚰 Updated[/]\n - was: {format_entry(entry)}\n - now: {format_entry(entry_app.entry)}"
@@ -757,7 +757,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         except KeyboardInterrupt:
             self.cns.print("Cancelled", style="yellow")
             return
-        entry = Entry(None, title, rating, when, type, notes)
+        entry = Entry(title=title, rating=rating, date=when, type=type, notes=notes)
         self._try_add_entry(entry)
 
     def cmd_images(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
@@ -840,8 +840,8 @@ repo={self.repo_manager.loaded_in:.3f}s;
         idx = pos[0]
         if not (popped_entry := self.entry_by_idx(idx)):
             return
-        assert popped_entry._id
-        if not Mongo.delete_entry(popped_entry._id):
+        assert popped_entry.id
+        if not Mongo.delete_entry(popped_entry.id):
             self.error(f"{format_entry(popped_entry)} was not in the database.")
             return
         self.cns.print(f"󰺝 Removed\n{format_entry(popped_entry)}")

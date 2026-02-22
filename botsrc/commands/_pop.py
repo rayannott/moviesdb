@@ -23,12 +23,12 @@ def pop(
     if selected_entry is None:
         bot.reply_to(message, "Could not find a unique entry.")
         return
-    assert selected_entry._id
-    if Mongo.delete_entry(selected_entry._id):
+    assert selected_entry.id
+    if Mongo.delete_entry(selected_entry.id):
         bot.send_message(
             message.chat.id, f"Deleted successfully:\n{format_entry(selected_entry)}"
         )
-        logger.debug(f"deleted entry: {selected_entry} with id={selected_entry._id}")
+        logger.debug(f"deleted entry: {selected_entry} with id={selected_entry.id}")
     else:
         bot.reply_to(message, "Something went wrong.")
         logger.error(f"failed to delete entry: {selected_entry}")
