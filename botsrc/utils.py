@@ -2,11 +2,9 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TypeVar
 
-from git import Commit
 
 from src.models.entry import Entry
 from src.obj.entry_group import EntryGroup
-from src.obj.git_repo import RepoManager
 from src.paths import ALLOWED_USERS
 
 BOT_STARTED = datetime.now()
@@ -48,22 +46,6 @@ You can use the following commands (read-only):
     - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
-
-
-def report_repository_info() -> str:
-    def _commit_to_str(commit: Commit | None) -> str:
-        """Convert commit to string."""
-        if commit is None:
-            return "No commit information available."
-        return f"""commit {commit.hexsha}
-Author: {commit.author.name} <{commit.author.email}>
-Date:   {commit.authored_datetime}
-{commit.message}"""  # type: ignore[str-bytes-safe]
-
-    repo_info = RepoManager().get_repo_info()
-    return f"""Bot started at {BOT_STARTED} on branch: {repo_info.branch_name}.
-    - Last commit:
-{_commit_to_str(repo_info.last_commit)}"""
 
 
 ObjectT = TypeVar("ObjectT")

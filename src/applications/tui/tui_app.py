@@ -19,16 +19,15 @@ with Console().status("Loading dependencies..."):
     from rich.panel import Panel
     from rich.prompt import Prompt
 
-    from src.apps.base import BaseApp
-    from src.apps.image import ImagesApp
-    from src.apps.sqlapp import SqlApp
+    from src.applications.tui.apps.base import BaseApp
+    from src.applications.tui.apps.image import ImagesApp
+    from src.applications.tui.apps.sqlapp import SqlApp
     from src.exceptions import EntryNotFoundException, MalformedEntryException
     from src.models.entry import Entry, EntryType
     from src.obj.ai import ChatBot
-    from src.obj.verbosity import is_verbose
-    from src.obj.git_repo import RepoManager
     from src.obj.omdb_response import get_by_title
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
+    from src.obj.verbosity import is_verbose
     from src.parser import Flags, KeywordArgs, PositionalArgs
     from src.paths import LOCAL_DIR
     from src.services.chatbot_service import ChatbotService
@@ -107,15 +106,8 @@ class TUIApp(BaseApp):
 
         self.chatbot = ChatBot(self.entries, self._chatbot_svc)
 
-        self.repo_manager = RepoManager()
-        self.repo_info = self.repo_manager.get_repo_info()
-
         logger.info(
-            f"""init App; loading times:
-dependencies={DEP_LOADING_TIME:.3f}s,
-repo={self.repo_manager.loaded_in:.3f}s;
-{len(self.entries)} entries,
-{self._watchlist_svc.count} watch list items""".replace("\n", " ")
+            f"init App; loading times: dependencies={DEP_LOADING_TIME:.3f}s; {len(self.entries)} entries, {self._watchlist_svc.count} watch list items"
         )
 
         self.recently_popped: list[Entry] = []
@@ -166,12 +158,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         ]
 
     def header(self) -> None:
-        branch = f"[violet] {self.repo_info.branch_name}[/]"
-        last_commit_from = f"[gold3]󰚰 {self.repo_info.last_commit_date}[/]"
-        rule_text = (
-            rf"[bold green]{len(self.entries)}[/] entries "
-            rf"\[{branch} {last_commit_from}]"
-        )
+        rule_text = rf"[bold green]{len(self.entries)}[/] entries"
         self.cns.rule(rule_text)
 
     def cmd_find(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:

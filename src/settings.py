@@ -1,8 +1,16 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+CONFIG_DIR = Path.home() / ".config" / "moviesdb"
+CONFIG_ENV = CONFIG_DIR / ".env"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=(CONFIG_ENV, ".env"),
+        env_file_encoding="utf-8",
+    )
 
     openai_api_key: str
     openai_project_id: str

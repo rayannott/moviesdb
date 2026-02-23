@@ -5,7 +5,7 @@ from time import perf_counter as pc
 from rich.console import Console
 from rich.prompt import Prompt
 
-from src.apps.base import BaseApp
+from src.applications.tui.apps.base import BaseApp
 from src.obj.image import S3Image
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.services.image_service import ImageService
@@ -250,7 +250,9 @@ class ImagesApp(BaseApp):
 
         entry_ = None
         if attach_to_entry_id:
-            entry_ = self._image_svc.entry_service.entry_by_idx_or_title(attach_to_entry_id)
+            entry_ = self._image_svc.entry_service.entry_by_idx_or_title(
+                attach_to_entry_id
+            )
             if not entry_:
                 self.warning(
                     f"No entry found with ID: {attach_to_entry_id}; not attaching."

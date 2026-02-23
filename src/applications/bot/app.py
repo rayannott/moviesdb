@@ -49,8 +49,6 @@ def _get_help(
 
 
 class BotApp:
-    """Telegram bot wired with the DI container services."""
-
     def __init__(
         self,
         token: str,
@@ -70,11 +68,13 @@ class BotApp:
             image_service=image_service,
         )
 
-        BotCmdHandler = Callable[
-            [PositionalArgs, KeywordArgs, Flags, TeleBot, types.Message],
-            None,
-        ]
-        self._command_map: dict[str, BotCmdHandler] = {
+        self._command_map: dict[
+            str,
+            Callable[
+                [PositionalArgs, KeywordArgs, Flags, TeleBot, types.Message],
+                None,
+            ],
+        ] = {
             method_name[4:]: getattr(self._commands, method_name)
             for method_name in dir(self._commands)
             if method_name.startswith("cmd_")
@@ -190,10 +190,6 @@ class BotApp:
             command_method(pos, kwargs, flags, self.bot, message)
 
     def run(self) -> None:
-        from src.obj.git_repo import RepoManager
-
-        repo_info = RepoManager().get_repo_info()
-        startup_msg = f"Bot started on branch: {repo_info.branch_name}."
         logger.info("Bot started")
-        self.bot.send_message(ME_CHAT_ID, startup_msg)
+        self.bot.send_message(ME_CHAT_ID, "Bot started")
         self.bot.infinity_polling()
