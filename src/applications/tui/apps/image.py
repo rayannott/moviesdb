@@ -194,6 +194,63 @@ class ImagesApp(BaseApp):
             new_imgs.append(new_img)
         self.update_in_memory_tags(new_imgs)
 
+    def _upload_from_clipboard(self, tags: dict[str, str]) -> list[S3Image]:
+        image = self.image_manager.upload_from_clipboard(tags)
+        if not image:
+            self.warning("No image found in clipboard.")
+            return []
+        self.cns.print(f"Uploaded {image}")
+        return [image]
+
+    def _upload_from_path(self, path: Path, tags: dict[str, str]) -> list[S3Image]:
+        if not path.exists():
+            self.error(f"File not found: {path}")
+            return []
+        if path.is_file():
+            with self.cns.status("Uploading image..."):
+                image = self.image_manager.upload_from_path(path, tags)
+            if not image:
+                self.error(f"Failed to upload image from path: {path}")
+                return []
+            self.cns.print(f"Uploaded {image}")
+            return [image]
+        paths = [p for p in path.iterdir() if p.suffix in {".png", ".jpg", ".jpeg"}]
+        if not paths:
+            self.error(f"No image files found in directory: {path}")
+            return []
+        self.cns.print(paths)
+        if (
+            Prompt.ask(
+                f"Upload all {len(paths)} images from {path}?",
+                choices=["y", "n"],
+                default="n",
+                console=self.cns,
+            )
+            != "y"
+        ):
+            self.cns.print("Upload cancelled.")
+            return []
+        images: list[S3Image] = []
+        for img_path in paths:
+            with self.cns.status(f"Uploading {img_path}..."):
+                image = self.image_manager.upload_from_path(img_path, tags)
+            if not image:
+                self.error(f"Failed to upload image from path: {img_path}")
+                return images
+            self.cns.print(f"Uploaded {image}")
+            images.append(image)
+        return images
+
+    def _attach_images(self, images: list[S3Image], entry_id: str) -> None:
+        entry = self._image_svc.entry_service.entry_by_idx_or_title(entry_id)
+        if not entry:
+            self.warning(f"No entry found for {entry_id!r}; not attaching.")
+            return
+        for image in images:
+            entry.attach_image(image.s3_id)
+            self._image_svc.entry_service.update_entry(entry)
+            self.cns.print(f"Attached {image} -> {format_entry(entry)}")
+
     def cmd_upload(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """upload [<path>] [--to <entry_id|title>] [**<tags>]
         Upload image from clipboard and optionally attach it to an entry.
@@ -204,69 +261,17 @@ class ImagesApp(BaseApp):
         would match all of the following tag-filters:
             '=', 'what=', '=me', '=john'
         """
-        attach_to_entry_id = kwargs.pop("to", None)
-        images: list[S3Image] = []
-        if not pos:
-            image = self.image_manager.upload_from_clipboard(kwargs)
-            if not image:
-                self.warning("No image found in clipboard.")
-                return
-        else:
-            path = Path(pos[0])
-            if not path.exists():
-                self.error(f"File not found: {path}")
-                return
-            if path.is_file():
-                with self.cns.status("Uploading image..."):
-                    image = self.image_manager.upload_from_path(path, kwargs)
-                if not image:
-                    self.error(f"Failed to upload image from path: {path}")
-                    return
-            else:
-                paths = [
-                    p for p in path.iterdir() if p.suffix in {".png", ".jpg", ".jpeg"}
-                ]
-                if not paths:
-                    self.error(f"No files found in directory: {path}")
-                    return
-                self.cns.print(paths)
-                ask = Prompt.ask(
-                    f"Upload all {len(paths)} images from directory {path}?",
-                    choices=["y", "n"],
-                    default="n",
-                    console=self.cns,
-                )
-                if ask != "y":
-                    self.cns.print("Upload cancelled.")
-                    return
-                for img_path in paths:
-                    with self.cns.status(f"Uploading {img_path}..."):
-                        image = self.image_manager.upload_from_path(img_path, kwargs)
-                    if not image:
-                        self.error(f"Failed to upload image from path: {img_path}")
-                        return
-                    self.cns.print(f"Uploaded {image}")
-                    images.append(image)
-
-        entry_ = None
-        if attach_to_entry_id:
-            entry_ = self._image_svc.entry_service.entry_by_idx_or_title(
-                attach_to_entry_id
-            )
-            if not entry_:
-                self.warning(
-                    f"No entry found with ID: {attach_to_entry_id}; not attaching."
-                )
-        if images:
-            self.update_in_memory_tags(images)
-            if not entry_:
-                return
-            for image in images:
-                entry_.attach_image(image.s3_id)
-                self._image_svc.entry_service.update_entry(entry_)
-                self.cns.print(f"Attached to {format_entry(entry_)}")
-        else:
-            self.error("Failed to upload from clipboard.")
+        attach_to = kwargs.pop("to", None)
+        images = (
+            self._upload_from_path(Path(pos[0]), kwargs)
+            if pos
+            else self._upload_from_clipboard(kwargs)
+        )
+        if not images:
+            return
+        self.update_in_memory_tags(images)
+        if attach_to:
+            self._attach_images(images, attach_to)
 
     def cmd_attach(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags):
         """attach <filter> <entry_id|title>

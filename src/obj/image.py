@@ -14,12 +14,11 @@ from time import perf_counter as pc
 from warnings import deprecated
 from zoneinfo import ZoneInfo
 
+from loguru import logger
 from mypy_boto3_s3 import S3Client
 from PIL import Image, ImageGrab, UnidentifiedImageError
 from rich.console import Console
 from rich.prompt import Prompt
-
-from loguru import logger
 
 from src.models.entry import Entry
 from src.utils.rich_utils import get_pretty_progress
@@ -193,15 +192,15 @@ class ImageManager:
                     "--delete",
                 ]
             )
-        except Exception as e:
+        except Exception:
             logger.exception("Error syncing images")
 
     def _check_access(self):
         try:
             self._s3.head_bucket(Bucket=self._bucket_name)
-        except Exception as e:
+        except Exception:
             logger.exception("Error checking S3 bucket")
-            raise RuntimeError("Error accessing bucket.") from e
+            raise RuntimeError("Error accessing bucket.")
 
     def _get_s3_response(self):
         return self._s3.list_objects_v2(
@@ -391,7 +390,7 @@ class ImageManager:
     def _download_image_to(self, s3_id: str, to: Path):
         try:
             self._s3.download_file(self._bucket_name, s3_id, str(to))
-        except Exception as e:
+        except Exception:
             logger.exception(f"Error downloading image {s3_id}")
 
     def show_images(
@@ -413,14 +412,14 @@ class ImageManager:
     def _show_in_browser(self, presigned_url: str):
         try:
             self.browser().open_new_tab(presigned_url)
-        except Exception as e:
+        except Exception:
             logger.exception("Error opening image in browser")
 
     def _show_locally(self, presigned_url: str):
         try:
             subprocess.run(["mcat", presigned_url])
             print()
-        except Exception as e:
+        except Exception:
             logger.exception(
                 "Error showing image locally with mcat. "
                 "Make sure mcat is installed. Opening in browser instead."
@@ -473,10 +472,10 @@ class ImageManager:
     ) -> S3Image | None:
         try:
             img = Image.open(path)
-        except UnidentifiedImageError as e:
+        except UnidentifiedImageError:
             logger.exception(f"Error opening image from path {path}")
             return None
-        except Exception as e:
+        except Exception:
             logger.exception(f"Unexpected error opening image from path {path}")
             return None
         key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
