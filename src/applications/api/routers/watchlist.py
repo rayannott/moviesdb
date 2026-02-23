@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends
 
+from src.applications.api.auth import AuthUser, get_current_user, require_admin
 from src.applications.api.dependencies import get_watchlist_service
 from src.applications.api.schemas import (
     MessageResponse,
@@ -15,6 +16,7 @@ router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
 @router.get("/", response_model=list[WatchlistItemResponse])
 def list_watchlist(
+    _user: AuthUser = Depends(get_current_user),
     svc: WatchlistService = Depends(get_watchlist_service),
 ) -> list[WatchlistItemResponse]:
     items = svc.get_items()
@@ -24,6 +26,7 @@ def list_watchlist(
 @router.post("/", response_model=MessageResponse, status_code=201)
 def add_to_watchlist(
     req: WatchlistAddRequest,
+    _admin: AuthUser = Depends(require_admin),
     svc: WatchlistService = Depends(get_watchlist_service),
 ) -> MessageResponse:
     svc.add(req.title, req.is_series)
@@ -33,6 +36,7 @@ def add_to_watchlist(
 @router.delete("/", response_model=MessageResponse)
 def remove_from_watchlist(
     title: str,
+    _admin: AuthUser = Depends(require_admin),
     is_series: bool = False,
     svc: WatchlistService = Depends(get_watchlist_service),
 ) -> MessageResponse:

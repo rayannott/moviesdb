@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
+from src.applications.api.auth import load_users
 from src.applications.api.routers import entries, stats, tags, watchlist
 from src.dependencies import Container
 from src.exceptions import (
@@ -11,6 +12,7 @@ from src.exceptions import (
     EntryNotFoundException,
     MalformedEntryException,
 )
+from src.settings import Settings
 
 
 def create_app(container: Container) -> FastAPI:
@@ -22,6 +24,8 @@ def create_app(container: Container) -> FastAPI:
         root_path="/api",
     )
 
+    settings = Settings()  # type: ignore[call-arg]
+    app.state.auth_users = load_users(settings.api_users_file)
     app.state.entry_service = container.entry_service()
     app.state.watchlist_service = container.watchlist_service()
     app.state.image_service = container.image_service()

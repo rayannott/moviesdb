@@ -4,6 +4,7 @@ from statistics import mean
 
 from fastapi import APIRouter, Depends
 
+from src.applications.api.auth import AuthUser, get_current_user
 from src.applications.api.dependencies import get_entry_service
 from src.applications.api.schemas import StatsResponse
 from src.services.entry_service import EntryService
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 
 @router.get("/", response_model=StatsResponse)
 def get_stats(
+    _user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
 ) -> StatsResponse:
     stats = svc.get_stats()
