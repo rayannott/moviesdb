@@ -2,6 +2,7 @@ import random
 from collections import defaultdict
 from dataclasses import dataclass
 
+from src.exceptions import EntryNotFoundException
 from src.models.entry import Entry, build_tags
 from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
 from src.repos.entries import EntriesRepo
@@ -43,8 +44,13 @@ class EntryService:
     def update_entry(self, entry: Entry) -> None:
         self._entries_repo.update(entry)
 
-    def delete_entry(self, entry_id: str) -> bool:
-        return self._entries_repo.delete(entry_id)
+    def delete_entry(self, entry_id: str) -> None:
+        """Delete an entry by id.
+
+        Raises EntryNotFoundException if the entry does not exist.
+        """
+        if not self._entries_repo.delete(entry_id):
+            raise EntryNotFoundException(f"Entry {entry_id} not found")
 
     def get_entry(self, entry_id: str) -> Entry:
         return self._entries_repo.get(entry_id)

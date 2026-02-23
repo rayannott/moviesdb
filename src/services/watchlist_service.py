@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from src.exceptions import DuplicateEntryException, EntryNotFoundException
 from src.models.watchlist_entry import WatchlistEntry
 from src.repos.entries import EntriesRepo
 from src.repos.watchlist_entries import WatchlistEntriesRepo
@@ -46,10 +47,25 @@ class WatchlistService:
         return (title, is_series) in items
 
     def add(self, title: str, is_series: bool) -> WatchlistEntry:
+        """Add to watchlist.
+
+        Raises DuplicateEntryException if already present.
+        """
+        if self.contains(title, is_series):
+            raise DuplicateEntryException(
+                f"'{title}' is already in the watchlist"
+            )
         return self._watchlist_repo.add_by_title(title, is_series)
 
-    def remove(self, title: str, is_series: bool) -> bool:
-        return self._watchlist_repo.delete_by_title(title, is_series)
+    def remove(self, title: str, is_series: bool) -> None:
+        """Remove from watchlist.
+
+        Raises EntryNotFoundException if not present.
+        """
+        if not self._watchlist_repo.delete_by_title(title, is_series):
+            raise EntryNotFoundException(
+                f"'{title}' is not in the watchlist"
+            )
 
     def filter_items(self, key: Callable[[str, bool], bool]) -> list[tuple[str, bool]]:
         return [(t, s) for t, s in self.get_items() if key(t, s)]

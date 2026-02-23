@@ -2,29 +2,20 @@
 
 from statistics import mean
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from src.applications.api.dependencies import get_entry_service
 from src.applications.api.schemas import StatsResponse
 from src.services.entry_service import EntryService
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
-_entry_svc: EntryService | None = None
-
-
-def init(entry_service: EntryService) -> None:
-    global _entry_svc
-    _entry_svc = entry_service
-
-
-def _svc() -> EntryService:
-    assert _entry_svc is not None, "EntryService not initialized"
-    return _entry_svc
-
 
 @router.get("/", response_model=StatsResponse)
-def get_stats() -> StatsResponse:
-    stats = _svc().get_stats()
+def get_stats(
+    svc: EntryService = Depends(get_entry_service),
+) -> StatsResponse:
+    stats = svc.get_stats()
     return StatsResponse(
         total_entries=stats.total,
         movie_count=len(stats.movie_ratings),

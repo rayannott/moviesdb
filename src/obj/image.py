@@ -15,7 +15,6 @@ from time import perf_counter as pc
 from warnings import deprecated
 from zoneinfo import ZoneInfo
 
-import boto3
 from mypy_boto3_s3 import S3Client
 from PIL import Image, ImageGrab, UnidentifiedImageError
 from rich.console import Console

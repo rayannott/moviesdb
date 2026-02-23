@@ -1,6 +1,10 @@
 class EntryNotFoundException(Exception):
-    pass
+    """Raised when a requested entity does not exist."""
 
 
 class MalformedEntryException(Exception):
-    pass
+    """Raised when input data fails domain validation."""
+
+
+class DuplicateEntryException(Exception):
+    """Raised when an entity that must be unique already exists."""

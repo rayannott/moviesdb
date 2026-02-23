@@ -1,28 +1,47 @@
 """FastAPI application for the movies database."""
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
 
 from src.applications.api.routers import entries, stats, tags, watchlist
 from src.dependencies import Container
+from src.exceptions import (
+    DuplicateEntryException,
+    EntryNotFoundException,
+    MalformedEntryException,
+)
 
 
-def create_app() -> FastAPI:
-    """Create and configure the FastAPI application with DI container."""
-    container = Container()
-
+def create_app(container: Container) -> FastAPI:
+    """Build a FastAPI instance with services from the given DI container."""
     app = FastAPI(
         title="MoviesDB API",
         description="REST API for the movies and series database",
         version="1.0.0",
     )
 
-    entry_svc = container.entry_service()
-    watchlist_svc = container.watchlist_service()
+    app.state.entry_service = container.entry_service()
+    app.state.watchlist_service = container.watchlist_service()
+    app.state.image_service = container.image_service()
 
-    entries.init(entry_svc)
-    watchlist.init(watchlist_svc)
-    tags.init(entry_svc)
-    stats.init(entry_svc)
+    @app.exception_handler(EntryNotFoundException)
+    async def not_found_handler(
+        request: Request, exc: EntryNotFoundException
+    ) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+    @app.exception_handler(MalformedEntryException)
+    async def malformed_handler(
+        request: Request, exc: MalformedEntryException
+    ) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(DuplicateEntryException)
+    async def duplicate_handler(
+        request: Request, exc: DuplicateEntryException
+    ) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
 
     app.include_router(entries.router)
     app.include_router(watchlist.router)
@@ -34,6 +53,3 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     return app
-
-
-app = create_app()

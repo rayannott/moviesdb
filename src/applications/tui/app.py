@@ -24,7 +24,7 @@ with Console().status("Loading dependencies..."):
     from src.apps.book import BooksApp
     from src.apps.image import ImagesApp
     from src.apps.sqlapp import SqlApp
-    from src.exceptions import MalformedEntryException
+    from src.exceptions import EntryNotFoundException, MalformedEntryException
     from src.models.entry import Entry, EntryType
     from src.obj.ai import ChatBot
     from src.obj.entry import is_verbose
@@ -550,7 +550,9 @@ repo={self.repo_manager.loaded_in:.3f}s;
         title_fmtd = format_title(
             title, EntryType.SERIES if is_series else EntryType.MOVIE
         )
-        if not self._watchlist_svc.remove(title, is_series):
+        try:
+            self._watchlist_svc.remove(title, is_series)
+        except EntryNotFoundException:
             self.error(f"{title_fmtd} is not in the watch list.")
             return
         self.cns.print(
@@ -807,7 +809,9 @@ repo={self.repo_manager.loaded_in:.3f}s;
             self.error(f"Invalid index: {idx}.")
             return
         assert popped_entry.id
-        if not self._entry_svc.delete_entry(popped_entry.id):
+        try:
+            self._entry_svc.delete_entry(popped_entry.id)
+        except EntryNotFoundException:
             self.error(f"{format_entry(popped_entry)} was not in the database.")
             return
         self.cns.print(f"󰺝 Removed\n{format_entry(popped_entry)}")

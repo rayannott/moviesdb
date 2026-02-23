@@ -12,7 +12,11 @@ from src.applications.bot.formatting import (
     list_many_entries,
     list_many_groups,
 )
-from src.exceptions import MalformedEntryException
+from src.exceptions import (
+    DuplicateEntryException,
+    EntryNotFoundException,
+    MalformedEntryException,
+)
 from src.models.entry import Entry, EntryType
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.services.entry_service import EntryService
@@ -151,18 +155,21 @@ class BotCommands:
         title = watch_title.rstrip("+ ")
         title_fmt = format_title(title, is_series)
         if "delete" in flags:
-            if not self._watchlist_svc.remove(title, is_series):
+            try:
+                self._watchlist_svc.remove(title, is_series)
+            except EntryNotFoundException:
                 bot.reply_to(message, f"{title_fmt} is not in the watch list.")
                 logger.debug(f"{title_fmt} not found for deletion")
                 return
             bot.send_message(message.chat.id, f"Deleted {title_fmt} from watch list.")
             logger.debug(f"deleted {title_fmt} from watch list")
             return
-        if self._watchlist_svc.contains(title, is_series):
+        try:
+            self._watchlist_svc.add(title, is_series)
+        except DuplicateEntryException:
             bot.reply_to(message, f"{title_fmt} is already in the watch list.")
             logger.debug(f"{title_fmt} already exists in watch list")
             return
-        self._watchlist_svc.add(title, is_series)
         bot.send_message(message.chat.id, f"Added {title_fmt} to watch list.")
         logger.debug(f"added {title_fmt} to watch list")
 
@@ -190,15 +197,17 @@ class BotCommands:
         selected_entry = selected[0]
         logger.debug(f"selected entry: {selected_entry}")
         assert selected_entry.id
-        if self._entry_svc.delete_entry(selected_entry.id):
-            bot.send_message(
-                message.chat.id,
-                f"Deleted successfully:\n{format_entry(selected_entry)}",
-            )
-            logger.debug(f"deleted entry with id={selected_entry.id}")
-        else:
+        try:
+            self._entry_svc.delete_entry(selected_entry.id)
+        except EntryNotFoundException:
             bot.reply_to(message, "Something went wrong.")
             logger.error(f"failed to delete entry: {selected_entry}")
+            return
+        bot.send_message(
+            message.chat.id,
+            f"Deleted successfully:\n{format_entry(selected_entry)}",
+        )
+        logger.debug(f"deleted entry with id={selected_entry.id}")
 
     def cmd_tag(
         self,
