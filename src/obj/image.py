@@ -1,5 +1,4 @@
 import io
-import logging
 import re
 import subprocess
 import webbrowser
@@ -20,10 +19,10 @@ from PIL import Image, ImageGrab, UnidentifiedImageError
 from rich.console import Console
 from rich.prompt import Prompt
 
+from loguru import logger
+
 from src.models.entry import Entry
 from src.utils.rich_utils import get_pretty_progress
-
-logger = logging.getLogger(__name__)
 
 DATE_RE = re.compile(r"\d{2}\.\d{2}\.\d{4}")
 
@@ -195,13 +194,13 @@ class ImageManager:
                 ]
             )
         except Exception as e:
-            logger.error("Error syncing images", exc_info=e)
+            logger.exception("Error syncing images")
 
     def _check_access(self):
         try:
             self._s3.head_bucket(Bucket=self._bucket_name)
         except Exception as e:
-            logger.error("Error checking S3 bucket", exc_info=e)
+            logger.exception("Error checking S3 bucket")
             raise RuntimeError("Error accessing bucket.") from e
 
     def _get_s3_response(self):
@@ -393,7 +392,7 @@ class ImageManager:
         try:
             self._s3.download_file(self._bucket_name, s3_id, str(to))
         except Exception as e:
-            logger.error(f"Error downloading image {s3_id}", exc_info=e)
+            logger.exception(f"Error downloading image {s3_id}")
 
     def show_images(
         self, s3_images: list[S3Image], in_browser: bool = False
@@ -415,16 +414,16 @@ class ImageManager:
         try:
             self.browser().open_new_tab(presigned_url)
         except Exception as e:
-            logger.error("Error opening image in browser", exc_info=e)
+            logger.exception("Error opening image in browser")
 
     def _show_locally(self, presigned_url: str):
         try:
             subprocess.run(["mcat", presigned_url])
             print()
         except Exception as e:
-            logger.error(
-                "Error showing image locally with mcat. Make sure mcat is installed. Opening in browser instead.",
-                exc_info=e,
+            logger.exception(
+                "Error showing image locally with mcat. "
+                "Make sure mcat is installed. Opening in browser instead."
             )
             self._show_in_browser(presigned_url)
 
@@ -475,10 +474,10 @@ class ImageManager:
         try:
             img = Image.open(path)
         except UnidentifiedImageError as e:
-            logger.error(f"Error opening image from path {path}", exc_info=e)
+            logger.exception(f"Error opening image from path {path}")
             return None
         except Exception as e:
-            logger.error(f"Unexpected error opening image from path {path}", exc_info=e)
+            logger.exception(f"Unexpected error opening image from path {path}")
             return None
         key = str(FOLDER_PATH / f"{get_new_image_id()}.png")
         s3_img = S3Image(key)

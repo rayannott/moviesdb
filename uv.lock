@@ -1011,11 +1011,12 @@ wheels = [
 
 [[package]]
 name = "moviesdb"
-version = "1.2.1"
-source = { virtual = "." }
+version = "1.2.5"
+source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "boto3-stubs", extra = ["boto3", "s3"] },
+    { name = "click" },
     { name = "dependency-injector" },
     { name = "fastapi", extra = ["standard"] },
     { name = "gitpython" },
@@ -1053,6 +1054,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.40.15" },
     { name = "boto3-stubs", extras = ["boto3", "s3"], specifier = ">=1.40.15" },
+    { name = "click", specifier = ">=8.3.1" },
     { name = "dependency-injector", specifier = ">=4.48.3" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.129.2" },
     { name = "gitpython", specifier = ">=3.1.45" },

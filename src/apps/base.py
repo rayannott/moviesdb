@@ -1,15 +1,13 @@
-import logging
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
+from loguru import logger
 from rich.console import Console
 
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.utils.help_utils import get_rich_help, parse_docstring
 from src.utils.utils import possible_match
-
-logger = logging.getLogger(__name__)
 
 
 DEFAULT_COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}

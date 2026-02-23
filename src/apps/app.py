@@ -7,7 +7,6 @@ from rich.console import Console
 with Console().status("Loading dependencies..."):
     _t_dep_0 = pc()
     import json
-    import logging
     import random
     from datetime import datetime
     from functools import partial
@@ -22,8 +21,10 @@ with Console().status("Loading dependencies..."):
     from rich.panel import Panel
     from rich.prompt import Prompt
 
+    from loguru import logger
+
     from botsrc.bot_guest_manager import GuestManager
-    from setup_logging import setup_logging
+    from src.setup_logging import setup_logging
     from src.apps.base import BaseApp
     from src.apps.book import BooksApp
     from src.apps.image import ImagesApp
@@ -92,7 +93,6 @@ VALUE_MAP: dict[str, Callable[[str], Any]] = {
     "date": Entry.parse_date,
 }
 
-logger = logging.getLogger(__name__)
 setup_logging()
 
 

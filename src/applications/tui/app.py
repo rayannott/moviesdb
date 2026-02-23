@@ -7,7 +7,6 @@ from rich.console import Console
 with Console().status("Loading dependencies..."):
     _t_dep_0 = pc()
     import json
-    import logging
     import random
     from functools import partial
     from itertools import batched, starmap
@@ -15,11 +14,11 @@ with Console().status("Loading dependencies..."):
     from statistics import mean, stdev
     from typing import Any, Callable
 
+    from loguru import logger
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
 
-    from setup_logging import setup_logging
     from src.apps.base import BaseApp
     from src.apps.book import BooksApp
     from src.apps.image import ImagesApp
@@ -33,12 +32,13 @@ with Console().status("Loading dependencies..."):
     from src.obj.textual_apps import ChatBotApp, EntryFormApp
     from src.parser import Flags, KeywordArgs, PositionalArgs
     from src.paths import LOCAL_DIR
-    from src.services.entry_service import EntryService
-    from src.services.watchlist_service import WatchlistService
     from src.services.chatbot_service import ChatbotService
-    from src.services.guest_service import GuestService
+    from src.services.entry_service import EntryService
     from src.services.export_service import ExportService
+    from src.services.guest_service import GuestService
     from src.services.image_service import ImageService
+    from src.services.watchlist_service import WatchlistService
+    from src.setup_logging import setup_logging
     from src.utils.help_utils import get_rich_help
     from src.utils.plots import get_plot
     from src.utils.rich_utils import (
@@ -82,7 +82,6 @@ VALUE_MAP: dict[str, Callable[[str], Any]] = {
     "date": Entry.parse_date,
 }
 
-logger = logging.getLogger(__name__)
 setup_logging()
 
 
@@ -326,9 +325,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
             return
         entry_fmt = format_entry(entry)
         tag_fmt = format_tag(tagname)
-        self.cns.print(
-            f"{entry_fmt} [bold green]has been tagged with[/] {tag_fmt}"
-        )
+        self.cns.print(f"{entry_fmt} [bold green]has been tagged with[/] {tag_fmt}")
 
     def cmd_plot(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
         """plot
@@ -635,9 +632,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         modified = self._entry_svc.process_watch_again_on_add(for_entry)
         for e in modified:
             tag_fmt = format_tag(TAG_WATCH_AGAIN)
-            self.cns.print(
-                f"[green]󰺝 Removed tag {tag_fmt} from[/]\n{format_entry(e)}"
-            )
+            self.cns.print(f"[green]󰺝 Removed tag {tag_fmt} from[/]\n{format_entry(e)}")
         if modified:
             resp = Prompt.ask(
                 f"Do you want to add the {format_tag(TAG_WATCH_AGAIN)} to this entry?",
