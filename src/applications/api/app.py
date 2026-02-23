@@ -19,6 +19,7 @@ def create_app(container: Container) -> FastAPI:
         title="MoviesDB API",
         description="REST API for the movies and series database",
         version="1.0.0",
+        root_path="/api",
     )
 
     app.state.entry_service = container.entry_service()
