@@ -16,7 +16,6 @@ class ExportResult:
 
     entries_count: int = 0
     watchlist_count: int = 0
-    books_count: int = 0
     new_images_count: int = 0
     timings: dict[str, float] = field(default_factory=dict)
 

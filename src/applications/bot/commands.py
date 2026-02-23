@@ -589,40 +589,6 @@ class BotCommands:
         bot.send_message(message.chat.id, "Thank you for your suggestion!")
         logger.debug(sugg_text)
 
-    def cmd_books(
-        self,
-        pos: PositionalArgs,
-        kwargs: KeywordArgs,
-        flags: Flags,
-        bot: telebot.TeleBot,
-        message: types.Message,
-    ) -> None:
-        """books [<title>] [--verbose]
-        List the last books read.
-        If no arguments are specified, show the last 5 books.
-        If a title is specified, filter the books by the title substring.
-            verbose(flag): show the body of the book
-        """
-        from botsrc.utils import format_book
-        from src.apps import BooksApp
-
-        client = BooksApp.get_client()
-        books = BooksApp.get_books(client)
-        logger.debug(f"Fetched {len(books)} books from the database")
-        if not books:
-            bot.reply_to(message, "No books found.")
-            return
-        if pos:
-            books = [book for book in books if pos[0].lower() in book.title.lower()]
-        books.sort(key=lambda b: b.dt_read)
-        last_5 = books[-5:]
-        formatted = f"Last {len(last_5)} books:\n" + "\n".join(
-            format_book(book, "verbose" in flags) for book in last_5
-        )
-        formatted = "No books found." if len(last_5) == 0 else formatted
-        bot.send_message(message.chat.id, formatted)
-        logger.debug(f"Displayed {len(last_5)} books")
-
     def cmd_image(
         self,
         pos: PositionalArgs,

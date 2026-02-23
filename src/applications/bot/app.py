@@ -16,7 +16,7 @@ from src.utils.help_utils import parse_docstring
 
 ME_CHAT_ID = 409474295
 
-ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group", "books"}
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group"}
 
 HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
 You can use the following commands (read-only):
@@ -25,8 +25,7 @@ You can use the following commands (read-only):
     - watch - to view the watch list
     - suggest <message> - to suggest me a movie!
     - group [<title>] - group entries by title
-    - tag [<tagname>] - to view tags stats or entries with the given tag
-    - books - to view the books I've recently read"""
+    - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 
 def _get_help(

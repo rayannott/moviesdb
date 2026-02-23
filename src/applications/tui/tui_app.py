@@ -20,7 +20,6 @@ with Console().status("Loading dependencies..."):
     from rich.prompt import Prompt
 
     from src.apps.base import BaseApp
-    from src.apps.book import BooksApp
     from src.apps.image import ImagesApp
     from src.apps.sqlapp import SqlApp
     from src.exceptions import EntryNotFoundException, MalformedEntryException
@@ -62,8 +61,6 @@ with Console().status("Loading dependencies..."):
     )
 
     DEP_LOADING_TIME = pc() - _t_dep_0
-
-MONGO_LOADING_TIME = 0.0
 
 
 def identity(x: str) -> str:
@@ -116,7 +113,6 @@ class TUIApp(BaseApp):
         logger.info(
             f"""init App; loading times:
 dependencies={DEP_LOADING_TIME:.3f}s,
-mongo={MONGO_LOADING_TIME:.3f}s,
 repo={self.repo_manager.loaded_in:.3f}s;
 {len(self.entries)} entries,
 {self._watchlist_svc.count} watch list items""".replace("\n", " ")
@@ -596,7 +592,6 @@ repo={self.repo_manager.loaded_in:.3f}s;
         self.cns.rule("Dev stats", style="bold magenta")
         self.cns.print(
             f"[magenta]Resolved dependencies in[/] {DEP_LOADING_TIME:.3f} sec\n"
-            f"[magenta]Connected to MongoDB in[/] {MONGO_LOADING_TIME:.3f} sec\n"
             f"[magenta]Loaded repo info in[/] {self.repo_manager.loaded_in:.3f} sec\n\n"
             f"[magenta]Last commit:[/]\n"
             f"  {self.repo_info.last_commit_rich_formatted}"
@@ -817,7 +812,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         Export entries (movies and series) and watch list to
         ./export-local/{db|watch_list}.json.
         If --silent is specified, do not print any messages.
-        If --full is specified, also export: books, images."""
+        If --full is specified, also export: images."""
 
         def _print(what: str) -> None:
             if "silent" not in flags:
@@ -833,26 +828,7 @@ repo={self.repo_manager.loaded_in:.3f}s;
         if "full" not in flags:
             return
 
-        # books
-        from time import perf_counter as _pc
-
-        _t3 = _pc()
-        with self.cns.status("[bold cyan] Exporting books..."):
-            books_file = LOCAL_DIR / "books.json"
-            books_json = [
-                book.to_row()
-                for book in sorted(
-                    BooksApp.get_books(BooksApp.get_client()),
-                    key=lambda b: b.dt_read,
-                )
-            ]
-        with books_file.open("w", encoding="utf-8") as f:
-            json.dump(books_json, f, indent=2, ensure_ascii=False)
-            _print(f"Exported {len(books_json)} books to {books_file.absolute()}.")
-        _t4 = _pc()
-
         # images
-        _t5 = _pc()
         with self.cns.status("[bold cyan]󰈭 Exporting images..."):
             image_manager = self._image_svc.create_manager()
             images_bare = image_manager._get_s3_images_bare()
@@ -924,12 +900,6 @@ repo={self.repo_manager.loaded_in:.3f}s;
         Start the SQL-like query mode."""
         sql_mode = SqlApp(self.entries, self.cns, self.input)
         sql_mode.run()
-
-    def cmd_books(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
-        """books
-        Start the books subapp."""
-        books_mode = BooksApp(self.cns, self.input)
-        books_mode.run()
 
     def cmd_game(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
         """game

@@ -5,7 +5,6 @@ from telebot import types
 
 from botsrc.commands import (
     add,
-    books,
     find,
     group,
     guest,
@@ -158,22 +157,6 @@ def cmd_group(
     """group [<title>]
     List entries grouped by title."""
     group(message, bot, pos)
-
-
-def cmd_books(
-    pos: PositionalArgs,
-    kwargs: KeywordArgs,
-    flags: Flags,
-    bot: telebot.TeleBot,
-    message: types.Message,
-):
-    """books [<title>] [--verbose]
-    List the last books read.
-    If no arguments are specified, show the last 5 books.
-    If a title is specified, filter the books by the title substring.
-        verbose(flag): show the body of the book
-    """
-    books(message, bot, pos, flags)
 
 
 def cmd_image(

@@ -5,10 +5,10 @@ from typing import TypeVar
 from git import Commit
 
 from src.models.entry import Entry
-from src.obj.book import Book
 from src.obj.entry_group import EntryGroup
 from src.obj.git_repo import RepoManager
 from src.paths import ALLOWED_USERS
+
 BOT_STARTED = datetime.now()
 
 
@@ -33,20 +33,11 @@ def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) ->
     return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{_num_images_str}{note_str}{tags_str}"
 
 
-def format_book(book: Book, verbose: bool = False) -> str:
-    """Format a book for display."""
-    rating_str = f"[{book.rating:.2f}] " if book.rating is not None else ""
-    author_str = f" by {book.author}" if book.author else ""
-    pages_str = f" ({book.n_pages} pages)" if book.n_pages else ""
-    body_str = f"\n{book.body}" if verbose and book.body else ""
-    return f"{rating_str}{book.title}{author_str}{pages_str} ({book.dt_read:%d.%m.%Y}){body_str}"
-
-
 def format_title(title: str, is_series: bool) -> str:
     return f"{title}{' (series)' if is_series else ''}"
 
 
-ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group", "books"}
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group"}
 HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
 You can use the following commands (read-only):
     - list - to view the entries
@@ -54,8 +45,7 @@ You can use the following commands (read-only):
     - watch - to view the watch list
     - suggest <message> - to suggest me a movie!
     - group [<title>] - group entries by title
-    - tag [<tagname>] - to view tags stats or entries with the given tag
-    - books - to view the books I've recently read"""
+    - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
 
