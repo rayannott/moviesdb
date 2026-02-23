@@ -92,8 +92,8 @@ class BaseApp(ABC):
         if "help" in flags:
             self.cmd_help([root], {}, set())
             return
+        logger.info(f"executing command: {root=!r}, {pos=!r}, {kwargs=!r}, {flags=!r}")
         command_method(pos, kwargs, flags)
-        logger.info(f"executed command: {root=!r}, {pos=!r}, {kwargs=!r}, {flags=!r}")
 
     def run(self):
         logger.info("starting App")
