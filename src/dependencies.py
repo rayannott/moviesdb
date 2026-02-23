@@ -95,6 +95,8 @@ class Container(DeclarativeContainer):
         boto3.client,
         "s3",
         region_name="eu-north-1",
+        aws_access_key_id=config.aws_access_key_id,
+        aws_secret_access_key=config.aws_secret_access_key,
     )
     image_service = Singleton(
         ImageService,
