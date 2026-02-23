@@ -10,8 +10,9 @@ from botsrc.utils import (
     process_watch_again_tag_on_add_entry,
     process_watch_list_on_add_entry,
 )
+from src.exceptions import MalformedEntryException
+from src.models.entry import Entry, EntryType
 from src.mongo import Mongo
-from src.obj.entry import Entry, MalformedEntryException, Type
 from src.parser import Flags, KeywordArgs, PositionalArgs
 
 
@@ -70,7 +71,7 @@ def add(
         bot.reply_to(message, "Need to specify title and rating")
         logger.debug("missing title or rating while adding entry", exc_info=True)
         return
-    entry = Entry(None, title, rating, date, type_, notes)
+    entry = Entry(title=title, rating=rating, date=date, type=type_, notes=notes)
     Mongo.add_entry(entry)
     bot.send_message(
         message.chat.id, f"Entry added:\n{format_entry(entry, True, True)}"
@@ -128,7 +129,7 @@ def _get_rating(message: types.Message, bot: telebot.TeleBot, title: str):
 
 
 def _get_type(
-    message: types.Message, bot: telebot.TeleBot, title: str, rating: int
+    message: types.Message, bot: telebot.TeleBot, title: str, rating: float
 ):
     try:
         type_ = Entry.parse_type(text(message))
@@ -155,8 +156,8 @@ def _get_date(
     message: types.Message,
     bot: telebot.TeleBot,
     title: str,
-    rating: int,
-    type_: Type,
+    rating: float,
+    type_: EntryType,
 ):
     try:
         date = Entry.parse_date(
@@ -192,13 +193,13 @@ def _get_notes(
     message: types.Message,
     bot: telebot.TeleBot,
     title: str,
-    rating: int,
-    type_: Type,
+    rating: float,
+    type_: EntryType,
     date: datetime | None,
 ):
     notes = text(message) if text(message).lower() != "skip" else ""
 
-    entry = Entry(None, title, rating, date, type_, notes)
+    entry = Entry(title=title, rating=rating, date=date, type=type_, notes=notes)
     bot.send_message(
         message.chat.id,
         f"Thank you! Let's confirm the details:\n{format_entry(entry, True)}",

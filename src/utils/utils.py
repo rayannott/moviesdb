@@ -1,10 +1,7 @@
 import datetime
 import difflib
-import logging
 import re
 import subprocess
-
-logger = logging.getLogger(__name__)
 
 DATE_PATTERNS = ["%d.%m.%Y", "%d.%m.%y"]
 

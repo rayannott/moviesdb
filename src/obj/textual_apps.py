@@ -15,7 +15,8 @@ from textual.widgets import (
 )
 
 from src.obj.ai import ChatBot
-from src.obj.entry import Entry, MalformedEntryException
+from src.exceptions import MalformedEntryException
+from src.models.entry import Entry
 from src.utils.rich_utils import format_entry
 
 
@@ -130,12 +131,11 @@ class EntryFormApp(App):
             return False
         else:
             self.entry = Entry(
-                None,
-                title,
-                rating,
-                date,
-                type,
-                notes,
+                title=title,
+                rating=rating,
+                date=date,
+                type=type,
+                notes=notes,
                 **self._other_entry_kwargs,
             )
             self.notify(f"Ok:\n{format_entry(self.entry)}.\n Ctrl+Q to exit.")

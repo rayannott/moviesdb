@@ -6,7 +6,7 @@ from statistics import mean, stdev
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from src.obj.entry import Entry
+from src.models.entry import Entry
 
 pio.renderers.default = "browser"
 

@@ -7,7 +7,9 @@ from rich.console import Group
 from rich.markdown import Markdown
 from rich.panel import Panel
 
-from src.utils.env import OMDB_API_KEY
+from src.settings import Settings
+
+OMDB_API_KEY = Settings().omdb_api
 
 URL_BASE = "http://www.omdbapi.com"
 

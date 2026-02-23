@@ -1,5 +1,4 @@
 from botsrc.commands._add import add
-from botsrc.commands._books import books
 from botsrc.commands._find import find
 from botsrc.commands._group import group
 from botsrc.commands._guest import guest
@@ -21,7 +20,6 @@ __all__ = [
     "watch",
     "pop",
     "guest",
-    "books",
     "image",
     "upload_photo",
 ]

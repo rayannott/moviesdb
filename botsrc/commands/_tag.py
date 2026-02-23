@@ -3,8 +3,8 @@ from telebot import types
 from loguru import logger
 
 from botsrc.utils import format_entry, list_many_entries
+from src.models.entry import build_tags
 from src.mongo import Mongo
-from src.obj.entry import build_tags
 from src.parser import Flags, PositionalArgs
 from src.utils.utils import replace_tag_alias
 
@@ -45,7 +45,7 @@ def tag(
     if len(pos) == 2 and "guest" not in flags:
         tag_name, oid = pos
         tag_name = replace_tag_alias(tag_name)
-        entry = next((ent for ent in entries if oid in str(ent._id)), None)
+        entry = next((ent for ent in entries if oid in ent.id), None)
         if entry is None:
             bot.reply_to(message, "Could not find an entry.")
             logger.debug(f"could not find entry with oid {oid}")
@@ -53,17 +53,17 @@ def tag(
         if {"d", "delete"} & flags:
             if tag_name not in entry.tags:
                 bot.reply_to(message, f"The entry does not have the tag {tag_name}:")
-                logger.debug(f"tag {tag_name!r} not found in entry {entry._id}")
+                logger.debug(f"tag {tag_name!r} not found in entry {entry.id}")
                 return
             entry.tags.remove(tag_name)
             Mongo.update_entry(entry)
             bot.send_message(message.chat.id, f"Tag removed:\n{format_entry(entry)}")
-            logger.debug(f"removed tag {tag_name!r} from entry {entry._id}")
+            logger.debug(f"removed tag {tag_name!r} from entry {entry.id}")
             return
         entry.tags.add(tag_name)
         Mongo.update_entry(entry)
         bot.send_message(message.chat.id, f"Tag added:\n{format_entry(entry)}")
-        logger.debug(f"added tag {tag_name!r} to entry {entry._id}")
+        logger.debug(f"added tag {tag_name!r} to entry {entry.id}")
         return
     bot.reply_to(message, "Too many arguments.")
     logger.debug("too many positional arguments")

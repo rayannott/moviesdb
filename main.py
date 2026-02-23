@@ -1,10 +1,4 @@
-from src.apps import App
-
-
-def main():
-    app = App()
-    app.run()
-
+from src.applications.tui.cli import main
 
 if __name__ == "__main__":
     main()

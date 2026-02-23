@@ -2,15 +2,10 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TypeVar
 
-from git import Commit
 
-from src.mongo import Mongo
-from src.obj.book import Book
-from src.obj.entry import Entry
+from src.models.entry import Entry
 from src.obj.entry_group import EntryGroup
-from src.obj.git_repo import RepoManager
 from src.paths import ALLOWED_USERS
-from src.utils.utils import TAG_WATCH_AGAIN
 
 BOT_STARTED = datetime.now()
 
@@ -19,7 +14,7 @@ ALLOWED_USERS.parent.mkdir(exist_ok=True)
 
 
 def select_entry_by_oid_part(oid_part: str, entries: list[Entry]) -> Entry | None:
-    selected = [entry for entry in entries if oid_part in str(entry._id)]
+    selected = [entry for entry in entries if oid_part in entry.id]
     if len(selected) != 1:
         return None
     return selected[0]
@@ -32,54 +27,15 @@ def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) ->
         " {" + f"{len(entry.image_ids)} img" + "}" if entry.image_ids else ""
     )
     tags_str = f" [{' '.join(entry.tags)}]" if entry.tags else ""
-    oid_part = "{" + str(entry._id)[-4:] + "} " if with_oid else ""
+    oid_part = "{" + entry.id[-4:] + "} " if with_oid else ""
     return f"{oid_part}[{entry.rating:.2f}] {format_title(entry.title, entry.is_series)}{watched_date_str}{_num_images_str}{note_str}{tags_str}"
-
-
-def format_book(book: Book, verbose: bool = False) -> str:
-    """Format a book for display."""
-    rating_str = f"[{book.rating:.2f}] " if book.rating is not None else ""
-    author_str = f" by {book.author}" if book.author else ""
-    pages_str = f" ({book.n_pages} pages)" if book.n_pages else ""
-    body_str = f"\n{book.body}" if verbose and book.body else ""
-    return f"{rating_str}{book.title}{author_str}{pages_str} ({book.dt_read:%d.%m.%Y}){body_str}"
 
 
 def format_title(title: str, is_series: bool) -> str:
     return f"{title}{' (series)' if is_series else ''}"
 
 
-def process_watch_list_on_add_entry(entry: Entry) -> str:
-    title_fmt = format_title(entry.title, entry.is_series)
-    watch_list = Mongo.load_watch_list()
-    if not watch_list.remove(entry.title, entry.is_series):
-        return ""
-    if not Mongo.delete_watchlist_entry(entry.title, entry.is_series):
-        return f"Could not delete {title_fmt} from watch list."
-    return f"Removed {title_fmt} from watch list."
-
-
-def process_watch_again_tag_on_add_entry(entry: Entry) -> str:
-    entries = Mongo.load_entries()
-    entries_wa = [
-        ent
-        for ent in entries
-        if TAG_WATCH_AGAIN in ent.tags
-        and ent.title == entry.title
-        and ent.type == entry.type
-        and ent._id != entry._id
-    ]
-    if not entries_wa:
-        return ""
-    msg = "Removed the watch again tag from:"
-    for ent in entries_wa:
-        ent.tags.remove(TAG_WATCH_AGAIN)
-        Mongo.update_entry(ent)
-        msg += f"\n{format_entry(ent)}"
-    return msg
-
-
-ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group", "books"}
+ALLOW_GUEST_COMMANDS = {"list", "watch", "suggest", "find", "tag", "group"}
 HELP_GUEST_MESSAGE = """You can use the bot, but some commands may be restricted.
 You can use the following commands (read-only):
     - list - to view the entries
@@ -87,26 +43,9 @@ You can use the following commands (read-only):
     - watch - to view the watch list
     - suggest <message> - to suggest me a movie!
     - group [<title>] - group entries by title
-    - tag [<tagname>] - to view tags stats or entries with the given tag
-    - books - to view the books I've recently read"""
+    - tag [<tagname>] - to view tags stats or entries with the given tag"""
 
 ME_CHAT_ID = 409474295
-
-
-def report_repository_info() -> str:
-    def _commit_to_str(commit: Commit | None) -> str:
-        """Convert commit to string."""
-        if commit is None:
-            return "No commit information available."
-        return f"""commit {commit.hexsha}
-Author: {commit.author.name} <{commit.author.email}>
-Date:   {commit.authored_datetime}
-{commit.message}"""  # type: ignore[str-bytes-safe]
-
-    repo_info = RepoManager().get_repo_info()
-    return f"""Bot started at {BOT_STARTED} on branch: {repo_info.branch_name}.
-    - Last commit:
-{_commit_to_str(repo_info.last_commit)}"""
 
 
 ObjectT = TypeVar("ObjectT")
