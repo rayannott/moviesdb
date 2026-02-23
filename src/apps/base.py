@@ -12,8 +12,6 @@ from src.utils.utils import possible_match
 
 DEFAULT_COMMAND_ALIASES: dict[str, str] = {"clear": "cls"}
 
-# TODO more logging in this module
-
 
 class BaseApp(ABC):
     def __init__(

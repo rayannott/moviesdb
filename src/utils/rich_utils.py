@@ -16,7 +16,7 @@ from rich.progress import (
 )
 
 from src.models.entry import Entry, EntryType
-from src.obj.entry import is_verbose
+from src.obj.verbosity import is_verbose
 from src.obj.entry_group import EntryGroup
 from src.utils.utils import TAG_WATCH_AGAIN
 
