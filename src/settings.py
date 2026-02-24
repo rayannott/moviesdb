@@ -22,4 +22,4 @@ class Settings(BaseSettings):
     mongodb_password: str
     mongodb_suffix: str
     mongodb_prefix: str
-    api_users_file: Path = CONFIG_DIR / "api_users.json"
+    api_users_file: Path = Path("api_users-local.json")

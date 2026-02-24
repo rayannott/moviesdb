@@ -9,7 +9,7 @@ ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock* api_users-local.json ./
 RUN uv sync --no-cache --no-dev
 
 COPY src/ src/
