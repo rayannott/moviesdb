@@ -6,7 +6,7 @@ from pathlib import Path
 from loguru import logger
 
 LOGS_DIR = Path.home() / ".config" / "moviesdb" / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True, parents=True)
 
 LOG_FILE = LOGS_DIR / "app.log"
 
