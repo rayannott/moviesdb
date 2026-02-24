@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 
+from src.applications.api.auth import AuthUser, UserRole, get_current_user, require_admin
 from src.applications.api.dependencies import get_entry_service
 from src.applications.api.schemas import (
     EntryCreateRequest,
@@ -14,22 +15,23 @@ from src.services.entry_service import EntryService
 router = APIRouter(prefix="/entries", tags=["entries"])
 
 
-def _to_response(entry: Entry) -> EntryResponse:
+def _to_response(entry: Entry, *, include_private: bool = True) -> EntryResponse:
     return EntryResponse(
         id=entry.id,
         title=entry.title,
         rating=entry.rating,
         date=entry.date,
         type=entry.type,
-        notes=entry.notes,
-        tags=sorted(entry.tags),
-        image_ids=sorted(entry.image_ids),
+        notes=entry.notes if include_private else "",
+        tags=sorted(entry.tags) if include_private else [],
+        image_ids=sorted(entry.image_ids) if include_private else [],
         is_series=entry.is_series,
     )
 
 
 @router.get("/", response_model=list[EntryResponse])
 def list_entries(
+    user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
     n: int = Query(default=0, description="Limit results (0 = all)"),
     series_only: bool = Query(default=False),
@@ -42,20 +44,24 @@ def list_entries(
         entries = [e for e in entries if not e.is_series]
     if n > 0:
         entries = entries[-n:]
-    return [_to_response(e) for e in entries]
+    private = user.role == UserRole.ADMIN
+    return [_to_response(e, include_private=private) for e in entries]
 
 
 @router.get("/{entry_id}", response_model=EntryResponse)
 def get_entry(
     entry_id: str,
+    user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
 ) -> EntryResponse:
-    return _to_response(svc.get_entry(entry_id))
+    private = user.role == UserRole.ADMIN
+    return _to_response(svc.get_entry(entry_id), include_private=private)
 
 
 @router.post("/", response_model=EntryResponse, status_code=201)
 def create_entry(
     req: EntryCreateRequest,
+    _admin: AuthUser = Depends(require_admin),
     svc: EntryService = Depends(get_entry_service),
 ) -> EntryResponse:
     entry = Entry(
@@ -73,6 +79,7 @@ def create_entry(
 @router.delete("/{entry_id}", response_model=MessageResponse)
 def delete_entry(
     entry_id: str,
+    _admin: AuthUser = Depends(require_admin),
     svc: EntryService = Depends(get_entry_service),
 ) -> MessageResponse:
     svc.delete_entry(entry_id)
@@ -82,19 +89,23 @@ def delete_entry(
 @router.get("/search/{title}", response_model=list[EntryResponse])
 def search_entries(
     title: str,
+    user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
 ) -> list[EntryResponse]:
     exact = svc.find_exact_matches(title)
     sub = svc.find_substring_matches(title)
     all_results = [e for _, e in exact + sub]
-    return [_to_response(e) for e in all_results]
+    private = user.role == UserRole.ADMIN
+    return [_to_response(e, include_private=private) for e in all_results]
 
 
 @router.get("/random/", response_model=list[EntryResponse])
 def random_entries(
+    user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
     n: int = Query(default=1),
     tag: str | None = Query(default=None),
 ) -> list[EntryResponse]:
     entries = svc.get_random_entries(n, tag)
-    return [_to_response(e) for e in entries]
+    private = user.role == UserRole.ADMIN
+    return [_to_response(e, include_private=private) for e in entries]
