@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Self
 
@@ -10,9 +10,12 @@ from src.models.mongo_base import EntryBaseModel
 from src.utils.utils import (
     DATE_PATTERNS,
     find_hashtags,
-    parse_date as _parse_date_str,
     parse_per_season_ratings,
     remove_hashtags,
+    LOCAL_TZ,
+)
+from src.utils.utils import (
+    parse_date as _parse_date_str,
 )
 
 
@@ -42,7 +45,7 @@ class Entry(EntryBaseModel):
         if v is None:
             return None
         if isinstance(v, datetime):
-            return v
+            return v.astimezone(UTC)
         if isinstance(v, str):
             parsed = _parse_date_str(v)
             if parsed is None:
@@ -72,6 +75,15 @@ class Entry(EntryBaseModel):
         self.tags.update(hashtags)
         self.notes = remove_hashtags(self.notes).strip()
         return self
+
+    @property
+    def datetime_pretty(self) -> str:
+        if not self.date:
+            return ""
+        if self.date.time() == datetime.min.time():
+            return self.date.strftime("%Y-%m-%d")
+        _date = self.date.astimezone(LOCAL_TZ)
+        return _date.strftime("%Y-%m-%d %H:%M:%S")
 
     @property
     def is_series(self) -> bool:
@@ -110,7 +122,11 @@ class Entry(EntryBaseModel):
         type_str = (
             f" ({self.type.name.lower()})" if self.type != EntryType.MOVIE else ""
         )
-        date_str = f" ({self.date.strftime('%d.%m.%Y')})" if self.date else ""
+        date_str = (
+            f" ({self.date.strftime('%Y-%m-%d') if self.date.time() == datetime.min.time() else self.date.isoformat()})"
+            if self.date
+            else ""
+        )
         tags_str = f" [{' '.join(f'󰓹 {t}' for t in self.tags)}]" if self.tags else ""
         return (
             f"[{self.rating:.2f}] {self.title}{type_str}{date_str}{note_str}{tags_str}"
@@ -119,7 +135,7 @@ class Entry(EntryBaseModel):
     @field_serializer("date")
     @classmethod
     def serialize_date(cls, v: datetime | None) -> str | None:
-        return v.strftime("%d.%m.%Y") if v else None
+        return v.isoformat() if v else None
 
     @field_serializer("tags", "image_ids")
     @classmethod
@@ -163,7 +179,7 @@ class Entry(EntryBaseModel):
     @staticmethod
     def parse_date(when: str) -> datetime | None:
         if when in {"now", "today"}:
-            return datetime.now()
+            return datetime.now(UTC)
         if when.lower() in {"none", "-", ""}:
             return None
         date = _parse_date_str(when)

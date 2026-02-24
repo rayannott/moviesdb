@@ -1,24 +1,24 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from statistics import mean
 
 from rich import box
 from rich.align import Align
 from rich.console import Console, RenderableType
-from rich.prompt import Prompt
-from rich.table import Table
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    BarColumn,
     TextColumn,
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from rich.prompt import Prompt
+from rich.table import Table
 
 from src.models.entry import Entry, EntryType
-from src.obj.verbosity import is_verbose
 from src.obj.entry_group import EntryGroup
-from src.utils.utils import TAG_WATCH_AGAIN
+from src.obj.verbosity import is_verbose
+from src.utils.utils import LOCAL_TZ, TAG_WATCH_AGAIN
 
 
 def format_image_prefix(num_images: int) -> str:
@@ -122,19 +122,27 @@ def format_tag(tag: str) -> str:
 
 
 def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
-    def _fmt_date(date: date) -> str:
-        now = datetime.now()
-        if date == now.date():
-            return "today"
-        if date == (now - timedelta(days=1)).date():
-            return "yesterday"
-        return date.strftime("%d.%m.%Y")
+    def _fmt_date() -> str:
+        if not entry.date:
+            return ""
+        now = datetime.now(UTC)
+        time_utc = entry.date.time()
+        dt_loc = entry.date.astimezone(LOCAL_TZ)
+        time_loc = dt_loc.time()
+        time_pretty = (
+            time_loc.strftime(" at %H:%M") if time_utc != datetime.min.time() else ""
+        )
+        if entry.date == now.date():
+            return f"today{time_pretty}"
+        if entry.date == (now - timedelta(days=1)).date():
+            return f"yesterday{time_pretty}"
+        return entry.date.strftime("%d %b %Y") + time_pretty
 
     _title = format_image_prefix(len(entry.image_ids)) + format_title(
         entry.title, entry.type
     )
     _rating = format_rating(entry.rating)
-    _date = _fmt_date(entry.date.date()) if entry.date else ""
+    _date = _fmt_date()
     _tags = f"{' '.join(format_tag(t) for t in entry.tags)}" if entry.tags else ""
     _notes = f"{entry.notes}" if entry.notes and is_verbose else ""
     return _title, _rating, _date, _tags, _notes
