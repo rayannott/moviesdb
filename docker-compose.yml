@@ -5,12 +5,12 @@ services:
       dockerfile: Dockerfile.bot
     env_file: .env
     restart: unless-stopped
-    # logging:
-    #   driver: awslogs
-    #   options:
-    #     awslogs-region: eu-north-1
-    #     awslogs-group: moviesdb
-    #     awslogs-stream: ec2-user
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: eu-north-1
+        awslogs-group: moviesdb
+        awslogs-stream: ec2-user
 
   moviesdb-api:
     build:
