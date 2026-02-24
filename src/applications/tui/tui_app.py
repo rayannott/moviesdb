@@ -142,7 +142,7 @@ class TUIApp(BaseApp):
 
         def _fmt(idx: int, entry: Entry) -> str:
             _tags = (" " + " ".join(f"#{t}" for t in entry.tags)) if entry.tags else ""
-            _date = f" ({entry.date.strftime('%d.%m.%Y')})" if entry.date else ""
+            _date = f" ({entry.datetime_pretty})" if entry.date else ""
             _note = f": {entry.notes}" if is_verbose_flag and entry.notes else ""
             return f"[{idx}] {entry.title}{_date}{_tags}{_note}"
 

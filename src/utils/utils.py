@@ -1,9 +1,13 @@
-import datetime
+from datetime import datetime, UTC
 import difflib
+from zoneinfo import ZoneInfo
 import re
 import subprocess
 
-DATE_PATTERNS = ["%d.%m.%Y", "%d.%m.%y"]
+
+LOCAL_TZ = ZoneInfo("Europe/Berlin")
+
+DATE_PATTERNS = ["%d.%m.%Y", "%d.%m.%y", "%Y-%m-%d"]
 
 
 HASHTAG_RE = re.compile(r"#[\w-]+")
@@ -70,12 +74,16 @@ def possible_match(
     return matches[0] if matches else None
 
 
-def parse_date(date_str: str) -> datetime.datetime | None:
+def parse_date(date_str: str) -> datetime | None:
     if date_str == "None":
         return None
+    try:
+        return datetime.fromisoformat(date_str).replace(tzinfo=UTC)
+    except ValueError:
+        pass
     for pattern in DATE_PATTERNS:
         try:
-            return datetime.datetime.strptime(date_str, pattern)
+            return datetime.strptime(date_str, pattern).replace(tzinfo=UTC)
         except ValueError:
             continue
     return None
