@@ -18,7 +18,6 @@ class EntryResponse(BaseModel):
     notes: str = ""
     tags: list[str] = Field(default_factory=list)
     image_ids: list[str] = Field(default_factory=list)
-    is_series: bool = False
 
 
 class EntryCreateRequest(BaseModel):

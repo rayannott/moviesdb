@@ -33,6 +33,9 @@ class AuthUser(BaseModel):
     salt: str
     role: UserRole
 
+    def __str__(self) -> str:
+        return f"AuthUser(username={self.username}, role={self.role.value})"
+
 
 def hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
     """Hash a password with PBKDF2-HMAC-SHA256.

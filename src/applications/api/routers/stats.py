@@ -9,14 +9,17 @@ from src.applications.api.dependencies import get_entry_service
 from src.applications.api.schemas import StatsResponse
 from src.services.entry_service import EntryService
 
+from loguru import logger
+
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 @router.get("/", response_model=StatsResponse)
 def get_stats(
-    _user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
 ) -> StatsResponse:
+    logger.info(f"[{user}] Getting stats")
     stats = svc.get_stats()
     return StatsResponse(
         total_entries=stats.total,

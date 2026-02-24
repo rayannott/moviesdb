@@ -9,14 +9,17 @@ from src.applications.api.dependencies import get_entry_service
 from src.applications.api.schemas import TagStatsResponse
 from src.services.entry_service import EntryService
 
+from loguru import logger
+
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 
 @router.get("/", response_model=list[TagStatsResponse])
 def list_tags(
-    _admin: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_current_user),
     svc: EntryService = Depends(get_entry_service),
 ) -> list[TagStatsResponse]:
+    logger.info(f"[{user}] Listing tags")
     tags = svc.get_tags()
     return sorted(
         [
