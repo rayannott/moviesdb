@@ -1,22 +1,25 @@
 services:
   moviesbot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
     env_file: .env
     restart: unless-stopped
-    logging:
-      driver: awslogs
-      options:
-        awslogs-region: eu-north-1
-        awslogs-group: moviesdb
-        awslogs-stream: ec2-user
+    # logging:
+    #   driver: awslogs
+    #   options:
+    #     awslogs-region: eu-north-1
+    #     awslogs-group: moviesdb
+    #     awslogs-stream: ec2-user
 
   moviesdb-api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.api
     env_file: .env
     restart: unless-stopped
     ports:
       - "8000:8000"
-    command: uv run uvicorn api:app --host 0.0.0.0 --port 8000
     logging:
       driver: awslogs
       options:
