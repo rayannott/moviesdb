@@ -27,8 +27,7 @@ from src.paths import LOCAL_DIR
 DATE_RE = re.compile(r"\d{2}\.\d{2}\.\d{4}")
 
 FOLDER_NAME = "movies-series-images"
-FOLDER_PATH = LOCAL_DIR / FOLDER_NAME
-FOLDER_PATH.mkdir(exist_ok=True, parents=True)
+FOLDER_PATH = Path(FOLDER_NAME)
 
 IMAGES_TMP_DIR = LOCAL_DIR / ".images-tmp-local"
 (IMAGES_TMP_DIR / FOLDER_NAME).mkdir(exist_ok=True, parents=True)
