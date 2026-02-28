@@ -22,16 +22,18 @@ from rich.prompt import Prompt
 
 from src.models.entry import Entry
 from src.utils.rich_utils import get_pretty_progress
+from src.paths import LOCAL_DIR
 
 DATE_RE = re.compile(r"\d{2}\.\d{2}\.\d{4}")
 
 FOLDER_NAME = "movies-series-images"
-FOLDER_PATH = Path(FOLDER_NAME)
+FOLDER_PATH = LOCAL_DIR / FOLDER_NAME
+FOLDER_PATH.mkdir(exist_ok=True, parents=True)
 
-IMAGES_TMP_DIR = Path(".images-tmp-local")
+IMAGES_TMP_DIR = LOCAL_DIR / ".images-tmp-local"
 (IMAGES_TMP_DIR / FOLDER_NAME).mkdir(exist_ok=True, parents=True)
 
-IMAGES_EXPORTED_DIR = Path("export-local", "images")
+IMAGES_EXPORTED_DIR = LOCAL_DIR / "images"
 IMAGES_EXPORTED_DIR.mkdir(exist_ok=True, parents=True)
 
 
@@ -175,25 +177,6 @@ class ImageManager:
             )
             for img_path in IMAGES_TMP_DIR.glob("**/*.png")
         ]
-
-    @deprecated("Do not use local storage.", category=DeprecationWarning)
-    def sync(self):
-        """Runs
-        aws s3 sync s3://<BUCKET_NAME> .images-tmp-local/ --delete
-        """
-        try:
-            subprocess.run(
-                [
-                    "aws",
-                    "s3",
-                    "sync",
-                    f"s3://{self._bucket_name}",
-                    str(IMAGES_TMP_DIR),
-                    "--delete",
-                ]
-            )
-        except Exception:
-            logger.exception("Error syncing images")
 
     def _check_access(self):
         try:

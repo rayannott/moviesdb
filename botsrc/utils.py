@@ -5,12 +5,9 @@ from typing import TypeVar
 
 from src.models.entry import Entry
 from src.obj.entry_group import EntryGroup
-from src.paths import ALLOWED_USERS
 
 BOT_STARTED = datetime.now()
 
-
-ALLOWED_USERS.parent.mkdir(exist_ok=True)
 
 
 def select_entry_by_oid_part(oid_part: str, entries: list[Entry]) -> Entry | None:
