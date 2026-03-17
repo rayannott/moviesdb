@@ -1,9 +1,12 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from statistics import mean
 
 from src.models.entry import Entry, EntryType
+
+
+MIN_DT = datetime(1900, 1, 1, tzinfo=UTC)
 
 
 @dataclass
@@ -15,7 +18,7 @@ class EntryGroup:
 
     @staticmethod
     def from_list_of_entries(entries: list[Entry]) -> "EntryGroup":
-        entries.sort(key=lambda e: e.date if e.date else datetime.min)
+        entries.sort(key=lambda e: e.date if e.date else MIN_DT)
         title = entries[0].title
         type = entries[0].type
         assert all(entry.title == title for entry in entries)

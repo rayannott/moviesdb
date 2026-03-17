@@ -7,6 +7,7 @@ from pathlib import Path
 from statistics import mean, stdev
 from time import perf_counter as pc
 from typing import Any, Callable
+from collections import defaultdict
 
 from loguru import logger
 from pyfzf.pyfzf import FzfPrompt
@@ -54,6 +55,13 @@ from src.utils.utils import (
     TAG_WATCH_AGAIN,
     replace_tag_alias,
 )
+
+
+def get_watched_count(entries: list[Entry]) -> defaultdict[str, int]:
+    watched_count = defaultdict(int)
+    for entry in entries:
+        watched_count[entry.title] += 1
+    return watched_count
 
 
 def identity(x: str) -> str:
@@ -406,6 +414,7 @@ class TUIApp(BaseApp):
         if (n := self.try_int(int_str)) is None:
             return
         entries = self.entries
+        watched_count = get_watched_count(entries)
         if F_SERIES in flags:
             entries = [ent for ent in entries if ent.is_series]
         elif F_MOVIES in flags:
@@ -415,7 +424,11 @@ class TUIApp(BaseApp):
         _slice = slice(0, None, None) if F_ALL in flags else slice(-n, None, None)
         entries = entries[_slice]
         n = len(entries)
-        self.cns.print(get_entries_table(entries, title=f"Last {n} entries"))
+        self.cns.print(
+            get_entries_table(
+                entries, title=f"Last {n} entries", watched_count=watched_count
+            )
+        )
 
     def cmd_group(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
         """group [<title>] [--series | --movies] [--n <n>] [--all]

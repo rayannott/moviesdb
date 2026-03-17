@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from statistics import mean
+from collections import defaultdict
 
 from rich import box
 from rich.align import Align
@@ -153,6 +154,7 @@ def get_entries_table(
     ids: list[int] | tuple[int, ...] = [],
     title: str = "",
     center: bool = True,
+    watched_count: defaultdict[str, int] | None = None,
 ) -> Table | Align:
     take_ids = bool(ids)
     headers = (
@@ -175,6 +177,8 @@ def get_entries_table(
         ids = list(range(1, len(entries) + 1))  # dummy ids
     for id_, entry in zip(ids, entries):
         _title, _rating, _date, _tags, _notes = _entry_formatted_parts(entry)
+        if watched_count is not None and watched_count.get(entry.title, 0) > 1:
+            _title += f" [dim](x{watched_count[entry.title]})[/]"
         rows.append(
             ([str(id_)] if take_ids else [])
             + [_title, _rating, _date, _tags]

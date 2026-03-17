@@ -1,9 +1,8 @@
-from datetime import datetime, UTC
 import difflib
-from zoneinfo import ZoneInfo
 import re
 import subprocess
-
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
