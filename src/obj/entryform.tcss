@@ -28,6 +28,18 @@ Input.invalid {
     border: solid #ff0000; /* Red border for invalid inputs */
 }
 
+/* Title duplicate/watchlist status indicator */
+#title-status {
+    width: 50;
+    height: 1;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#title-status.hidden {
+    display: none;
+}
+
 /* Style for the select widget */
 RadioSet {
     width: 50;
