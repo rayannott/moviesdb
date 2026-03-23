@@ -17,6 +17,8 @@ from textual.widgets import (
 from src.obj.ai import ChatBot
 from src.exceptions import MalformedEntryException
 from src.models.entry import Entry
+from src.services.entry_service import EntryService
+from src.services.watchlist_service import WatchlistService
 from src.utils.rich_utils import format_entry
 
 
@@ -26,6 +28,8 @@ class EntryFormApp(App):
 
     def __init__(
         self,
+        entries_svc: EntryService,
+        watchlist_svc: WatchlistService,
         title: str | str = "",
         rating: int | str = "",
         is_series: bool = False,
@@ -34,6 +38,18 @@ class EntryFormApp(App):
         button_text: str = "Save",
         **kwargs,
     ):
+        self._entries_svc = entries_svc
+        self._watchlist_svc = watchlist_svc
+
+        # Pre-load title data for live keystroke checking
+        self._entries_by_title: dict[str, list[Entry]] = {}
+        for e in self._entries_svc.get_entries():
+            self._entries_by_title.setdefault(e.title.lower(), []).append(e)
+        self._watchlist_titles_map: dict[str, str] = {
+            t.lower(): t for t, _ in self._watchlist_svc.get_items()
+        }
+        self._last_case_warned: str | None = None
+
         self._title = title
         self._rating = rating
         self._is_series = is_series
@@ -57,6 +73,7 @@ class EntryFormApp(App):
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Input(value=self._title, placeholder="Enter title", id="title")
+            yield Static("", id="title-status", classes="hidden")
             yield Input(
                 value=str(self._rating),
                 placeholder="Enter rating",
@@ -71,6 +88,10 @@ class EntryFormApp(App):
             )
             yield TextArea(text=self._notes, id="notes")
             yield Button(self._button_text, variant="primary", id="save")
+
+    def on_mount(self) -> None:
+        if self._title:
+            self._update_title_status(self._title.strip())
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save":
@@ -91,6 +112,7 @@ class EntryFormApp(App):
             is_valid = self._validate_date(value)
         elif input_id == "title":
             is_valid = bool(value)
+            self._update_title_status(value)
         else:
             is_valid = True
 
@@ -98,6 +120,63 @@ class EntryFormApp(App):
             event.input.remove_class("invalid")
         else:
             event.input.add_class("invalid")
+
+    def _update_title_status(self, title: str) -> None:
+        """Update the title status label based on pre-loaded data."""
+        status = self.query_one("#title-status", Static)
+        title_lower = title.lower()
+
+        if title_lower in self._entries_by_title:
+            entries = self._entries_by_title[title_lower]
+            existing_title = entries[0].title
+            count = len(entries)
+            times = "time" if count == 1 else "times"
+
+            dates = [e.date for e in entries if e.date is not None]
+            date_suffix = ""
+            if dates:
+                last_date = max(dates)
+                date_suffix = f", last from {last_date.strftime('%d %b %Y')}"
+
+            if title != existing_title:
+                status.update(
+                    f'[bold yellow]found as "{existing_title}" '
+                    f"{count} {times}{date_suffix})[/]"
+                )
+                if title_lower != self._last_case_warned:
+                    self._last_case_warned = title_lower
+                    self.notify(
+                        f'Existing title: "{existing_title}" '
+                        f"- use exact spelling",
+                        severity="warning",
+                    )
+            else:
+                status.update(
+                    f"[bold green]found {count} {times}{date_suffix}[/]"
+                )
+            status.remove_class("hidden")
+
+        elif title_lower in self._watchlist_titles_map:
+            existing_title = self._watchlist_titles_map[title_lower]
+            if title != existing_title:
+                status.update(
+                    f'[bold yellow]in watchlist as "{existing_title}"[/]'
+                )
+                if title_lower != self._last_case_warned:
+                    self._last_case_warned = title_lower
+                    self.notify(
+                        f'Watchlist title: "{existing_title}" '
+                        f"- use exact spelling",
+                        severity="warning",
+                    )
+            else:
+                status.update("[bold blue]found in watchlist[/]")
+            status.remove_class("hidden")
+
+        else:
+            status.update("")
+            status.add_class("hidden")
+            self._last_case_warned = None
 
     def _validate_rating(self, rating: str) -> bool:
         try:

@@ -227,6 +227,8 @@ class TUIApp(BaseApp):
             self.error(f"Invalid index: {idx}.")
             return
         entry_app = EntryFormApp(
+            entries_svc=self._entry_svc,
+            watchlist_svc=self._watchlist_svc,
             title=entry.title,
             rating=str(entry.rating),
             is_series=entry.is_series,
@@ -642,7 +644,12 @@ class TUIApp(BaseApp):
         in the database and will ask to override it if it exists."""
         title = " ".join(pos)
         if "tui" in flags or not title:
-            entry_app = EntryFormApp(button_text="Add", title=title)
+            entry_app = EntryFormApp(
+                entries_svc=self._entry_svc,
+                watchlist_svc=self._watchlist_svc,
+                button_text="Add",
+                title=title,
+            )
             entry_app.run()
             if entry_app.entry is not None:
                 self._try_add_entry(entry_app.entry)
