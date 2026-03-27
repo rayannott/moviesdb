@@ -1,0 +1,171 @@
+/* ── Home screen: centered stats ── */
+
+HomeScreen {
+    align: center middle;
+}
+
+#home-center {
+    width: auto;
+    height: auto;
+    align: center middle;
+}
+
+#home-loader {
+    width: auto;
+}
+
+StatsPanel {
+    width: auto;
+    max-width: 48;
+    min-width: 36;
+    height: auto;
+    border: round $accent;
+    padding: 1 2;
+}
+
+/* ── Browse screen ── */
+
+BrowseScreen {
+    align: center middle;
+}
+
+#browse-wrapper {
+    width: 60%;
+    max-width: 90;
+    height: 80%;
+}
+
+#search-input {
+    dock: top;
+    height: 1;
+    border: none;
+    background: $boost;
+    padding: 0 1;
+    color: $text;
+}
+
+#search-input:focus {
+    border: none;
+}
+
+#page-indicator {
+    height: 1;
+    padding: 0 1;
+    color: $text-muted;
+}
+
+#entries-list {
+    height: 1fr;
+}
+
+/* ── Entry cards ── */
+
+EntryCard {
+    height: 1;
+    padding: 0 1;
+}
+
+EntryCard:focus {
+    background: $boost;
+}
+
+EntryCard.selected {
+    background: $accent 20%;
+    text-style: bold;
+}
+
+/* ── Add entry modal ── */
+
+AddEntryScreen {
+    align: center middle;
+}
+
+#add-entry-container {
+    width: 60;
+    height: auto;
+    max-height: 90%;
+    border: thick $accent;
+    background: $surface;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+#add-entry-title {
+    height: 1;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#add-entry-container Input {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#add-entry-container Input.invalid {
+    border: solid red;
+}
+
+#ae-title-status {
+    height: 1;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#ae-title-status.hidden {
+    display: none;
+}
+
+#add-entry-container RadioSet {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#add-entry-container TextArea {
+    width: 100%;
+    height: 5;
+    margin-bottom: 1;
+}
+
+#ae-save {
+    width: 100%;
+    min-height: 3;
+}
+
+/* ── Detail modal ── */
+
+DetailScreen {
+    align: right middle;
+}
+
+#detail-container {
+    width: 45;
+    height: 90%;
+    margin-right: 2;
+    border: round $accent;
+    background: $surface;
+    padding: 1 2;
+}
+
+#detail-content {
+    height: 1fr;
+}
+
+#detail-title {
+    height: auto;
+}
+
+#detail-info {
+    height: auto;
+    margin-top: 1;
+}
+
+#detail-notes {
+    height: auto;
+    margin-top: 1;
+}
+
+#detail-related {
+    height: auto;
+    margin-top: 1;
+    border-top: solid $accent;
+}
