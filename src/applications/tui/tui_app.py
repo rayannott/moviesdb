@@ -178,6 +178,7 @@ class TUIApp(BaseApp):
             if not res:
                 return
             ids, matches = zip(*res)
+            matches.sort()  # type: ignore[attr-defined]
             self.cns.print(
                 get_entries_table(
                     matches,
