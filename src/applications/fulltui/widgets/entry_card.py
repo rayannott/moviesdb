@@ -47,14 +47,16 @@ class EntryCard(Widget, can_focus=True):
         bang = "!" if e.rating >= 9.0 else ""
         rating_str = f"{e.rating:.2f}{bang}"
 
-        type_marker = " [S]" if e.type == EntryType.SERIES else ""
+        is_series = e.type == EntryType.SERIES
         date_str = _fmt_date_short(e)
         date_part = f"  {date_str}" if date_str else ""
         tags_part = ("  " + " ".join(f"#{t}" for t in sorted(e.tags))) if e.tags else ""
 
+        title_style = "black on white bold" if is_series else "bold"
+
         line = Text()
         line.append(f" {rating_str} ", style=color)
-        line.append(f" {e.title}{type_marker}", style="bold")
+        line.append(e.title, style=title_style)
         line.append(date_part, style="dim")
         line.append(tags_part, style="blue")
         return line

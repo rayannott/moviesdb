@@ -7,7 +7,6 @@ from textual.binding import Binding
 
 from src.applications.fulltui.screens.browse import BrowseScreen
 from src.applications.fulltui.screens.home import HomeScreen
-from src.applications.fulltui.screens.search import SearchScreen
 from src.dependencies import Container
 from src.models.entry import Entry
 from src.services.entry_service import EntryService
@@ -22,15 +21,11 @@ class FullTUIApp(App):
     MODES = {
         "home": HomeScreen,
         "browse": BrowseScreen,
-        "search": SearchScreen,
     }
     DEFAULT_MODE = "home"
 
     BINDINGS = [
-        Binding("space", "switch_mode('browse')", "Browse", show=True),
-        Binding("b", "switch_mode('browse')", "Browse", show=False),
-        Binding("h", "switch_mode('home')", "Home", show=True),
-        Binding("ctrl+f", "switch_mode('search')", "Search", show=True),
+        Binding("enter", "switch_mode('browse')", "Browse", show=True),
         Binding("ctrl+n", "add_entry", "Add entry", show=True),
         Binding("q", "quit", "Quit", show=True),
         Binding("ctrl+q", "quit", "Quit", show=False),

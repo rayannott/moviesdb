@@ -8,12 +8,9 @@ from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import Footer, LoadingIndicator
+from textual.widgets import Footer, Static
 
-from src.applications.fulltui.widgets.stats_panel import (
-    RatingDistributionPanel,
-    StatsPanel,
-)
+from src.applications.fulltui.widgets.stats_panel import StatsPanel
 from src.services.entry_service import StatsResult
 
 if TYPE_CHECKING:
@@ -21,46 +18,30 @@ if TYPE_CHECKING:
 
 
 class HomeScreen(Screen):
-    """Default view with compact statistics in a centered grid."""
+    """Default view with a centered statistics panel."""
 
     app: "FullTUIApp"
 
     def compose(self) -> ComposeResult:
         yield Container(
-            LoadingIndicator(id="home-loader"),
-            id="home-grid",
+            Static("Loading...", id="home-loading"),
+            id="home-center",
         )
         yield Footer()
 
     def on_mount(self) -> None:
         self._load_stats()
 
-    @work(thread=True)
+    @work(thread=True, exclusive=True)
     def _load_stats(self) -> None:
         stats = self.app.entry_svc.get_stats()
-        all_ratings = stats.movie_ratings + stats.series_ratings
-        self.app.call_from_thread(self._render_stats, stats, all_ratings)
+        self.app.call_from_thread(self._render_stats, stats)
 
-    def _render_stats(
-        self,
-        stats: StatsResult,
-        all_ratings: list[float],
-    ) -> None:
-        grid = self.query_one("#home-grid")
-        loader = grid.query("#home-loader")
-        for w in loader:
-            w.remove()
-
-        panel = StatsPanel(stats, id="stats-panel")
-        grid.mount(panel)
-
-        if all_ratings:
-            dist = RatingDistributionPanel(all_ratings, id="dist-panel")
-            grid.mount(dist)
+    def _render_stats(self, stats: StatsResult) -> None:
+        center = self.query_one("#home-center")
+        center.remove_children()
+        center.mount(StatsPanel(stats))
 
     def refresh_data(self) -> None:
         """Reload stats from the database."""
-        grid = self.query_one("#home-grid")
-        grid.remove_children()
-        grid.mount(LoadingIndicator(id="home-loader"))
         self._load_stats()
