@@ -33,7 +33,12 @@ class Settings(BaseSettings):
 
 def needs_unlock() -> bool:
     """Whether the plaintext env is absent but an encrypted copy exists."""
-    return not CONFIG_ENV.exists() and CONFIG_ENV_ENCRYPTED.exists()
+    if not CONFIG_ENV.exists() and not CONFIG_ENV_ENCRYPTED.exists():
+        raise FileNotFoundError(
+            f"Neither {CONFIG_ENV} nor {CONFIG_ENV_ENCRYPTED} found. "
+            "Run `uv run python scripts/encrypt_env.py` to create the encrypted file."
+        )
+    return not CONFIG_ENV.exists()
 
 
 def unlock_secrets(password: str) -> None:

@@ -17,6 +17,7 @@ def main() -> None:
         except cryptography.fernet.InvalidToken:
             click.echo("Failed to decrypt secrets. Wrong password?", err=True)
             raise SystemExit(1)
+        click.echo("\033[A\033[2K", nl=False)  # erase the prompt line
 
     # Deferred: Container class body calls Settings() at definition time,
     # so it must be imported after secrets are available in os.environ.
