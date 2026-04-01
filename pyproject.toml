@@ -10,6 +10,7 @@ dependencies = [
     "boto3>=1.40.15",
     "boto3-stubs[boto3,s3]>=1.40.15",
     "click>=8.3.1",
+    "cryptography>=46.0.6",
     "dependency-injector>=4.48.3",
     "fastapi[standard]>=0.129.2",
     "loguru>=0.7.3",
