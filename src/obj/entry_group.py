@@ -57,6 +57,14 @@ def groups_from_list_of_entries(entries: list[Entry]) -> list[EntryGroup]:
     )
 
 
+def partition_by_title_group(entries: list[Entry]) -> list[list[Entry]]:
+    """Split entries into disjoint lists, one per (title, type) group."""
+    grouped: defaultdict[tuple[str, EntryType], list[Entry]] = defaultdict(list)
+    for entry in entries:
+        grouped[(entry.title, entry.type)].append(entry)
+    return list(grouped.values())
+
+
 def last_watched_entry(entries: list[Entry]) -> Entry | None:
     """Newest watch by `date`; ties broken by smallest `id`."""
     dates = [d for e in entries if (d := e.date) is not None]
@@ -74,11 +82,8 @@ def review_eligible_groups(
 ) -> list[tuple[EntryGroup, Entry, int]]:
     """Groups whose last-watched entry has no review_rating and last watch older than cutoff."""
     cutoff = datetime.now(UTC) - timedelta(days=min_age_days)
-    by_key: defaultdict[tuple[str, EntryType], list[Entry]] = defaultdict(list)
-    for e in entries:
-        by_key[(e.title, e.type)].append(e)
     out: list[tuple[EntryGroup, Entry, int]] = []
-    for group_entries in by_key.values():
+    for group_entries in partition_by_title_group(entries):
         last = last_watched_entry(group_entries)
         if last is None or last.review_rating is not None:
             continue

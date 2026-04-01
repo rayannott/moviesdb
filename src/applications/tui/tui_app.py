@@ -259,10 +259,30 @@ class TUIApp(BaseApp):
     def cmd_review(
         self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags
     ) -> None:
-        """review [--n <n>]
+        """review [--n <n>] [--stats]
         Last-watched row per title (no review yet; last watch > ~90 days ago).
         With --n N: up to N random tasks, then return.
-        Without --n: prompt until none left, q to quit."""
+        Without --n: prompt until none left, q to quit.
+        With --stats: print review coverage numbers."""
+
+        if "stats" in flags:
+            rs = self._entry_svc.get_review_stats()
+            avg = (
+                f"{rs.avg_review_rating:.2f}"
+                if rs.avg_review_rating is not None
+                else "—"
+            )
+            self.cns.print(
+                f"Groups (title + type): {rs.total_groups}\n"
+                f"With a watch date (last-watched defined): {rs.groups_with_last_watch}\n"
+                f"Last-watched row has review_rating: {rs.groups_with_review} "
+                f"({rs.pct_groups_with_review:.1f}% of all groups)\n"
+                f"Of those with a watch date: {rs.pct_watched_groups_with_review:.1f}% have a review\n"
+                f"Avg review_rating (where set): {avg}\n"
+                f"Pending `review` queue (≥90d, no review yet): {rs.groups_pending_eligible}\n"
+                f"No watch date on any row in group: {rs.groups_no_watch_date}"
+            )
+            return
 
         def _describe(eg: EntryGroup, ent: Entry, idx: int) -> None:
             wl = ent.date.strftime("%d.%m.%Y") if ent.date else ""
