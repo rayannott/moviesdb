@@ -38,8 +38,10 @@ class Entry(EntryBaseModel):
         validation_alias="images",
         serialization_alias="images",
     )
+    review_rating: float | None = None
+    review_rating_updated_at: datetime | None = None
 
-    @field_validator("date", mode="before")
+    @field_validator("date", "review_rating_updated_at", mode="before")
     @classmethod
     def validate_date(cls, v: Any) -> datetime | None:
         if v is None:
@@ -59,6 +61,16 @@ class Entry(EntryBaseModel):
         if isinstance(v, list):
             return set(v)
         return v
+
+    @field_validator("review_rating", mode="before")
+    @classmethod
+    def validate_review_rating(cls, v: Any) -> float | None:
+        if v is None:
+            return None
+        r = float(v)
+        if r <= 0 or r > 10:
+            raise ValueError(f"review_rating out of range (0 < r <= 10): {r}")
+        return r
 
     @field_validator("type", mode="before")
     @classmethod
@@ -132,9 +144,9 @@ class Entry(EntryBaseModel):
             f"[{self.rating:.2f}] {self.title}{type_str}{date_str}{note_str}{tags_str}"
         )
 
-    @field_serializer("date")
+    @field_serializer("date", "review_rating_updated_at")
     @classmethod
-    def serialize_date(cls, v: datetime | None) -> str | None:
+    def serialize_dt(cls, v: datetime | None) -> str | None:
         return v.isoformat() if v else None
 
     @field_serializer("tags", "image_ids")

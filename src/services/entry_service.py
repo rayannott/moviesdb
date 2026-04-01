@@ -4,7 +4,11 @@ from dataclasses import dataclass
 
 from src.exceptions import EntryNotFoundException
 from src.models.entry import Entry, build_tags
-from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
+from src.obj.entry_group import (
+    EntryGroup,
+    groups_from_list_of_entries,
+    review_eligible_groups,
+)
 from src.repos.entries import EntriesRepo
 from src.repos.watchlist_entries import WatchlistEntriesRepo
 from src.utils.utils import TAG_WATCH_AGAIN, possible_match, replace_tag_alias
@@ -83,6 +87,10 @@ class EntryService:
 
     def get_groups(self) -> list[EntryGroup]:
         return groups_from_list_of_entries(self.get_entries())
+
+    def get_review_candidates(self) -> list[tuple[EntryGroup, Entry, int]]:
+        """Eligible (title, type) groups for retrospective review (see `review_eligible_groups`)."""
+        return review_eligible_groups(self.get_entries())
 
     def get_random_entries(self, n: int = 1, tag: str | None = None) -> list[Entry]:
         entries = self.get_entries()
