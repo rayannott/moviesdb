@@ -65,13 +65,16 @@ def partition_by_title_group(entries: list[Entry]) -> list[list[Entry]]:
     return list(grouped.values())
 
 
-def last_watched_entry(entries: list[Entry]) -> Entry | None:
-    """Newest watch by `date`; ties broken by smallest `id`."""
-    dates = [d for e in entries if (d := e.date) is not None]
-    if not dates:
-        return None
-    max_dt = max(dates)
-    tied = [e for e in entries if e.date == max_dt]
+def last_watched_entry(entries: list[Entry]) -> Entry:
+    """Newest watch by `date`; ties broken by smallest `id`.
+
+    If no entry has a date, falls back to the entry with the smallest id.
+    """
+    dated = [e for e in entries if e.date is not None]
+    if not dated:
+        return min(entries, key=lambda e: e.id)
+    max_dt = max(e.date for e in dated)  # type: ignore[arg-type]
+    tied = [e for e in dated if e.date == max_dt]
     return min(tied, key=lambda e: e.id)
 
 
@@ -80,16 +83,17 @@ def review_eligible_groups(
     *,
     min_age_days: int = REVIEW_MIN_AGE_DAYS,
 ) -> list[tuple[EntryGroup, Entry, int]]:
-    """Groups whose last-watched entry has no review_rating and last watch older than cutoff."""
+    """Groups whose last-watched entry has no review_rating and is old enough.
+
+    Entries without a date are treated as infinitely old (always eligible).
+    """
     cutoff = datetime.now(UTC) - timedelta(days=min_age_days)
     out: list[tuple[EntryGroup, Entry, int]] = []
     for group_entries in partition_by_title_group(entries):
         last = last_watched_entry(group_entries)
-        if last is None or last.review_rating is not None:
+        if last.review_rating is not None:
             continue
-        wl = last.date
-        assert wl is not None
-        if wl >= cutoff:
+        if last.date is not None and last.date >= cutoff:
             continue
         eg = EntryGroup.from_list_of_entries(list(group_entries))
         idx = next(i for i, e in enumerate(entries) if e.id == last.id)

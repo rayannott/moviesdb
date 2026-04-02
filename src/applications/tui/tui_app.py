@@ -16,6 +16,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.table import Table
 
 from src.applications.tui.apps.base import BaseApp
 from src.applications.tui.apps.image import ImagesApp
@@ -268,19 +269,42 @@ class TUIApp(BaseApp):
         if "stats" in flags:
             rs = self._entry_svc.get_review_stats()
             avg = (
-                f"{rs.avg_review_rating:.2f}"
+                format_rating(rs.avg_review_rating)
                 if rs.avg_review_rating is not None
                 else "—"
             )
+
+            t = Table(show_header=False, box=None, padding=(0, 1))
+            t.add_column("label")
+            t.add_column("value", justify="right")
+            t.add_column("extra", style="dim")
+
+            too_recent = (
+                rs.total_groups - rs.groups_with_review - rs.groups_pending_eligible
+            )
+
+            t.add_row("Titles", str(rs.total_groups), "")
+            t.add_row(
+                "  Reviewed",
+                str(rs.groups_with_review),
+                f"{rs.pct_reviewed:.0f}%",
+            )
+            t.add_row("", "", "")
+            t.add_row(
+                "Pending review",
+                str(rs.groups_pending_eligible),
+                "≥90d, no rating",
+            )
+            t.add_row("Too recent", str(too_recent), "<90d")
+            t.add_row("Avg rating", avg, "")
+
             self.cns.print(
-                f"Groups (title + type): {rs.total_groups}\n"
-                f"With a watch date (last-watched defined): {rs.groups_with_last_watch}\n"
-                f"Last-watched row has review_rating: {rs.groups_with_review} "
-                f"({rs.pct_groups_with_review:.1f}% of all groups)\n"
-                f"Of those with a watch date: {rs.pct_watched_groups_with_review:.1f}% have a review\n"
-                f"Avg review_rating (where set): {avg}\n"
-                f"Pending `review` queue (≥90d, no review yet): {rs.groups_pending_eligible}\n"
-                f"No watch date on any row in group: {rs.groups_no_watch_date}"
+                Panel(
+                    t,
+                    title="[bold]Review Coverage[/]",
+                    border_style="dim",
+                    expand=False,
+                )
             )
             return
 
