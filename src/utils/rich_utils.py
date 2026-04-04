@@ -142,7 +142,9 @@ def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
     _title = format_image_prefix(len(entry.image_ids)) + format_title(
         entry.title, entry.type
     )
-    _rating = format_rating(entry.rating)
+    _rating = format_rating(entry.rating) + (
+        f" ({format_rating(entry.review_rating)})" if entry.review_rating else ""
+    )
     _date = _fmt_date()
     _tags = f"{' '.join(format_tag(t) for t in entry.tags)}" if entry.tags else ""
     _notes = f"{entry.notes}" if entry.notes and is_verbose else ""

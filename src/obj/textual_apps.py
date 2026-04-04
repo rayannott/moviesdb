@@ -1,5 +1,6 @@
 import itertools
 import random
+from datetime import UTC, datetime
 
 from rich.text import Text
 from textual.app import App, ComposeResult
@@ -36,18 +37,24 @@ class EntryFormApp(App):
         date: str | str = "",
         notes: str | str = "",
         button_text: str = "Save",
+        show_review_rating: bool = False,
+        show_title_hints: bool = True,
+        review_rating: float | None = None,
+        review_rating_updated_at: datetime | None = None,
         **kwargs,
     ):
         self._entries_svc = entries_svc
         self._watchlist_svc = watchlist_svc
 
-        # Pre-load title data for live keystroke checking
+        self._show_title_hints = show_title_hints
         self._entries_by_title: dict[str, list[Entry]] = {}
-        for e in self._entries_svc.get_entries():
-            self._entries_by_title.setdefault(e.title.lower(), []).append(e)
-        self._watchlist_titles_map: dict[str, str] = {
-            t.lower(): t for t, _ in self._watchlist_svc.get_items()
-        }
+        self._watchlist_titles_map: dict[str, str] = {}
+        if show_title_hints:
+            for e in self._entries_svc.get_entries():
+                self._entries_by_title.setdefault(e.title.lower(), []).append(e)
+            self._watchlist_titles_map = {
+                t.lower(): t for t, _ in self._watchlist_svc.get_items()
+            }
         self._last_case_warned: str | None = None
 
         self._title = title
@@ -56,6 +63,9 @@ class EntryFormApp(App):
         self._date = date
         self._notes = notes
         self._button_text = button_text
+        self._show_review_rating = show_review_rating
+        self._initial_review_rating = review_rating
+        self._initial_review_updated_at = review_rating_updated_at
         self._other_entry_kwargs = kwargs
         super().__init__()
         self._themes = list(
@@ -73,7 +83,8 @@ class EntryFormApp(App):
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Input(value=self._title, placeholder="Enter title", id="title")
-            yield Static("", id="title-status", classes="hidden")
+            if self._show_title_hints:
+                yield Static("", id="title-status", classes="hidden")
             yield Input(
                 value=str(self._rating),
                 placeholder="Enter rating",
@@ -86,11 +97,20 @@ class EntryFormApp(App):
             yield Input(
                 value=self._date, placeholder="Enter date (%d.%m.%Y/today/-)", id="date"
             )
+            if self._show_review_rating:
+                yield Input(
+                    value=""
+                    if self._initial_review_rating is None
+                    else str(self._initial_review_rating),
+                    placeholder="Review rating (optional, - to clear)",
+                    type="number",
+                    id="review_rating",
+                )
             yield TextArea(text=self._notes, id="notes")
             yield Button(self._button_text, variant="primary", id="save")
 
     def on_mount(self) -> None:
-        if self._title:
+        if self._show_title_hints and self._title:
             self._update_title_status(self._title.strip())
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -108,11 +128,14 @@ class EntryFormApp(App):
 
         if input_id == "rating":
             is_valid = self._validate_rating(value)
+        elif input_id == "review_rating" and self._show_review_rating:
+            is_valid = not value or value == "-" or self._validate_rating(value)
         elif input_id == "date":
             is_valid = self._validate_date(value)
         elif input_id == "title":
             is_valid = bool(value)
-            self._update_title_status(value)
+            if self._show_title_hints:
+                self._update_title_status(value)
         else:
             is_valid = True
 
@@ -205,6 +228,21 @@ class EntryFormApp(App):
             rating = Entry.parse_rating(rating_str)
             date = Entry.parse_date(date_str)
             type = Entry.parse_type(media_type)
+            if not self._show_review_rating:
+                new_rev = None
+                new_rev_at = None
+            else:
+                review_str = self.query_one("#review_rating", Input).value.strip()
+                if not review_str or review_str == "-":
+                    new_rev = None
+                    new_rev_at = None
+                else:
+                    new_rev = Entry.parse_rating(review_str)
+                    new_rev_at = (
+                        self._initial_review_updated_at
+                        if new_rev == self._initial_review_rating
+                        else datetime.now(UTC)
+                    )
         except MalformedEntryException as e:
             self.notify(f" {e}", severity="error")
             return False
@@ -215,6 +253,8 @@ class EntryFormApp(App):
                 date=date,
                 type=type,
                 notes=notes,
+                review_rating=new_rev,
+                review_rating_updated_at=new_rev_at,
                 **self._other_entry_kwargs,
             )
             self.notify(f"Ok:\n{format_entry(self.entry)}.\n Ctrl+Q to exit.")

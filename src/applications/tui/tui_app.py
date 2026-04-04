@@ -1,6 +1,7 @@
 import json
 import random
 import re
+from datetime import UTC, datetime
 from functools import cached_property, partial
 from itertools import batched, starmap
 from pathlib import Path
@@ -15,6 +16,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.table import Table
 
 from src.applications.tui.apps.base import BaseApp
 from src.applications.tui.apps.image import ImagesApp
@@ -22,6 +24,7 @@ from src.applications.tui.apps.sqlapp import SqlApp
 from src.exceptions import EntryNotFoundException, MalformedEntryException
 from src.models.entry import Entry, EntryType
 from src.obj.ai import ChatBot
+from src.obj.entry_group import EntryGroup
 from src.obj.omdb_response import get_by_title
 from src.obj.textual_apps import ChatBotApp, EntryFormApp
 from src.obj.verbosity import is_verbose
@@ -237,6 +240,10 @@ class TUIApp(BaseApp):
             notes=entry.notes + " " + " ".join(f"#{t}" for t in entry.tags),
             button_text="Modify",
             image_ids=entry.image_ids,
+            show_review_rating=True,
+            show_title_hints=False,
+            review_rating=entry.review_rating,
+            review_rating_updated_at=entry.review_rating_updated_at,
         )
         entry_app.run()
         if entry_app.entry is not None:
@@ -249,6 +256,112 @@ class TUIApp(BaseApp):
             was_fmt = format_entry(entry)
             now_fmt = format_entry(entry_app.entry)
             self.cns.print(f"[green]󰚰 Updated[/]\n - was: {was_fmt}\n - now: {now_fmt}")
+
+    def cmd_review(
+        self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags
+    ) -> None:
+        """review [--n <n>] [--stats]
+        Last-watched row per title (no review yet; last watch > ~90 days ago).
+        With --n N: up to N random tasks, then return.
+        Without --n: prompt until none left, q to quit.
+        With --stats: print review coverage numbers."""
+
+        if "stats" in flags:
+            rs = self._entry_svc.get_review_stats()
+            avg = (
+                format_rating(rs.avg_review_rating)
+                if rs.avg_review_rating is not None
+                else "—"
+            )
+
+            t = Table(show_header=False, box=None, padding=(0, 1))
+            t.add_column("label")
+            t.add_column("value", justify="right")
+            t.add_column("extra", style="dim")
+
+            too_recent = (
+                rs.total_groups - rs.groups_with_review - rs.groups_pending_eligible
+            )
+
+            t.add_row("Titles", str(rs.total_groups), "")
+            t.add_row(
+                "  Reviewed",
+                str(rs.groups_with_review),
+                f"{rs.pct_reviewed:.0f}%",
+            )
+            t.add_row("", "", "")
+            t.add_row(
+                "Pending review",
+                str(rs.groups_pending_eligible),
+                "≥90d, no rating",
+            )
+            t.add_row("Too recent", str(too_recent), "<90d")
+            t.add_row("Avg rating", avg, "")
+
+            self.cns.print(
+                Panel(
+                    t,
+                    title="[bold]Review Coverage[/]",
+                    border_style="dim",
+                    expand=False,
+                )
+            )
+            return
+
+        def _describe(eg: EntryGroup, ent: Entry, idx: int) -> None:
+            wl = ent.date.strftime("%d.%m.%Y") if ent.date else ""
+            self.cns.print(
+                f"[bold]{eg.title}[/] ({eg.type.name.lower()})  {wl}  [#{idx}]"
+            )
+
+        def _prompt_rating(ent: Entry, *, allow_quit: bool) -> bool:
+            """Prompt for a rating; empty/invalid skips; q quits if allow_quit. Returns True to exit session."""
+            hint = "Rating (0–10, empty=skip"
+            if allow_quit:
+                hint += ", q=quit"
+            hint += ")"
+            raw = Prompt.ask(hint, default="").strip()
+            if allow_quit and raw.lower() == "q":
+                return True
+            if not raw:
+                return False
+            try:
+                r = Entry.parse_rating(raw)
+            except MalformedEntryException:
+                return False
+            ent.review_rating = r
+            ent.review_rating_updated_at = datetime.now(UTC)
+            self._entry_svc.update_entry(ent)
+            return False
+
+        candidates = self._entry_svc.get_review_candidates()
+        if not candidates:
+            self.warning("Nothing to review.")
+            return
+
+        n_kw = kwargs.get("n")
+        if n_kw is not None:
+            n = self.try_int(n_kw)
+            if n is None:
+                return
+            if n <= 0:
+                self.error("n must be positive.")
+                return
+            k = min(n, len(candidates))
+            batch = random.sample(candidates, k=k)
+            for eg, ent, idx in batch:
+                _describe(eg, ent, idx)
+                _prompt_rating(ent, allow_quit=False)
+            return
+
+        while True:
+            candidates = self._entry_svc.get_review_candidates()
+            if not candidates:
+                return
+            eg, ent, idx = random.choice(candidates)
+            _describe(eg, ent, idx)
+            if _prompt_rating(ent, allow_quit=True):
+                return
 
     def cmd_tag(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
         """tag [<tagname>] [<index or title>] [--delete]

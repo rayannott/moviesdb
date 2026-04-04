@@ -1,10 +1,17 @@
 import random
 from collections import defaultdict
 from dataclasses import dataclass
+from statistics import mean
 
 from src.exceptions import EntryNotFoundException
 from src.models.entry import Entry, build_tags
-from src.models.entry_group import EntryGroup, groups_from_list_of_entries
+from src.models.entry_group import (
+    EntryGroup,
+    groups_from_list_of_entries,
+    last_watched_entry,
+    partition_by_title_group,
+    review_eligible_groups,
+)
 from src.repos.entries import EntriesRepo
 from src.repos.watchlist_entries import WatchlistEntriesRepo
 from src.utils.utils import TAG_WATCH_AGAIN, possible_match, replace_tag_alias
@@ -21,6 +28,17 @@ class StatsResult:
     watchlist_count: int
     watchlist_movies_count: int
     watchlist_series_count: int
+
+
+@dataclass
+class ReviewStats:
+    """Retrospective review coverage per (title, type) group."""
+
+    total_groups: int
+    groups_with_review: int
+    pct_reviewed: float
+    groups_pending_eligible: int
+    avg_review_rating: float | None
 
 
 class EntryService:
@@ -83,6 +101,30 @@ class EntryService:
 
     def get_groups(self) -> list[EntryGroup]:
         return groups_from_list_of_entries(self.get_entries())
+
+    def get_review_candidates(self) -> list[tuple[EntryGroup, Entry, int]]:
+        """Eligible (title, type) groups for retrospective review (see `review_eligible_groups`)."""
+        return review_eligible_groups(self.get_entries())
+
+    def get_review_stats(self) -> ReviewStats:
+        """Aggregate review_rating on last-watched entries per group."""
+        entries = self.get_entries()
+        groups = partition_by_title_group(entries)
+        total = len(groups)
+        review_values: list[float] = []
+        for group_entries in groups:
+            last = last_watched_entry(group_entries)
+            if last.review_rating is not None:
+                review_values.append(last.review_rating)
+        reviewed = len(review_values)
+        pending = len(review_eligible_groups(entries))
+        return ReviewStats(
+            total_groups=total,
+            groups_with_review=reviewed,
+            pct_reviewed=(reviewed / total * 100.0) if total else 0.0,
+            groups_pending_eligible=pending,
+            avg_review_rating=mean(review_values) if review_values else None,
+        )
 
     def get_random_entries(self, n: int = 1, tag: str | None = None) -> list[Entry]:
         entries = self.get_entries()
