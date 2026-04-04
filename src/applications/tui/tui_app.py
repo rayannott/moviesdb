@@ -1,5 +1,6 @@
 import json
 import random
+from importlib.metadata import version as pkg_version
 import re
 from datetime import UTC, datetime
 from functools import cached_property, partial
@@ -1042,6 +1043,7 @@ class TUIApp(BaseApp):
     def pre_run(self) -> None:
         """Prepare the application to run."""
         super().pre_run()
+        self.cns.print(f"[dim]moviesdb v{pkg_version('moviesdb')}[/]")
         self.cmd_export([], {}, {"silent"})
 
     # Compatibility properties for ImagesApp and other sub-apps
