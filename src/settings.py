@@ -36,7 +36,7 @@ def needs_unlock() -> bool:
     if not CONFIG_ENV.exists() and not CONFIG_ENV_ENCRYPTED.exists():
         raise FileNotFoundError(
             f"Neither {CONFIG_ENV} nor {CONFIG_ENV_ENCRYPTED} found. "
-            "Run `uv run python scripts/encrypt_env.py` to create the encrypted file."
+            "Run `movies crypt encrypt` to create the encrypted file."
         )
     return not CONFIG_ENV.exists()
 
