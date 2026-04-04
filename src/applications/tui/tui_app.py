@@ -24,7 +24,7 @@ from src.applications.tui.apps.sqlapp import SqlApp
 from src.exceptions import EntryNotFoundException, MalformedEntryException
 from src.models.entry import Entry, EntryType
 from src.obj.ai import ChatBot
-from src.obj.entry_group import EntryGroup
+from src.models.entry_group import EntryGroup
 from src.obj.omdb_response import get_by_title
 from src.obj.textual_apps import ChatBotApp, EntryFormApp
 from src.obj.verbosity import is_verbose
