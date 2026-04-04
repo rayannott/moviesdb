@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import TypeVar
 
 from src.models.entry import Entry
-from src.obj.entry_group import EntryGroup
+from src.models.entry_group import EntryGroup
 
 ObjectT = TypeVar("ObjectT")
 

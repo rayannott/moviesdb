@@ -17,7 +17,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from src.models.entry import Entry, EntryType
-from src.obj.entry_group import EntryGroup
+from src.models.entry_group import EntryGroup
 from src.obj.verbosity import is_verbose
 from src.utils.utils import LOCAL_TZ, TAG_WATCH_AGAIN
 

@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 
-from src.obj.entry_group import EntryGroup
+from src.models.entry_group import EntryGroup
 from src.utils.rich_utils import comparison
 
 

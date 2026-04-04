@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from src.exceptions import EntryNotFoundException
 from src.models.entry import Entry, build_tags
-from src.obj.entry_group import EntryGroup, groups_from_list_of_entries
+from src.models.entry_group import EntryGroup, groups_from_list_of_entries
 from src.repos.entries import EntriesRepo
 from src.repos.watchlist_entries import WatchlistEntriesRepo
 from src.utils.utils import TAG_WATCH_AGAIN, possible_match, replace_tag_alias
