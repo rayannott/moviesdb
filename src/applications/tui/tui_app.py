@@ -50,6 +50,7 @@ from src.utils.rich_utils import (
     get_groups_table,
     get_pretty_progress,
     get_rich_table,
+    _entry_formatted_parts,
     rinput,
 )
 from src.utils.utils import (
@@ -309,11 +310,9 @@ class TUIApp(BaseApp):
             )
             return
 
-        def _describe(eg: EntryGroup, ent: Entry, idx: int) -> None:
-            wl = ent.date.strftime("%d.%m.%Y") if ent.date else ""
-            self.cns.print(
-                f"[bold]{eg.title}[/] ({eg.type.name.lower()})  {wl}  [#{idx}]"
-            )
+        def _describe(eg: EntryGroup, ent: Entry) -> None:
+            _title, _, _date, _tags, _ = _entry_formatted_parts(ent)
+            self.cns.print(f"{_title} {_date} {_tags}")
 
         def _prompt_rating(ent: Entry, *, allow_quit: bool) -> bool:
             """Prompt for a rating; empty/invalid skips; q quits if allow_quit. Returns True to exit session."""
@@ -350,8 +349,8 @@ class TUIApp(BaseApp):
                 return
             k = min(n, len(candidates))
             batch = random.sample(candidates, k=k)
-            for eg, ent, idx in batch:
-                _describe(eg, ent, idx)
+            for eg, ent in batch:
+                _describe(eg, ent)
                 _prompt_rating(ent, allow_quit=False)
             return
 
@@ -359,8 +358,8 @@ class TUIApp(BaseApp):
             candidates = self._entry_svc.get_review_candidates()
             if not candidates:
                 return
-            eg, ent, idx = random.choice(candidates)
-            _describe(eg, ent, idx)
+            eg, ent = random.choice(candidates)
+            _describe(eg, ent)
             if _prompt_rating(ent, allow_quit=True):
                 return
 
@@ -1040,14 +1039,19 @@ class TUIApp(BaseApp):
     def cmd_debug(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
         raise NotImplementedError("Debug command not implemented")
 
+    def _notify_pending_reviews(self) -> None:
+        candidates = self._entry_svc.get_review_candidates()
+        if not candidates:
+            return
+        self.cns.print(f"[blue]NOTE: you have [bold green]{len(candidates)}[/] pending reviews.[/]")
+
     def pre_run(self) -> None:
         """Prepare the application to run."""
         super().pre_run()
         self.cns.print(f"[dim]moviesdb v{pkg_version('moviesdb')}[/]")
         self.cmd_export([], {}, {"silent"})
+        self._notify_pending_reviews()
 
-    # Compatibility properties for ImagesApp and other sub-apps
-    # that reference self.app.entries / self.app.entry_by_idx_or_title
     def entry_by_idx(
         self, idx: int | str, *, suppress_errors: bool = False
     ) -> Entry | None:

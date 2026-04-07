@@ -101,13 +101,13 @@ def review_eligible_groups(
     entries: list[Entry],
     *,
     min_age_days: int = REVIEW_MIN_AGE_DAYS,
-) -> list[tuple[EntryGroup, Entry, int]]:
+) -> list[tuple[EntryGroup, Entry]]:
     """Groups whose last-watched entry has no review_rating and is old enough.
 
     Entries without a date are treated as infinitely old (always eligible).
     """
     cutoff = datetime.now(UTC) - timedelta(days=min_age_days)
-    out: list[tuple[EntryGroup, Entry, int]] = []
+    out: list[tuple[EntryGroup, Entry]] = []
     for group_entries in partition_by_title_group(entries):
         last = last_watched_entry(group_entries)
         if getattr(last, "review_rating", None) is not None:
@@ -115,6 +115,5 @@ def review_eligible_groups(
         if last.date is not None and _utc_for_cmp(last.date) >= cutoff:
             continue
         eg = EntryGroup.from_list_of_entries(list(group_entries))
-        idx = next(i for i, e in enumerate(entries) if e.id == last.id)
-        out.append((eg, last, idx))
+        out.append((eg, last))
     return out

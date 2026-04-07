@@ -102,7 +102,7 @@ class EntryService:
     def get_groups(self) -> list[EntryGroup]:
         return groups_from_list_of_entries(self.get_entries())
 
-    def get_review_candidates(self) -> list[tuple[EntryGroup, Entry, int]]:
+    def get_review_candidates(self) -> list[tuple[EntryGroup, Entry]]:
         """Eligible (title, type) groups for retrospective review (see `review_eligible_groups`)."""
         return review_eligible_groups(self.get_entries())
 
