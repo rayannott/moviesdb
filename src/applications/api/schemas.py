@@ -17,7 +17,6 @@ class EntryResponse(BaseModel):
     type: EntryType = EntryType.MOVIE
     notes: str = ""
     tags: list[str] = Field(default_factory=list)
-    image_ids: list[str] = Field(default_factory=list)
 
 
 class EntryCreateRequest(BaseModel):

@@ -1,11 +1,9 @@
-import json
 import random
 from importlib.metadata import version as pkg_version
 import re
 from datetime import UTC, datetime
-from functools import cached_property, partial
+from functools import partial
 from itertools import batched, starmap
-from pathlib import Path
 from statistics import mean, stdev
 from time import perf_counter as pc
 from typing import Any, Callable
@@ -20,7 +18,6 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from src.applications.tui.apps.base import BaseApp
-from src.applications.tui.apps.image import ImagesApp
 from src.applications.tui.apps.sqlapp import SqlApp
 from src.exceptions import EntryNotFoundException, MalformedEntryException
 from src.models.entry import Entry, EntryType
@@ -30,12 +27,10 @@ from src.obj.omdb_response import get_by_title
 from src.obj.textual_apps import ChatBotApp, EntryFormApp
 from src.obj.verbosity import is_verbose
 from src.parser import Flags, KeywordArgs, PositionalArgs
-from src.paths import LOCAL_DIR
 from src.services.chatbot_service import ChatbotService
 from src.services.entry_service import EntryService
 from src.services.export_service import ExportService
 from src.services.guest_service import GuestService
-from src.services.image_service import ImageService
 from src.services.watchlist_service import WatchlistService
 from src.setup_logging import setup_logging
 from src.utils.help_utils import get_rich_help
@@ -48,7 +43,6 @@ from src.utils.rich_utils import (
     format_title,
     get_entries_table,
     get_groups_table,
-    get_pretty_progress,
     get_rich_table,
     _entry_formatted_parts,
     rinput,
@@ -96,7 +90,6 @@ class TUIApp(BaseApp):
         chatbot_service: ChatbotService,
         guest_service: GuestService,
         export_service: ExportService,
-        image_service_factory: Callable[[], ImageService],
     ) -> None:
         self.running = True
         self.cns = Console()
@@ -109,7 +102,6 @@ class TUIApp(BaseApp):
         self._chatbot_svc = chatbot_service
         self._guest_svc = guest_service
         self._export_svc = export_service
-        self._image_svc_factory = image_service_factory
 
         self.chatbot = ChatBot(self.entries, self._chatbot_svc)
 
@@ -118,12 +110,6 @@ class TUIApp(BaseApp):
         )
 
         self.recently_popped: list[Entry] = []
-
-    @cached_property
-    def _image_svc(self) -> ImageService:
-        with self.cns.status("Connecting to S3..."):
-            img = self._image_svc_factory()
-            return img
 
     @property
     def entries(self) -> list[Entry]:
@@ -518,10 +504,9 @@ class TUIApp(BaseApp):
         )
 
     def cmd_list(self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags) -> None:
-        """list [--series | --movies] [--gallery] [--n <n>] [--all]
+        """list [--series | --movies] [--n <n>] [--all]
         List last n entries (default is 5).
         If --all is specified, show all matched entries.
-        If --gallery is specified, filter the entries that have attached images.
         If --series or --movies is specified, filter the entries by type."""
         if F_SERIES in flags and F_MOVIES in flags:
             self.error(f"Cannot specify both --{F_SERIES} and --{F_MOVIES} ")
@@ -535,8 +520,6 @@ class TUIApp(BaseApp):
             entries = [ent for ent in entries if ent.is_series]
         elif F_MOVIES in flags:
             entries = [ent for ent in entries if not ent.is_series]
-        if "gallery" in flags:
-            entries = [ent for ent in entries if ent.image_ids]
         _slice = slice(0, None, None) if F_ALL in flags else slice(-n, None, None)
         entries = entries[_slice]
         n = len(entries)
@@ -828,20 +811,6 @@ class TUIApp(BaseApp):
         entry = Entry(title=title, rating=rating, date=when, type=type, notes=notes)
         self._try_add_entry(entry)
 
-    def cmd_images(
-        self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags
-    ) -> None:
-        """images ...
-        Manage images in the database.
-        """
-        images_app = ImagesApp(
-            self._image_svc,
-            self.cns,
-            self.input,
-            process_command_fn=self.process_command,
-        )
-        images_app.run()
-
     def _try_add_entry(self, entry: Entry) -> None:
         self._process_watch_again_tag_on_add(entry)
         self._entry_svc.add_entry(entry)
@@ -923,11 +892,10 @@ class TUIApp(BaseApp):
     def cmd_export(
         self, pos: PositionalArgs, kwargs: KeywordArgs, flags: Flags
     ) -> None:
-        """export [--silent] [--full]
+        """export [--silent]
         Export entries (movies and series) and watch list to
         ./export-local/{db|watch_list}.json.
-        If --silent is specified, do not print any messages.
-        If --full is specified, also export: images."""
+        If --silent is specified, do not print any messages."""
 
         def _print(what: str) -> None:
             if "silent" not in flags:
@@ -938,51 +906,6 @@ class TUIApp(BaseApp):
         _print(
             f"Exported {result.entries_count} entries and "
             f"{result.watchlist_count} watchlist items. Total: {total_time:.2f}s."
-        )
-
-        if "full" not in flags:
-            return
-
-        # images
-        with self.cns.status("[bold cyan]󰈭 Exporting images..."):
-            image_manager = self._image_svc.create_manager()
-            images_bare = image_manager._get_s3_images_bare()
-
-        _local_exported_images = image_manager._get_exported_local_images()
-        new_images_set = set(images_bare) - set(_local_exported_images)
-
-        if not new_images_set:
-            _print("No new images to export.")
-            return
-
-        _ids_to_tags = image_manager.load_tags_pretty(self.cns)
-        imgs = image_manager.get_images(with_tags=_ids_to_tags)
-
-        images_subdir = LOCAL_DIR / "images"
-        images_subdir.mkdir(exist_ok=True)
-        img_meta_file = images_subdir / "meta.json"
-        with img_meta_file.open("w", encoding="utf-8") as f:
-            json.dump([img.to_dict() for img in imgs], f, indent=2)
-            n_imgs = len(imgs)
-            _print(
-                f"Exported the metadata of all {n_imgs} images to "
-                f"{img_meta_file.absolute()}."
-            )
-
-        with (images_progress := get_pretty_progress()):
-            task = images_progress.add_task(
-                f"Downloading {len(new_images_set)} images...",
-                total=len(new_images_set),
-            )
-            for img in new_images_set:
-                image_manager._download_image_to(
-                    img.s3_id, images_subdir / Path(img.s3_id).name
-                )
-                images_progress.update(task, advance=1)
-        images_dir_size = sum(f.stat().st_size for f in images_subdir.iterdir())
-        _print(
-            f"Exported {len(new_images_set)} images to {images_subdir.absolute()}; "
-            f"current total directory size: {images_dir_size * 2**-20:.3f} MB."
         )
 
     def cmd_guest(

@@ -8,7 +8,6 @@ from botsrc.commands import (
     find,
     group,
     guest,
-    image,
     list_,
     pop,
     suggest,
@@ -157,19 +156,3 @@ def cmd_group(
     """group [<title>]
     List entries grouped by title."""
     group(message, bot, pos)
-
-
-def cmd_image(
-    pos: PositionalArgs,
-    kwargs: KeywordArgs,
-    flags: Flags,
-    bot: telebot.TeleBot,
-    message: types.Message,
-):
-    """image ...
-    Manage images; 'image --help' for more.
-    Commands:
-        list <filter> [--show]: List images by filter; show if --show is specified
-        entry <entry_oid>: Show images for a specific entry
-    """
-    image(message, bot, pos, flags, kwargs)

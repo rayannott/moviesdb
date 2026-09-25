@@ -31,7 +31,6 @@ def _to_response(entry: Entry, *, include_private: bool = True) -> EntryResponse
         type=entry.type,
         notes=entry.notes if include_private else "",
         tags=sorted(entry.tags),
-        image_ids=sorted(entry.image_ids) if include_private else [],
     )
 
 

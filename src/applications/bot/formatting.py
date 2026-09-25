@@ -16,15 +16,12 @@ def format_title(title: str, is_series: bool) -> str:
 def format_entry(entry: Entry, verbose: bool = False, with_oid: bool = False) -> str:
     note_str = f": {entry.notes}" if entry.notes and verbose else ""
     watched_date_str = f" ({entry.date.strftime('%d.%m.%Y')})" if entry.date else ""
-    _num_images_str = (
-        " {" + f"{len(entry.image_ids)} img" + "}" if entry.image_ids else ""
-    )
     tags_str = f" [{' '.join(entry.tags)}]" if entry.tags else ""
     oid_part = "{" + entry.id[-4:] + "} " if with_oid and entry.id else ""
     title_fmt = format_title(entry.title, entry.is_series)
     return (
         f"{oid_part}[{entry.rating:.2f}] {title_fmt}"
-        f"{watched_date_str}{_num_images_str}{note_str}{tags_str}"
+        f"{watched_date_str}{note_str}{tags_str}"
     )
 
 
