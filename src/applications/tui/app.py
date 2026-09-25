@@ -21,7 +21,6 @@ def create_app(container: Container) -> "TUIApp":
             chatbot_service=container.chatbot_service(),
             guest_service=container.guest_service(),
             export_service=container.export_service(),
-            image_service_factory=container.image_service,
         )
 
     return app

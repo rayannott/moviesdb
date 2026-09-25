@@ -15,7 +15,6 @@ def main() -> None:
         entry_service=container.entry_service(),
         watchlist_service=container.watchlist_service(),
         guest_service=container.guest_service(),
-        image_service=container.image_service(),
     )
     bot_app.run()
 

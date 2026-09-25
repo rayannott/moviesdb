@@ -20,7 +20,6 @@ It can
 - chat with the database via an openai model;
 - request relevant information from the OMDB online database;
 - run a telegram bot that (almost) mirrors the functionality of the terminal app;
-- store images and attach them to entries;
 - and much more!
 
 ## Who is it for?

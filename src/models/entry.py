@@ -162,20 +162,6 @@ class Entry(EntryBaseModel):
     def get_per_season(self) -> list[float | None]:
         return parse_per_season_ratings(self.notes)
 
-    def attach_image(self, s3_id: str) -> bool:
-        """Attach an image; returns False if already attached."""
-        if s3_id in self.image_ids:
-            return False
-        self.image_ids.add(s3_id)
-        return True
-
-    def detach_image(self, s3_id: str) -> bool:
-        """Detach an image; returns False if not attached."""
-        if s3_id not in self.image_ids:
-            return False
-        self.image_ids.remove(s3_id)
-        return True
-
     @staticmethod
     def parse_rating(rating_str: str) -> float:
         try:

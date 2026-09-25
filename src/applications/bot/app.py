@@ -10,7 +10,6 @@ from src.applications.bot.commands import BotCommands
 from src.parser import Flags, KeywordArgs, ParsingError, PositionalArgs, parse
 from src.services.entry_service import EntryService
 from src.services.guest_service import GuestService
-from src.services.image_service import ImageService
 from src.services.watchlist_service import WatchlistService
 from src.utils.help_utils import parse_docstring
 
@@ -55,17 +54,14 @@ class BotApp:
         entry_service: EntryService,
         watchlist_service: WatchlistService,
         guest_service: GuestService,
-        image_service: ImageService,
     ) -> None:
         self.bot = TeleBot(token)
         self._guest_svc = guest_service
-        self._image_svc = image_service
 
         self._commands = BotCommands(
             entry_service=entry_service,
             watchlist_service=watchlist_service,
             guest_service=guest_service,
-            image_service=image_service,
         )
 
         self._command_map: dict[
@@ -148,13 +144,6 @@ class BotApp:
             self.bot.send_message(message.chat.id, "Shutting down.")
             logger.info("Stopping bot via /stop")
             self.bot.stop_bot()
-
-        @self.bot.message_handler(content_types=["photo"])
-        @self._pre_process
-        def handle_photo(message: types.Message, extra_flags: set[str]) -> None:
-            from botsrc.commands._upload import upload_photo
-
-            upload_photo(message, self.bot, self._image_svc)
 
         @self.bot.message_handler(func=lambda msg: True)
         @self._pre_process

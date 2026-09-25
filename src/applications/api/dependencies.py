@@ -5,7 +5,6 @@ from functools import lru_cache
 from fastapi import Request
 
 from src.services.entry_service import EntryService
-from src.services.image_service import ImageService
 from src.services.watchlist_service import WatchlistService
 from src.settings import Settings
 
@@ -22,6 +21,3 @@ def get_entry_service(request: Request) -> EntryService:
 def get_watchlist_service(request: Request) -> WatchlistService:
     return request.app.state.watchlist_service
 
-
-def get_image_service(request: Request) -> ImageService:
-    return request.app.state.image_service

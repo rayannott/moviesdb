@@ -21,7 +21,6 @@ from src.models.entry import Entry, EntryType
 from src.parser import Flags, KeywordArgs, PositionalArgs
 from src.services.entry_service import EntryService
 from src.services.guest_service import GuestService
-from src.services.image_service import ImageService
 from src.services.watchlist_service import WatchlistService
 from src.utils.utils import replace_tag_alias
 
@@ -59,12 +58,10 @@ class BotCommands:
         entry_service: EntryService,
         watchlist_service: WatchlistService,
         guest_service: GuestService,
-        image_service: ImageService,
     ) -> None:
         self._entry_svc = entry_service
         self._watchlist_svc = watchlist_service
         self._guest_svc = guest_service
-        self._image_svc = image_service
 
     def cmd_list(
         self,
@@ -589,20 +586,3 @@ class BotCommands:
         bot.send_message(message.chat.id, "Thank you for your suggestion!")
         logger.debug(sugg_text)
 
-    def cmd_image(
-        self,
-        pos: PositionalArgs,
-        kwargs: KeywordArgs,
-        flags: Flags,
-        bot: telebot.TeleBot,
-        message: types.Message,
-    ) -> None:
-        """image ...
-        Manage images; 'image --help' for more.
-        Commands:
-            list <filter> [--show]: List images by filter; show if --show is specified
-            entry <entry_oid>: Show images for a specific entry
-        """
-        from botsrc.commands._image import image
-
-        image(message, bot, pos, flags, kwargs, image_service=self._image_svc)

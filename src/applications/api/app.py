@@ -28,7 +28,6 @@ def create_app(container: Container) -> FastAPI:
     app.state.auth_users = load_users(settings.api_users_file)
     app.state.entry_service = container.entry_service()
     app.state.watchlist_service = container.watchlist_service()
-    app.state.image_service = container.image_service()
 
     @app.exception_handler(EntryNotFoundException)
     async def not_found_handler(

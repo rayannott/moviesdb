@@ -22,14 +22,6 @@ from src.obj.verbosity import is_verbose
 from src.utils.utils import LOCAL_TZ, TAG_WATCH_AGAIN
 
 
-def format_image_prefix(num_images: int) -> str:
-    if num_images == 0:
-        return ""
-    if num_images == 1:
-        return "[green][/]  "
-    return f"[green] {num_images}[/] "
-
-
 def get_rich_table(
     rows: list[list[str]],
     headers: list[str],
@@ -139,9 +131,7 @@ def _entry_formatted_parts(entry: Entry) -> tuple[str, str, str, str, str]:
             return f"yesterday{time_pretty}"
         return entry.date.strftime("%d %b %Y") + time_pretty
 
-    _title = format_image_prefix(len(entry.image_ids)) + format_title(
-        entry.title, entry.type
-    )
+    _title = format_title(entry.title, entry.type)
     _rating = format_rating(entry.rating) + (
         f" ({format_rating(entry.review_rating)})" if entry.review_rating else ""
     )
